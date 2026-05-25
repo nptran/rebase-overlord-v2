@@ -184,11 +184,21 @@ app.get('/api/git-status', async (req, res) => {
       const conflictRes = await runCmd('git diff --name-only --diff-filter=U', activeRepoPath);
       const cFiles = conflictRes.stdout.split('\n').map(f => f.trim()).filter(f => f.length > 0);
       cFiles.forEach(filepath => {
+        let contentBefore = '';
+        try {
+          const fullPath = path.resolve(activeRepoPath, filepath);
+          if (fs.existsSync(fullPath)) {
+            contentBefore = fs.readFileSync(fullPath, 'utf-8');
+          }
+        } catch (e: any) {
+          console.error(`Failed to read conflicted file on disk: ${filepath}`, e);
+          contentBefore = '<<<<<<< HEAD\n// Code changes on local commit\n=======\n// Code changes on incoming base base\n>>>>>>> incoming';
+        }
         conflictedFiles.push({
           filepath,
           status: 'conflicted',
           conflictsCount: 1,
-          contentBefore: '<<<<<<< HEAD\n// Code changes on local commit\n=======\n// Code changes on incoming base base\n>>>>>>> incoming',
+          contentBefore,
           contentAfter: '',
           isResolved: false
         });

@@ -143,94 +143,97 @@ interface ConflictSolverProps {
   onCompleteRecovery: () => void;
 }
 
-// Conflict blocks parser
-const parseConflictDetails = (file: ConflictFile) => {
-  if (file.filepath.includes('payment.ts') || !file.contentBefore.includes('<<<<<<<')) {
-    // Elegant realistic code for payment webhook conflict
-    const commonBefore = [
-      'const express = require("express");',
-      'const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);'
-    ].join('\n');
+interface CodeBlock {
+  type: 'normal' | 'conflict';
+  commonText?: string;
+  oursText?: string;
+  theirsText?: string;
+}
 
-    const oursCode = [
-      '// Alex Nguyen: Add stripe secure charge webhook',
-      'app.post("/api/v2/charge", async (req, res) => {',
-      '  const { amount, currency } = req.body;',
-      '  const paymentIntent = await stripe.paymentIntents.create({',
-      '    amount,',
-      '    currency,',
-      '    metadata: { integration: "rebase-overlord-secured" }',
-      '  });',
-      '  res.json({ clientSecret: paymentIntent.client_secret });',
-      '});'
-    ].join('\n');
+// Dynamic parser to extract conflict blocks from text
+const parseConflictFile = (content: string): CodeBlock[] => {
+  if (!content) return [];
+  const lines = content.split('\n');
+  const blocks: CodeBlock[] = [];
+  let currentNormalLines: string[] = [];
+  let isInsideOurs = false;
+  let isInsideTheirs = false;
+  let currentOursLines: string[] = [];
+  let currentTheirsLines: string[] = [];
 
-    const theirsCode = [
-      '// Sarah Connor: Bump rate-limits and add telemetry handlers',
-      'app.post("/api/v2/charge", async (req, res) => {',
-      '  const { amount, currency, telemetryId } = req.body;',
-      '  logger.info(`Intake transaction telemetry: ${telemetryId}`);',
-      '  const charge = await stripe.charges.create({',
-      '    amount,',
-      '    currency,',
-      '    description: "Legacy charges backup pipeline"',
-      '  });',
-      '  res.json({ success: true, charge });',
-      '});'
-    ].join('\n');
-
-    const commonAfter = '';
-
-    const originalText = [
-      commonBefore,
-      '',
-      '<<<<<<< Local changes (Ours)',
-      oursCode,
-      '=======',
-      theirsCode,
-      '>>>>>>> Incoming develop changes (Theirs)',
-      commonAfter
-    ].join('\n').trim();
-
-    return {
-      commonBefore,
-      ours: oursCode,
-      theirs: theirsCode,
-      commonAfter,
-      originalText
-    };
-  }
-
-  // Fallback dynamic string parsed from standard conflict markers
-  const lines = file.contentBefore.split('\n');
-  const oursLines: string[] = [];
-  const theirsLines: string[] = [];
-  const beforeLines: string[] = [];
-  const afterLines: string[] = [];
-  let currentSec: 'before' | 'ours' | 'theirs' | 'after' = 'before';
-
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     if (line.startsWith('<<<<<<<')) {
-      currentSec = 'ours';
+      if (currentNormalLines.length > 0) {
+        blocks.push({ type: 'normal', commonText: currentNormalLines.join('\n') });
+        currentNormalLines = [];
+      }
+      isInsideOurs = true;
     } else if (line.startsWith('=======')) {
-      currentSec = 'theirs';
+      isInsideOurs = false;
+      isInsideTheirs = true;
     } else if (line.startsWith('>>>>>>>')) {
-      currentSec = 'after';
+      isInsideTheirs = false;
+      blocks.push({
+        type: 'conflict',
+        oursText: currentOursLines.join('\n'),
+        theirsText: currentTheirsLines.join('\n')
+      });
+      currentOursLines = [];
+      currentTheirsLines = [];
     } else {
-      if (currentSec === 'before') beforeLines.push(line);
-      else if (currentSec === 'ours') oursLines.push(line);
-      else if (currentSec === 'theirs') theirsLines.push(line);
-      else if (currentSec === 'after') afterLines.push(line);
+      if (isInsideOurs) {
+        currentOursLines.push(line);
+      } else if (isInsideTheirs) {
+        currentTheirsLines.push(line);
+      } else {
+        currentNormalLines.push(line);
+      }
     }
   }
 
-  return {
-    commonBefore: beforeLines.join('\n'),
-    ours: oursLines.join('\n'),
-    theirs: theirsLines.join('\n'),
-    commonAfter: afterLines.join('\n'),
-    originalText: file.contentBefore
-  };
+  if (currentNormalLines.length > 0) {
+    blocks.push({ type: 'normal', commonText: currentNormalLines.join('\n') });
+  }
+
+  return blocks;
+};
+
+// Return either the file conflict content or initial fallback for simulated payment.ts file
+const getContentWithConflictMarkers = (file: ConflictFile) => {
+  if (file.contentBefore && file.contentBefore.includes('<<<<<<<')) {
+    return file.contentBefore;
+  }
+  
+  return [
+    'const express = require("express");',
+    'const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);',
+    '',
+    '<<<<<<< HEAD',
+    '// Alex Nguyen: Add stripe secure charge webhook',
+    'app.post("/api/v2/charge", async (req, res) => {',
+    '  const { amount, currency } = req.body;',
+    '  const paymentIntent = await stripe.paymentIntents.create({',
+    '    amount,',
+    '    currency,',
+    '    metadata: { integration: "rebase-overlord-secured" }',
+    '  });',
+    '  res.json({ clientSecret: paymentIntent.client_secret });',
+    '});',
+    '=======',
+    '// Sarah Connor: Bump rate-limits and add telemetry handlers',
+    'app.post("/api/v2/charge", async (req, res) => {',
+    '  const { amount, currency, telemetryId } = req.body;',
+    '  logger.info(`Intake transaction telemetry: ${telemetryId}`);',
+    '  const charge = await stripe.charges.create({',
+    '    amount,',
+    '    currency,',
+    '    description: "Legacy charges backup pipeline"',
+    '  });',
+    '  res.json({ success: true, charge });',
+    '});',
+    '>>>>>>> incoming'
+  ].join('\n');
 };
 
 export default function ConflictSolver({
@@ -241,10 +244,12 @@ export default function ConflictSolver({
 }: ConflictSolverProps) {
   const [selectedFile, setSelectedFile] = React.useState<ConflictFile | null>(conflicts[0] || null);
   const [editorText, setEditorText] = React.useState('');
-  const [activeDetails, setActiveDetails] = React.useState<ReturnType<typeof parseConflictDetails> | null>(null);
-  const [isMinimized, setIsMinimized ] = React.useState(false);
+  const [isMinimized, setIsMinimized] = React.useState(false);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
+  
+  // Track resolved status per block index
+  const [resolvedBlocks, setResolvedBlocks] = React.useState<Record<number, 'ours' | 'theirs' | 'both' | 'ignore'>>({});
 
   React.useEffect(() => {
     if (conflicts.length > 0 && (!selectedFile || !conflicts.some(c => c.filepath === selectedFile.filepath))) {
@@ -252,72 +257,119 @@ export default function ConflictSolver({
     }
   }, [conflicts, selectedFile]);
 
-  React.useEffect(() => {
-    if (selectedFile) {
-      const details = parseConflictDetails(selectedFile);
-      setActiveDetails(details);
-      
-      // If file is already resolved, use its resolvedContent
-      if (selectedFile.isResolved && selectedFile.resolvedContent) {
-        setEditorText(selectedFile.resolvedContent);
-      } else {
-        // Start center with conflict representation
-        setEditorText(details.originalText);
-      }
-    } else {
-      setActiveDetails(null);
-      setEditorText('');
-    }
+  // Read current active file content and initialize UI
+  const activeContent = React.useMemo(() => {
+    if (!selectedFile) return '';
+    return getContentWithConflictMarkers(selectedFile);
   }, [selectedFile]);
 
-  // Action methods to merge side values directly into center editor
+  const blocks = React.useMemo(() => {
+    return parseConflictFile(activeContent);
+  }, [activeContent]);
+
+  React.useEffect(() => {
+    if (selectedFile) {
+      if (selectedFile.isResolved && selectedFile.resolvedContent) {
+        setEditorText(selectedFile.resolvedContent);
+        // mark all block indexes as resolved
+        const initialResolved: Record<number, 'ours' | 'theirs' | 'both' | 'ignore'> = {};
+        blocks.forEach((b, i) => {
+          if (b.type === 'conflict') {
+            initialResolved[i] = 'ours';
+          }
+        });
+        setResolvedBlocks(initialResolved);
+      } else {
+        setEditorText(activeContent);
+        setResolvedBlocks({});
+      }
+    } else {
+      setEditorText('');
+      setResolvedBlocks({});
+    }
+  }, [selectedFile, activeContent, blocks]);
+
+  const handleResolveBlock = (blockIdx: number, choice: 'ours' | 'theirs' | 'both' | 'ignore') => {
+    const updatedChoices = { ...resolvedBlocks, [blockIdx]: choice };
+    setResolvedBlocks(updatedChoices);
+
+    const merged = blocks.map((block, idx) => {
+      if (block.type === 'normal') {
+        return block.commonText;
+      } else {
+        const bChoice = updatedChoices[idx];
+        if (bChoice === 'ours') {
+          return block.oursText;
+        } else if (bChoice === 'theirs') {
+          return block.theirsText;
+        } else if (bChoice === 'both') {
+          return `${block.oursText}\n${block.theirsText}`;
+        } else if (bChoice === 'ignore') {
+          return '';
+        } else {
+          return `<<<<<<< HEAD\n${block.oursText}\n=======\n${block.theirsText}\n>>>>>>> incoming`;
+        }
+      }
+    }).join('\n');
+    
+    setEditorText(merged);
+  };
+
   const handleApplyLeft = () => {
-    if (!activeDetails) return;
-    const merged = [
-      activeDetails.commonBefore,
-      '',
-      activeDetails.ours,
-      activeDetails.commonAfter
-    ].join('\n').trim();
+    const updated: Record<number, 'ours' | 'theirs' | 'both' | 'ignore'> = {};
+    blocks.forEach((block, idx) => {
+      if (block.type === 'conflict') {
+        updated[idx] = 'ours';
+      }
+    });
+    setResolvedBlocks(updated);
+    const merged = blocks.map((block, idx) => {
+      if (block.type === 'normal') return block.commonText;
+      return block.oursText;
+    }).join('\n');
     setEditorText(merged);
   };
 
   const handleApplyRight = () => {
-    if (!activeDetails) return;
-    const merged = [
-      activeDetails.commonBefore,
-      '',
-      activeDetails.theirs,
-      activeDetails.commonAfter
-    ].join('\n').trim();
+    const updated: Record<number, 'ours' | 'theirs' | 'both' | 'ignore'> = {};
+    blocks.forEach((block, idx) => {
+      if (block.type === 'conflict') {
+        updated[idx] = 'theirs';
+      }
+    });
+    setResolvedBlocks(updated);
+    const merged = blocks.map((block, idx) => {
+      if (block.type === 'normal') return block.commonText;
+      return block.theirsText;
+    }).join('\n');
     setEditorText(merged);
   };
 
   const handleApplyBoth = () => {
-    if (!activeDetails) return;
-    const merged = [
-      activeDetails.commonBefore,
-      '',
-      activeDetails.theirs,
-      '',
-      activeDetails.ours,
-      activeDetails.commonAfter
-    ].join('\n').trim();
+    const updated: Record<number, 'ours' | 'theirs' | 'both' | 'ignore'> = {};
+    blocks.forEach((block, idx) => {
+      if (block.type === 'conflict') {
+        updated[idx] = 'both';
+      }
+    });
+    setResolvedBlocks(updated);
+    const merged = blocks.map((block, idx) => {
+      if (block.type === 'normal') return block.commonText;
+      return `${block.oursText}\n${block.theirsText}`;
+    }).join('\n');
     setEditorText(merged);
   };
 
   const handleResetMerge = () => {
-    if (!activeDetails) return;
-    setEditorText(activeDetails.originalText);
+    setResolvedBlocks({});
+    setEditorText(activeContent);
   };
 
   const handleResolveSubmit = () => {
     if (!selectedFile) return;
-    
-    // Save final merged code
     onResolveFile(selectedFile.filepath, editorText);
 
-    // Calculate how many unresolved conflicts remain (excluding the one we just resolved)
+    // Auto select next unresolved file
     const remainingUnresolved = conflicts.filter(
       c => c.filepath !== selectedFile.filepath && !c.isResolved
     );
@@ -325,7 +377,6 @@ export default function ConflictSolver({
     if (remainingUnresolved.length > 0) {
       setSelectedFile(remainingUnresolved[0]);
     } else {
-      // No more unresolved files left! Automatically continue the rebase flow.
       onCompleteRecovery();
     }
   };
@@ -333,65 +384,177 @@ export default function ConflictSolver({
   const allResolved = conflicts.length > 0 && conflicts.every(c => c.isResolved);
   const loc = localization[tone] || localization[TranslationTone.PROFESSIONAL];
 
-  // Helper to count conflict marker blocks remaining in the editor
   const countOccurrences = (str: string, substr: string) => {
     return str.split(substr).length - 1;
   };
   const totalMarkerBlocks = countOccurrences(editorText, '<<<<<<<');
-
-  // Calculated display lines
-  const parsedOursLines = activeDetails ? `${activeDetails.commonBefore}\n\n${activeDetails.ours}`.split('\n') : [];
-  const parsedTheirsLines = activeDetails ? `${activeDetails.commonBefore}\n\n${activeDetails.theirs}`.split('\n') : [];
-  const parsedCenterLines = editorText.split('\n');
-
-  // JetBrains 3-Way synchronized Diff representation
-  const isPaymentFile = selectedFile?.filepath.includes('payment.ts');
-
-  // Define synchronized lines to layout side-by-side with identical rows
-  const alignedOurs = [
-    { text: 'const express = require("express");', type: 'normal' as const, el: <span>const express = require("express");</span> },
-    { text: 'const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);', type: 'normal' as const, el: <span>const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);</span> },
-    { text: '', type: 'normal' as const, el: <span>&nbsp;</span> },
-    { text: '// Alex Nguyen: Add stripe secure charge webhook', type: 'addition' as const, el: <span className="text-emerald-400 font-medium">// Alex Nguyen: Add stripe secure charge webhook</span> },
-    { text: 'app.post("/api/v2/charge", async (req, res) => {', type: 'modification' as const, el: <span>app.post(<span className="bg-blue-500/15 text-blue-300 font-bold px-0.5 rounded">"/api/v2/charge"</span>, async (req, res) =&gt; {"{"}</span> },
-    { text: '  const { amount, currency } = req.body;', type: 'modification' as const, el: <span>&nbsp;&nbsp;const {"{"} <span className="bg-blue-500/20 px-1 border-b border-blue-400/50 rounded text-blue-200">amount, currency</span> {"}"} = req.body;</span> },
-    { text: '', type: 'spacer' as const, el: null },
-    { text: '  const paymentIntent = await stripe.paymentIntents.create({', type: 'modification' as const, el: <span>&nbsp;&nbsp;const <span className="bg-blue-500/20 px-1 border-b border-blue-400/50 rounded text-blue-200">paymentIntent</span> = await stripe.<span className="bg-purple-500/20 px-1 border-b border-purple-400/50 rounded text-purple-200">paymentIntents</span>.create({"{"}</span> },
-    { text: '    amount,', type: 'normal' as const, el: <span>&nbsp;&nbsp;&nbsp;&nbsp;amount,</span> },
-    { text: '    currency,', type: 'normal' as const, el: <span>&nbsp;&nbsp;&nbsp;&nbsp;currency,</span> },
-    { text: '    metadata: { integration: "rebase-overlord-secured" }', type: 'addition' as const, el: <span>&nbsp;&nbsp;&nbsp;&nbsp;metadata: {"{"} <span className="bg-emerald-500/20 px-1 border-b border-emerald-400/50 rounded text-emerald-300">integration: "rebase-overlord-secured"</span> {"}"}</span> },
-    { text: '', type: 'spacer' as const, el: null },
-    { text: '  });', type: 'normal' as const, el: <span>&nbsp;&nbsp;{"}"});</span> },
-    { text: '  res.json({ clientSecret: paymentIntent.client_secret });', type: 'modification' as const, el: <span>&nbsp;&nbsp;res.json({"{"} <span className="bg-blue-500/20 px-1 border-b border-blue-400/50 rounded text-blue-200">clientSecret: paymentIntent.client_secret</span> {"}"});</span> },
-    { text: '});', type: 'normal' as const, el: <span>{"}"});</span> }
-  ];
-
-  const alignedTheirs = [
-    { text: 'const express = require("express");', type: 'normal' as const, el: <span>const express = require("express");</span> },
-    { text: 'const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);', type: 'normal' as const, el: <span>const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);</span> },
-    { text: '', type: 'normal' as const, el: <span>&nbsp;</span> },
-    { text: '', type: 'spacer' as const, el: null },
-    { text: 'app.post("/api/v2/charge", async (req, res) => {', type: 'modification' as const, el: <span>app.post(<span className="bg-blue-500/15 text-blue-300 font-bold px-0.5 rounded">"/api/v2/charge"</span>, async (req, res) =&gt; {"{"}</span> },
-    { text: '  const { amount, currency, telemetryId } = req.body;', type: 'modification' as const, el: <span>&nbsp;&nbsp;const {"{"} amount, currency<span className="bg-emerald-500/30 text-emerald-300 font-bold border border-emerald-500/45 px-1 py-0.5 rounded ml-1">, telemetryId</span> {"}"} = req.body;</span> },
-    { text: '  logger.info(`Intake transaction telemetry: ${telemetryId}`);', type: 'addition' as const, el: <span className="text-emerald-400">&nbsp;&nbsp;<span className="bg-emerald-500/15 text-emerald-300 border-b border-emerald-500/30 px-1 rounded">logger.info(`Intake transaction telemetry: {"$"}{"{"}telemetryId{"}"}`);</span></span> },
-    { text: '  const charge = await stripe.charges.create({', type: 'modification' as const, el: <span>&nbsp;&nbsp;const <span className="bg-amber-500/10 border-b border-amber-450/40 px-1 rounded text-amber-205">charge</span> = await stripe.<span className="bg-amber-500/10 border-b border-amber-450/40 px-1 rounded text-amber-205">charges</span>.create({"{"}</span> },
-    { text: '    amount,', type: 'normal' as const, el: <span>&nbsp;&nbsp;&nbsp;&nbsp;amount,</span> },
-    { text: '    currency,', type: 'normal' as const, el: <span>&nbsp;&nbsp;&nbsp;&nbsp;currency,</span> },
-    { text: '', type: 'spacer' as const, el: null },
-    { text: '    description: "Legacy charges backup pipeline"', type: 'addition' as const, el: <span className="text-emerald-400">&nbsp;&nbsp;&nbsp;&nbsp;<span className="bg-emerald-500/15 text-emerald-300 border-b border-emerald-500/30 px-1 rounded">description: "Legacy charges backup pipeline"</span></span> },
-    { text: '  });', type: 'normal' as const, el: <span>&nbsp;&nbsp;{"}"});</span> },
-    { text: '  res.json({ success: true, charge });', type: 'modification' as const, el: <span>&nbsp;&nbsp;res.json({"{"} <span className="bg-[#3b301a] border-b border-amber-500/40 px-0.5 rounded text-amber-250">success: true, charge</span> {"}"});</span> },
-    { text: '});', type: 'normal' as const, el: <span>{"}"});</span> }
-  ];
-
-  // Verify if Git conflict markers still reside inside the merged text
   const isCurrentlyDirty = editorText.includes('<<<<<<<') || editorText.includes('=======') || editorText.includes('>>>>>>>');
 
-  // Rendering for Minimized state - highly polished visual placeholder card and fixed floating widget
+  // Render Left Code column
+  const renderLeftPane = () => {
+    let lineNum = 1;
+    return (
+      <div className="font-mono text-[11px] leading-5 text-slate-300">
+        {blocks.map((block, bIdx) => {
+          if (block.type === 'normal') {
+            const lines = block.commonText ? block.commonText.split('\n') : [''];
+            return lines.map((line, lIdx) => {
+              const currNum = lineNum++;
+              return (
+                <div key={`n-L-${bIdx}-${lIdx}`} className="flex hover:bg-[#202124]/40 min-h-[20px] items-center">
+                  <div className="w-9 text-right pr-2 text-slate-600 select-none border-r border-[#2d2f3c]/60 bg-[#16171a] font-mono text-[10px]">
+                    {currNum}
+                  </div>
+                  <div className="pl-3 truncate select-text whitespace-pre text-slate-400">
+                    {line}
+                  </div>
+                </div>
+              );
+            });
+          } else {
+            const oursLines = block.oursText ? block.oursText.split('\n') : [''];
+            const theirsLines = block.theirsText ? block.theirsText.split('\n') : [''];
+            const maxLines = Math.max(oursLines.length, theirsLines.length);
+            const isResolved = resolvedBlocks[bIdx] !== undefined;
+
+            return Array.from({ length: maxLines }).map((_, lIdx) => {
+              const line = oursLines[lIdx];
+              const hasLine = lIdx < oursLines.length;
+              const currNum = hasLine ? lineNum++ : '';
+              
+              return (
+                <div 
+                  key={`c-L-${bIdx}-${lIdx}`} 
+                  className={`flex relative min-h-[20px] items-center ${
+                    isResolved 
+                      ? 'bg-emerald-950/15 text-emerald-400/80 border-l-2 border-emerald-500/50' 
+                      : 'bg-rose-950/20 text-[#f28b82] border-l-2 border-rose-500/80'
+                  }`}
+                >
+                  <div className="w-9 text-right pr-2 text-rose-550 bg-rose-950/30 select-none border-r border-[#2d2f3c]/60 font-mono text-[10px] font-bold">
+                    {currNum || '\u00A0'}
+                  </div>
+                  <div className="pl-3 truncate flex-1 select-text whitespace-pre pr-24 font-medium">
+                    {hasLine ? line : ''}
+                  </div>
+
+                  {hasLine && lIdx === 0 && !isResolved && (
+                    <div className="absolute right-2 z-15 flex gap-1 pointer-events-auto">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleResolveBlock(bIdx, 'ours');
+                        }}
+                        className="bg-indigo-600 hover:bg-indigo-500 hover:scale-105 active:scale-95 text-white font-mono font-bold px-1.5 py-0.5 rounded text-[9px] shadow cursor-pointer transition-all flex items-center gap-0.5"
+                        title={loc.btnOurs}
+                      >
+                        Accept <span className="font-black text-xs">»</span>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleResolveBlock(bIdx, 'ignore');
+                        }}
+                        className="bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-white px-1 py-0.5 rounded text-[9px] cursor-pointer"
+                        title="Ignore block"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            });
+          }
+        })}
+      </div>
+    );
+  };
+
+  // Render Right Code column
+  const renderRightPane = () => {
+    let lineNum = 1;
+    return (
+      <div className="font-mono text-[11px] leading-5 text-slate-300">
+        {blocks.map((block, bIdx) => {
+          if (block.type === 'normal') {
+            const lines = block.commonText ? block.commonText.split('\n') : [''];
+            return lines.map((line, lIdx) => {
+              const currNum = lineNum++;
+              return (
+                <div key={`n-R-${bIdx}-${lIdx}`} className="flex hover:bg-[#202124]/40 min-h-[20px] items-center">
+                  <div className="w-9 text-right pr-2 text-slate-600 select-none border-r border-[#2d2f3c]/60 bg-[#16171a] font-mono text-[10px]">
+                    {currNum}
+                  </div>
+                  <div className="pl-3 truncate select-text whitespace-pre text-slate-400">
+                    {line}
+                  </div>
+                </div>
+              );
+            });
+          } else {
+            const oursLines = block.oursText ? block.oursText.split('\n') : [''];
+            const theirsLines = block.theirsText ? block.theirsText.split('\n') : [''];
+            const maxLines = Math.max(oursLines.length, theirsLines.length);
+            const isResolved = resolvedBlocks[bIdx] !== undefined;
+
+            return Array.from({ length: maxLines }).map((_, lIdx) => {
+              const line = theirsLines[lIdx];
+              const hasLine = lIdx < theirsLines.length;
+              const currNum = hasLine ? lineNum++ : '';
+              
+              return (
+                <div 
+                  key={`c-R-${bIdx}-${lIdx}`} 
+                  className={`flex relative min-h-[20px] items-center ${
+                    isResolved 
+                      ? 'bg-emerald-950/15 text-emerald-400/80 border-r-2 border-emerald-500/50' 
+                      : 'bg-[#3d2f1f]/60 text-amber-300 border-r-2 border-amber-500/80'
+                  }`}
+                >
+                  <div className="w-9 text-right pr-2 text-amber-550 bg-amber-950/30 select-none border-r border-[#2d2f3c]/60 font-mono text-[10px] font-bold">
+                    {currNum || '\u00A0'}
+                  </div>
+                  <div className="pl-3 truncate flex-1 select-text whitespace-pre pr-24 font-medium">
+                    {hasLine ? line : ''}
+                  </div>
+
+                  {hasLine && lIdx === 0 && !isResolved && (
+                    <div className="absolute right-2 z-15 flex gap-1 pointer-events-auto">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleResolveBlock(bIdx, 'theirs');
+                        }}
+                        className="bg-amber-600 hover:bg-amber-500 hover:scale-105 active:scale-95 text-slate-950 font-mono font-bold px-1.5 py-0.5 rounded text-[9px] shadow cursor-pointer transition-all flex items-center gap-0.5"
+                        title={loc.btnTheirs}
+                      >
+                        <span className="font-black text-xs">«</span> Accept
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleResolveBlock(bIdx, 'ignore');
+                        }}
+                        className="bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-white px-1 py-0.5 rounded text-[9px] cursor-pointer"
+                        title="Ignore block"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            });
+          }
+        })}
+      </div>
+    );
+  };
+
   if (isMinimized) {
     return (
       <>
-        {/* Sleek inline placeholder on original board layout */}
         <div className="bg-[#1e1f26]/40 border border-dashed border-[#2d2f3c]/60 p-6 rounded-2xl text-center flex flex-col items-center justify-center gap-3 shadow-inner my-2">
           <AlertTriangle className="w-8 h-8 text-amber-500/60 animate-pulse" />
           <div className="text-sm font-bold text-slate-350">
@@ -410,7 +573,6 @@ export default function ConflictSolver({
           </button>
         </div>
 
-        {/* Global floating hotkey bridge at bottom-right corner of web view */}
         <div 
           id="conflict-solver-minimized-floating" 
           className="fixed bottom-6 right-6 z-50 bg-[#1e1f26]/95 border-2 border-amber-500/40 rounded-2xl p-4 shadow-2xl flex items-center gap-5 justify-between backdrop-blur-md max-w-sm transition-all hover:scale-105 duration-200"
@@ -450,28 +612,25 @@ export default function ConflictSolver({
             : 'border border-[#2d2f3c]/90 rounded-2xl p-6 shadow-2xl w-full max-w-7xl max-h-[92vh] animate-scale-up'
         }`}
       >
-        {/* Top ambient JetBrains warning bar */}
-        <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-violet-600 via-amber-500 to-emerald-500"></div>
+        <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-indigo-500 via-violet-600 to-amber-500"></div>
 
-        {/* Main title section */}
-        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b border-[#2d2f3c] pb-4 shrink-0">
+        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b border-[#2d2f3c]/60 pb-4 shrink-0">
           <div>
             <div className="flex items-center gap-2">
               <span className="px-2 py-0.5 bg-[#2d2f3c] text-violet-400 border border-violet-500/20 rounded font-mono text-[10px] font-bold tracking-wider uppercase">
-                {isFullscreen ? "IDEA MERGE DIALOG (FULL SCREEN)" : "IDEA MERGE DIALOG"}
+                {isFullscreen ? "JETBRAINS 3-WAY MERGE (FULL SCREEN)" : "JETBRAINS 3-WAY MERGE"}
               </span>
               <h2 className="text-base font-black text-[#e8eef5] font-mono flex items-center gap-1.5">
                 <Code2 className="w-5 h-5 text-violet-400 rotate-12" />
                 {loc.title}
               </h2>
             </div>
-            <p className="text-xs text-slate-400 font-sans mt-1">
+            <p className="text-xs text-slate-450 font-sans mt-1">
               {loc.desc}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
-            {/* Elegant full screen toggle button next to minimize */}
             <button
               onClick={() => setIsFullscreen(!isFullscreen)}
               className="px-4 py-2 text-xs bg-[#242632] hover:bg-[#2d3042] text-violet-400 rounded-lg border border-violet-500/20 hover:border-violet-500/45 transition-all duration-150 cursor-pointer flex items-center gap-1.5 whitespace-nowrap active:scale-95"
@@ -481,7 +640,6 @@ export default function ConflictSolver({
               <span>{isFullscreen ? (tone === TranslationTone.ENGLISH ? "Restore down" : "Cửa sổ nhỏ") : (tone === TranslationTone.ENGLISH ? "Full Screen" : "Toàn màn hình")}</span>
             </button>
 
-            {/* Elegant Minimize button next to Submit */}
             <button
               onClick={() => setIsMinimized(true)}
               className="px-4 py-2 text-xs bg-[#2b2d38] hover:bg-[#343644] text-slate-300 rounded-lg border border-[#2d2f3c] hover:text-white transition-all duration-150 cursor-pointer flex items-center gap-1.5 whitespace-nowrap active:scale-95"
@@ -494,7 +652,7 @@ export default function ConflictSolver({
             {allResolved && (
               <button
                 onClick={onCompleteRecovery}
-                className="w-full xl:w-auto px-6 py-2.5 text-xs bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 rounded-lg font-mono font-bold shadow-lg shadow-emerald-500/15 border border-emerald-500/30 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all animate-pulse"
+                className="w-full xl:w-auto px-6 py-2.5 text-xs bg-gradient-to-r from-emerald-500 to-teal-550 hover:from-emerald-400 hover:to-teal-400 text-slate-950 rounded-lg font-mono font-bold shadow-lg shadow-emerald-500/15 border border-emerald-500/30 flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all animate-pulse"
               >
                 <Check className="w-4 h-4 font-black" /> {loc.btnContinue}
               </button>
@@ -502,13 +660,11 @@ export default function ConflictSolver({
           </div>
         </div>
 
-        {/* Grid Layout of JetBrains Conflicts Dialog */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch overflow-y-auto flex-1 pr-1">
           
-          {/* Leftmost Sidebar: Files Tree List */}
-          <div className={`${isSidebarCollapsed ? 'hidden' : 'lg:col-span-3 flex'} flex-col gap-2.5 bg-[#17181c] p-3 rounded-xl border border-[#2d2f3c]/60 h-full ${isFullscreen ? 'max-h-none h-[calc(100vh-210px)]' : 'max-h-[560px]'}`}>
+          <div className={`${isSidebarCollapsed ? 'hidden' : 'lg:col-span-3 flex'} flex-col gap-2.5 bg-[#17181c] p-3 rounded-xl border border-[#2d2f3c]/60 h-full ${isFullscreen ? 'max-h-none h-[calc(100vh-210px)]' : 'max-h-[580px]'}`}>
             <div className="flex justify-between items-center border-b border-[#2d2f3c]/40 pb-2">
-              <span className="text-[10px] text-slate-500 uppercase font-mono tracking-wider font-bold">{loc.colTitle}</span>
+              <span className="text-[10px] text-slate-505 uppercase font-mono tracking-wider font-bold">{loc.colTitle}</span>
               <button
                 onClick={() => setIsSidebarCollapsed(true)}
                 className="p-1 rounded hover:bg-[#252632] text-slate-450 hover:text-white transition-colors cursor-pointer"
@@ -517,6 +673,7 @@ export default function ConflictSolver({
                 <ChevronLeft className="w-4 h-4 text-violet-450" />
               </button>
             </div>
+            
             <div className="flex flex-col gap-1.5 overflow-y-auto flex-1">
               {conflicts.map((file) => {
                 const isSelected = selectedFile?.filepath === file.filepath;
@@ -529,11 +686,11 @@ export default function ConflictSolver({
                         ? 'bg-[#2b2d38] border-violet-500/50 text-[#e8eef5] shadow'
                         : file.isResolved
                           ? 'bg-[#182a20] border-[#22442b]/60 text-emerald-400 hover:bg-[#1b3425]'
-                          : 'bg-[#1a1b22] border-[#25262c] text-slate-400 hover:border-[#2d2f3c] hover:text-slate-200'
+                          : 'bg-[#1d1f26] border-[#25262c] text-slate-400 hover:border-[#2d2f3c] hover:text-slate-200'
                     }`}
                   >
                     <div className="flex items-center gap-2 max-w-[70%] truncate">
-                      <FileCode2 className={`w-4 h-4 shrink-0 ${file.isResolved ? 'text-emerald-400' : 'text-amber-500'}`} />
+                      <FileCode2 className={`w-4 h-4 shrink-0 ${file.isResolved ? 'text-emerald-400' : 'text-amber-550'}`} />
                       <span className="truncate">{file.filepath}</span>
                     </div>
                     {file.isResolved ? (
@@ -541,7 +698,7 @@ export default function ConflictSolver({
                         RESOLVED
                       </span>
                     ) : (
-                      <span className="text-[9px] bg-amber-500/15 text-amber-400 px-1.5 py-0.5 rounded font-extrabold uppercase shrink-0 animate-pulse">
+                      <span className="text-[9px] bg-amber-550/15 text-amber-400 px-1.5 py-0.5 rounded font-extrabold uppercase shrink-0 animate-pulse">
                         CONFLICT
                       </span>
                     )}
@@ -551,285 +708,150 @@ export default function ConflictSolver({
             </div>
             
             <div className="bg-[#14151a] rounded-lg p-3 border border-[#23242c] text-[11px] text-slate-400 leading-relaxed font-sans mt-auto">
-              <span className="font-bold text-slate-300 flex items-center gap-1 font-mono text-[10px] mb-1.5">
+              <span className="font-bold text-slate-350 flex items-center gap-1 font-mono text-[10px] mb-1.5">
                 <HelpCircle className="w-3.5 h-3.5 text-violet-400" /> {loc.guideTitle}
               </span>
               {loc.guideText}
             </div>
           </div>
 
-          {/* Right 3-Way Editor Workspace */}
-          <div className={`${isSidebarCollapsed ? 'lg:col-span-12' : 'lg:col-span-9'} bg-[#1a1b22] border border-[#2d2f3c]/50 rounded-xl p-4 flex flex-col gap-4 h-full`}>
-            {selectedFile && activeDetails ? (
+          <div className={`${isSidebarCollapsed ? 'lg:col-span-12' : 'lg:col-span-9'} bg-[#15161a] border border-[#2d2f3c]/50 rounded-xl p-4 flex flex-col gap-4 h-full`}>
+            {selectedFile ? (
               <>
-                {/* Active Header for File */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-[#17181c] px-3.5 py-2 rounded border border-[#2d2f3c]/40 text-xs font-mono gap-2 shrink-0">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-[#1c1d22] px-3.5 py-2 rounded border border-[#2d2f3c]/40 text-xs font-mono gap-2 shrink-0">
                   <div className="flex items-center gap-2">
                     {isSidebarCollapsed && (
                       <button
                         onClick={() => setIsSidebarCollapsed(false)}
                         className="mr-2 flex items-center gap-1.5 px-2.5 py-1 text-[11px] bg-[#242632] hover:bg-[#2d3042] border border-violet-500/30 hover:border-violet-500/65 rounded text-violet-400 transition-all font-mono cursor-pointer active:scale-95"
-                        title="Show File Tree list"
                       >
                         <Files className="w-3.5 h-3.5 text-violet-400 shrink-0" />
                         <span>{tone === TranslationTone.ENGLISH ? "Files Tree" : "Hiện danh sách"} ({conflicts.filter(c => c.isResolved).length}/{conflicts.length})</span>
                       </button>
                     )}
-                    <span className="text-slate-400">File: </span>
+                    <span className="text-slate-405">File: </span>
                     <strong className="text-violet-400 px-1.5 py-0.5 bg-[#25262e] rounded-md border border-[#2d2f3c]/60">{selectedFile.filepath}</strong>
                   </div>
                   <div className="flex items-center gap-2 text-[10px] uppercase font-bold text-slate-400">
-                    <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse"></span>
-                    {selectedFile.isResolved ? loc.statusResolved : `${loc.statusConflict} (1 Block)`}
+                    <span className="h-2 w-2 rounded-full bg-amber-505 animate-pulse"></span>
+                    {selectedFile.isResolved ? loc.statusResolved : `${loc.statusConflict} (${blocks.filter(b => b.type === 'conflict').length} Block)`}
                   </div>
                 </div>
 
-                {/* JETBRAINS 3-WAY SIDE BY SIDE INTERACTIVE PANELS - Height enlarged to h-[440px] for massive workspace representation */}
+                {/* 3-WAY SIDE-BY-SIDE PANELS */}
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
                   
-                  {/* 1. LEFT PANE - Local Changes (Ours) */}
-                  <div className="flex flex-col bg-[#1e2026] rounded-lg border border-[#2d2f3c] overflow-hidden">
-                    <div className="bg-[#17181c] px-3 py-1.5 border-b border-[#2d2f3c] flex justify-between items-center">
+                  {/* LEFT PANE - Local Changes (Ours) */}
+                  <div className="flex flex-col bg-[#1e2026] rounded-lg border border-[#2d2f3c]/70 overflow-hidden">
+                    <div className="bg-[#17181c] px-3 py-1.5 border-b border-[#2d2f3c]/70 flex justify-between items-center">
                       <span className="text-[10px] font-mono text-indigo-400 font-extrabold uppercase tracking-wider">{loc.laneA}</span>
                       <span className="text-[9px] font-mono text-slate-500">Read-Only</span>
                     </div>
 
-                    {/* Left Code Area with insertion control */}
-                    <div className={`flex relative items-stretch ${isFullscreen ? 'h-[calc(100vh-320px)] lg:h-[calc(100vh-300px)] min-h-[400px]' : 'h-[440px]'} overflow-y-auto index-0 font-mono text-[11px] leading-5 text-slate-300`}>
-                      {/* Line numbers channel */}
-                      <div className="bg-[#17181c] px-2 text-right text-slate-650 select-none border-r border-[#2d2f3c] w-9 flex flex-col pt-3">
-                        {(() => {
-                          let lineNumber = 0;
-                          const linesToMap = isPaymentFile ? alignedOurs : parsedOursLines.map(text => ({ text, type: 'normal' as const }));
-                          return linesToMap.map((row, i) => {
-                            if (row.type !== 'spacer') {
-                              lineNumber++;
-                            }
-                            return (
-                              <div key={i} className="h-5 text-[10px] leading-5 font-mono select-none">
-                                {row.type === 'spacer' ? ' ' : lineNumber}
-                              </div>
-                            );
-                          });
-                        })()}
-                      </div>
-
-                      {/* Left Code content */}
-                      <div className="p-3 w-full overflow-x-auto whitespace-pre select-text text-slate-400 scrollbar-thin scrollbar-thumb-slate-800">
-                        {(() => {
-                          const linesToMap = isPaymentFile ? alignedOurs : parsedOursLines.map(text => ({ text, type: 'normal' as const }));
-                          return linesToMap.map((row, idx) => {
-                            // Define class name based on row type
-                            let rowClass = 'opacity-85 text-slate-300';
-                            if (row.type === 'addition') {
-                              rowClass = 'bg-emerald-950/20 text-emerald-250 font-semibold border-l-[3px] border-emerald-500';
-                            } else if (row.type === 'deletion') {
-                              rowClass = 'bg-slate-500/10 text-slate-400 line-through decoration-slate-600 border-l-[3px] border-slate-500/40';
-                            } else if (row.type === 'modification') {
-                              rowClass = 'bg-blue-950/30 text-blue-200 font-medium border-l-[3px] border-blue-500';
-                            } else if (row.type === 'spacer') {
-                              return (
-                                <div key={idx} className="min-w-fit px-1 h-5 flex items-center bg-[#15161c]/50 text-[#1e1f26] font-mono select-none overflow-hidden pointer-events-none opacity-40">
-                                  ------------------------------------------------------------------------------------------------------------------------------------------------------------------
-                                </div>
-                              );
-                            }
-
-                            return (
-                              <div 
-                                key={idx} 
-                                className={`min-w-fit px-1 h-5 flex items-center ${rowClass}`}
-                              >
-                                {row.el !== undefined ? row.el : (row.text || ' ')}
-                              </div>
-                            );
-                          });
-                        })()}
-                      </div>
-
-                      {/* JetBrains interactive Left Arrow insertion panel on right gutter */}
-                      {(!selectedFile.isResolved) && (
-                        <div className="absolute right-2 top-[100px] flex flex-col gap-1 z-10">
-                          <button
-                            onClick={handleApplyLeft}
-                            title={loc.btnOurs}
-                            className="bg-indigo-600 hover:bg-indigo-500 font-bold p-1 rounded-md text-white border border-indigo-400 flex items-center justify-center cursor-pointer shadow-lg active:scale-90 transition-all hover:scale-105"
-                          >
-                            <ChevronRight className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
+                    <div className={`flex relative items-stretch ${isFullscreen ? 'h-[calc(100vh-320px)] lg:h-[calc(100vh-280px)] min-h-[420px]' : 'h-[420px]'} overflow-y-auto index-0 bg-[#0f1013]`}>
+                      {renderLeftPane()}
                     </div>
                   </div>
 
-                  {/* 2. MIDDLE PANE - Live Editable Result (Intellij Result Section) */}
+                  {/* MIDDLE PANE - Merged result (Editable result) */}
                   <div className="flex flex-col bg-[#16171d] rounded-lg border-2 border-violet-500/50 shadow-inner overflow-hidden">
-                    <div className="bg-[#0f1013] px-3 py-1.5 border-b border-[#2d2f3c] flex justify-between items-center">
+                    <div className="bg-[#0f1013] px-3 py-1.5 border-b border-[#2d2f3c]/70 flex justify-between items-center">
                       <span className="text-[10px] font-mono text-violet-400 font-extrabold uppercase tracking-widest flex items-center gap-1">
                         <Settings2 className="w-3.5 h-3.5 text-violet-400" />
                         {loc.resultPane}
                       </span>
                       <div className="flex items-center gap-1.5">
-                        {/* Active conflict counter in the Result pane header rather than an obstructive overlay */}
                         {isCurrentlyDirty ? (
-                          <span className="text-[10px] px-2 py-0.5 bg-rose-500/10 border border-rose-500/30 text-rose-405 rounded-md font-extrabold font-mono flex items-center gap-1 animate-pulse">
+                          <span className="text-[10px] px-2 py-0.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-md font-extrabold font-mono flex items-center gap-1 animate-pulse">
                             <AlertTriangle className="w-3 h-3 text-rose-400" />
-                            {totalMarkerBlocks} REMAIN
+                            {totalMarkerBlocks} {tone === TranslationTone.ENGLISH ? "REMAIN" : "MARKER CÒN LẠI"}
                           </span>
                         ) : (
                           <span className="text-[10px] px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-md font-extrabold font-mono flex items-center gap-1">
-                            <Check className="w-3" />
-                            RESOLVED
+                            <Check className="w-3 h-3 text-emerald-400" />
+                            READY TO APPLY
                           </span>
                         )}
                       </div>
                     </div>
 
-                    {/* Result Panel Editor */}
-                    <div className={`flex relative items-stretch ${isFullscreen ? 'h-[calc(100vh-320px)] lg:h-[calc(100vh-300px)] min-h-[400px]' : 'h-[440px]'} overflow-y-auto font-mono text-[11px] leading-5`}>
-                      {/* Line numbers gutter */}
-                      <div className="bg-[#0e0f12] px-2 text-right text-slate-600 select-none border-r border-[#2d2f3c] w-9">
-                        {parsedCenterLines.map((_, i) => (
-                          <div key={i}>{i + 1}</div>
+                    <div className={`flex relative items-stretch ${isFullscreen ? 'h-[calc(100vh-320px)] lg:h-[calc(100vh-280px)] min-h-[420px]' : 'h-[420px]'} overflow-y-auto font-mono text-[11px] leading-5`}>
+                      <div className="bg-[#0e0f12] px-2 text-right text-slate-600 select-none border-r border-[#2d2f3c]/60 w-9 select-none pt-1">
+                        {editorText.split('\n').map((_, i) => (
+                          <div key={i} className="h-5 text-[10px] leading-5">{i + 1}</div>
                         ))}
                       </div>
 
-                      {/* Main Editable Text Area formatted elegantly like a dark editor */}
                       <textarea
                         value={editorText}
                         onChange={(e) => setEditorText(e.target.value)}
-                        className="w-full bg-[#16171d] border-none text-[#e8eef5] outline-none p-3 resize-none font-mono text-[11.5px] leading-5 focus:ring-0 leading-relaxed overflow-x-auto whitespace-pre select-text h-full placeholder:text-slate-600 scrollbar-thin scrollbar-thumb-slate-800"
+                        className="w-full bg-[#16171d] border-none text-[#e8eef5] outline-none p-3 resize-none font-mono text-[11.5px] leading-5 focus:ring-0 leading-relaxed overflow-x-auto whitespace-pre select-text h-full placeholder:text-slate-650 scrollbar-thin scrollbar-thumb-slate-800"
                         placeholder={loc.placeholderCustom}
                       />
 
-                      {/* Tiny elegant corner badge displaying conflict alerts without obstruction */}
                       {isCurrentlyDirty && (
                         <span className="absolute bottom-3 right-3 px-2 py-1 bg-rose-950/90 border border-rose-500/40 text-rose-350 rounded-md font-extrabold text-[9px] shadow-lg flex items-center gap-1 font-mono pointer-events-none select-none z-10">
                           <AlertTriangle className="w-3 h-3 text-rose-400" />
-                          {totalMarkerBlocks} {tone === TranslationTone.ENGLISH ? "CONFLICTS LEFT" : "MARKER CHƯA GIẢI QUYẾT"}
+                          {totalMarkerBlocks} UNRESOLVED
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* 3. RIGHT PANE - Incoming Changes (Theirs) */}
-                  <div className="flex flex-col bg-[#1e2026] rounded-lg border border-[#2d2f3c] overflow-hidden">
-                    <div className="bg-[#17181c] px-3 py-1.5 border-b border-[#2d2f3c] flex justify-between items-center">
+                  {/* RIGHT PANE - Incoming Changes (Theirs) */}
+                  <div className="flex flex-col bg-[#1e2026] rounded-lg border border-[#2d2f3c]/70 overflow-hidden">
+                    <div className="bg-[#17181c] px-3 py-1.5 border-b border-[#2d2f3c]/70 flex justify-between items-center">
                       <span className="text-[10px] font-mono text-amber-400 font-extrabold uppercase tracking-wider">{loc.laneB}</span>
                       <span className="text-[9px] font-mono text-slate-500">Read-Only</span>
                     </div>
 
-                    {/* Right Code Area with insertion control */}
-                    <div className={`flex relative items-stretch ${isFullscreen ? 'h-[calc(100vh-320px)] lg:h-[calc(100vh-300px)] min-h-[400px]' : 'h-[440px]'} overflow-y-auto index-0 font-mono text-[11px] leading-5 text-slate-300`}>
-                      {/* Line numbers channel */}
-                      <div className="bg-[#17181c] px-2 text-right text-slate-650 select-none border-r border-[#2d2f3c] w-9 flex flex-col pt-3">
-                        {(() => {
-                          let lineNumber = 0;
-                          const linesToMap = isPaymentFile ? alignedTheirs : parsedTheirsLines.map(text => ({ text, type: 'normal' as const }));
-                          return linesToMap.map((row, i) => {
-                            if (row.type !== 'spacer') {
-                              lineNumber++;
-                            }
-                            return (
-                              <div key={i} className="h-5 text-[10px] leading-5 font-mono select-none">
-                                {row.type === 'spacer' ? ' ' : lineNumber}
-                              </div>
-                            );
-                          });
-                        })()}
-                      </div>
-
-                      {/* Right Code content */}
-                      <div className="p-3 w-full overflow-x-auto whitespace-pre select-text text-slate-400 scrollbar-thin scrollbar-thumb-slate-800">
-                        {(() => {
-                          const linesToMap = isPaymentFile ? alignedTheirs : parsedTheirsLines.map(text => ({ text, type: 'normal' as const }));
-                          return linesToMap.map((row, idx) => {
-                            // Define class name based on row type
-                            let rowClass = 'opacity-85 text-slate-300';
-                            if (row.type === 'addition') {
-                              rowClass = 'bg-emerald-950/20 text-emerald-250 font-semibold border-l-[3px] border-emerald-500';
-                            } else if (row.type === 'deletion') {
-                              rowClass = 'bg-slate-500/10 text-slate-400 line-through decoration-slate-600 border-l-[3px] border-slate-500/40';
-                            } else if (row.type === 'modification') {
-                              rowClass = 'bg-amber-950/20 text-amber-205 font-medium border-l-[3px] border-amber-500';
-                            } else if (row.type === 'spacer') {
-                              return (
-                                <div key={idx} className="min-w-fit px-1 h-5 flex items-center bg-[#15161c]/50 text-[#1e1f26] font-mono select-none overflow-hidden pointer-events-none opacity-40">
-                                  ------------------------------------------------------------------------------------------------------------------------------------------------------------------
-                                </div>
-                              );
-                            }
-
-                            return (
-                              <div 
-                                key={idx} 
-                                className={`min-w-fit px-1 h-5 flex items-center ${rowClass}`}
-                              >
-                                {row.el !== undefined ? row.el : (row.text || ' ')}
-                              </div>
-                            );
-                          });
-                        })()}
-                      </div>
-
-                      {/* JetBrains interactive Right Arrow insertion panel on left gutter */}
-                      {(!selectedFile.isResolved) && (
-                        <div className="absolute left-2 top-[100px] flex flex-col gap-1 z-10">
-                          <button
-                            onClick={handleApplyRight}
-                            title={loc.btnTheirs}
-                            className="bg-amber-600 hover:bg-amber-500 font-bold p-1 rounded-md text-slate-950 border border-amber-400 flex items-center justify-center cursor-pointer shadow-lg active:scale-90 transition-all hover:scale-105"
-                          >
-                            <ChevronLeft className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
+                    <div className={`flex relative items-stretch ${isFullscreen ? 'h-[calc(100vh-320px)] lg:h-[calc(100vh-280px)] min-h-[420px]' : 'h-[420px]'} overflow-y-auto index-0 bg-[#0f1013]`}>
+                      {renderRightPane()}
                     </div>
                   </div>
 
                 </div>
 
-                {/* Intellij toolbar help label */}
                 <div className="text-[10px] text-slate-500 font-sans italic flex items-center gap-1 bg-[#16171d]/60 p-2 rounded border border-[#2d2f3c]/20 shrink-0">
                   <span className="font-bold text-violet-400 shrink-0 font-mono">Tip:</span> 
                   {loc.toolHelp}
                 </div>
 
-                {/* JETBRAINS CONFLICT RESOLVING QUICK ACTIONS TOOLBAR */}
+                {/* JB BULK CONTROL PANEL */}
                 <div className="bg-[#14151b] p-4 rounded-xl border border-[#2d2f3c]/60 mt-auto shrink-0 animate-fade-in">
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div className="flex items-center gap-2">
                       <Shuffle className="w-4 h-4 text-violet-400" />
-                      <span className="text-xs font-mono font-bold text-slate-200 uppercase tracking-wide">{loc.actionTitle}</span>
+                      <span className="text-xs font-mono font-bold text-slate-200 uppercase tracking-wide">
+                        {tone === TranslationTone.ENGLISH ? "BATCH SOLVER ACTION RAILS" : "CÔNG CỤ GỘP NHANH JETBRAINS"}
+                      </span>
                     </div>
 
-                    {/* Toolbar action buttons styling like JetBrains */}
                     <div className="flex flex-wrap gap-2 w-full md:w-auto">
                       <button
                         onClick={handleApplyLeft}
                         className="px-3 py-1.5 text-xs font-mono bg-[#1d2333] hover:bg-indigo-900/50 border border-indigo-500/30 hover:border-indigo-500 text-indigo-300 rounded cursor-pointer transition-colors active:scale-95 flex items-center gap-1"
                       >
-                        <span>{loc.optOurs}</span>
+                        <span>« Accept All Left (Ours)</span>
                       </button>
                       <button
                         onClick={handleApplyRight}
                         className="px-3 py-1.5 text-xs font-mono bg-[#332615] hover:bg-amber-950/50 border border-amber-500/30 hover:border-amber-500 text-amber-300 rounded cursor-pointer transition-colors active:scale-95 flex items-center gap-1"
                       >
-                        <span>{loc.optTheirs}</span>
+                        <span>Accept All Right (Theirs) »</span>
                       </button>
                       <button
                         onClick={handleApplyBoth}
                         className="px-3 py-1.5 text-xs font-mono bg-violet-950/40 hover:bg-violet-950/70 border border-violet-500/20 hover:border-violet-500 text-violet-300 rounded cursor-pointer transition-colors active:scale-95 flex items-center gap-1"
                       >
-                        <span>{loc.optBoth}</span>
+                        <span>Merge Both Chunks</span>
                       </button>
                       <button
                         onClick={handleResetMerge}
                         className="px-3 py-1.5 text-xs font-mono bg-[#282a36] hover:bg-slate-800 border border-[#44475a]/30 text-slate-400 rounded cursor-pointer transition-colors active:scale-95 flex items-center gap-1"
-                        title={loc.optCustom}
                       >
                         <Undo2 className="w-3.5 h-3.5" />
-                        <span>Reset</span>
+                        <span>Reset File</span>
                       </button>
                     </div>
                   </div>
@@ -838,13 +860,14 @@ export default function ConflictSolver({
                     <button
                       onClick={handleResolveSubmit}
                       disabled={isCurrentlyDirty}
-                      className={`text-xs px-5 py-2.5 rounded-lg font-mono font-bold border flex items-center gap-1.5 transition-all active:scale-95 ${
+                      className={`text-xs px-5 py-2.5 rounded-lg font-mono font-black border flex items-center gap-1.5 transition-all active:scale-95 ${
                         isCurrentlyDirty 
                           ? 'bg-[#18191f] text-slate-600 border-none cursor-not-allowed' 
-                          : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 border-amber-600/20 shadow shadow-orange-505/10 cursor-pointer text-[#0b0f19]'
+                          : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 border-emerald-500/25 shadow shadow-emerald-500/10 cursor-pointer text-[#0b0f19]'
                       }`}
                     >
-                      <GitCompare className="w-4 h-4 font-bold" /> {loc.btnConfirm}
+                      <GitCompare className="w-4 h-4 font-bold" /> 
+                      {tone === TranslationTone.ENGLISH ? "Save & Apply Resolution" : "Ghi nhận & Xử lý xong file này"}
                     </button>
                   </div>
                 </div>
@@ -867,3 +890,21 @@ export default function ConflictSolver({
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
