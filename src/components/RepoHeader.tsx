@@ -23,6 +23,7 @@ import {
 import { TranslationTone, GitRepoState, SessionStats } from '../types';
 import { translate } from '../i18n';
 import DirectoryBrowserModal from './DirectoryBrowserModal';
+import { resolveApiUrl } from '../utils/apiResolver';
 
 interface RepoHeaderProps {
   repoState: GitRepoState;
@@ -136,7 +137,7 @@ export default function RepoHeader({
     if (isSimulation) return;
     setIsSelectingDirLocally(true);
     try {
-      const response = await fetch('/api/select-dir', {
+      const response = await fetch(resolveApiUrl('/api/select-dir'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });

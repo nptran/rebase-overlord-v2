@@ -11,6 +11,7 @@ import {
   ChevronRight,
   AlertCircle
 } from 'lucide-react';
+import { resolveApiUrl } from '../utils/apiResolver';
 
 interface DirInfo {
   name: string;
@@ -44,7 +45,7 @@ export default function DirectoryBrowserModal({
     setLoading(true);
     setErrorMsg(null);
     try {
-      const response = await fetch('/api/list-local-dirs', {
+      const response = await fetch(resolveApiUrl('/api/list-local-dirs'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currentPath: targetPath })

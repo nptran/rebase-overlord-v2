@@ -39,6 +39,7 @@ import WizardPanel from './components/WizardPanel';
 import BranchPanel from './components/BranchPanel';
 import TerminalPanel from './components/TerminalPanel';
 import ConflictSolver from './components/ConflictSolver';
+import { resolveApiUrl } from './utils/apiResolver';
 
 const sanityLoc: Record<TranslationTone, {
   title: string;
@@ -81,6 +82,20 @@ const sanityLoc: Record<TranslationTone, {
     emptyCommits: "Select a different branch or provide a base branch to render commit history."
   }
 };
+
+async function safeParseError(res: Response, fallbackMsg: string): Promise<string> {
+  try {
+    const text = await res.text();
+    try {
+      const data = JSON.parse(text);
+      return data.error || data.details || fallbackMsg;
+    } catch {
+      return `HTTP ${res.status}: ${text.substring(0, 150)}`;
+    }
+  } catch (err: any) {
+    return `${fallbackMsg} (${err.message})`;
+  }
+}
 
 export default function App() {
   // Configs persistent states
@@ -144,7 +159,7 @@ export default function App() {
   const handleRefresh = React.useCallback(async () => {
     try {
       addLog(`$ Refreshing git states (Simulation: ${isSimulation})...`);
-      const res = await fetch(`/api/git-status?simulation=${isSimulation}`);
+      const res = await fetch(resolveApiUrl(`/api/git-status?simulation=${isSimulation}`));
       if (res.ok) {
         const data = await res.json();
         setRepoState(data);
@@ -165,7 +180,7 @@ export default function App() {
   // Sync statistics from node server
   const fetchStats = async () => {
     try {
-      const res = await fetch('/api/stats');
+      const res = await fetch(resolveApiUrl('/api/stats'));
       if (res.ok) {
         const data = await res.json();
         setStats(data);
@@ -287,7 +302,7 @@ export default function App() {
 
     // Update session count
     try {
-      const incrementRes = await fetch('/api/stats/increment', { method: 'POST' });
+      const incrementRes = await fetch(resolveApiUrl('/api/stats/increment'), { method: 'POST' });
       if (incrementRes.ok) {
         const d = await incrementRes.json();
         setStats(d);
@@ -338,7 +353,7 @@ export default function App() {
       addLog(`✓ Checkout local branch successful: ${branchName}`);
     } else {
       try {
-        const res = await fetch('/api/execute-command', {
+        const res = await fetch(resolveApiUrl('/api/execute-command'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ command: `git checkout ${branchName}` })
@@ -347,8 +362,8 @@ export default function App() {
           addLog(`✓ Checkout successful for actual branch: ${branchName}`);
           handleRefresh();
         } else {
-          const d = await res.json();
-          addLog(`! Error checking out branch: ${d.error}`);
+          const errMsg = await safeParseError(res, 'Unknown error checking out branch');
+          addLog(`! Error checking out branch: ${errMsg}`);
         }
       } catch (err: any) {
         addLog(`! Failed network thread executing checkout: ${err.message}`);
@@ -370,7 +385,7 @@ export default function App() {
       addLog(`✓ Created and checkout brand new simulated branch: ${branchName}`);
     } else {
       try {
-        const res = await fetch('/api/execute-command', {
+        const res = await fetch(resolveApiUrl('/api/execute-command'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ command: `git checkout -b ${branchName}` })
@@ -379,8 +394,8 @@ export default function App() {
           addLog(`✓ Created branch: ${branchName}`);
           handleRefresh();
         } else {
-          const d = await res.json();
-          addLog(`! Error creating branch: ${d.error}`);
+          const errMsg = await safeParseError(res, 'Unknown error creating branch');
+          addLog(`! Error creating branch: ${errMsg}`);
         }
       } catch (err: any) {
         addLog(`! Network timeout creating branch: ${err.message}`);
@@ -401,7 +416,7 @@ export default function App() {
     setIsCloning(true);
     addLog(`$ git clone --depth 50 ${repoUrl} (Cloning to secure container sandbox...)`);
     try {
-      const res = await fetch('/api/clone-repo', {
+      const res = await fetch(resolveApiUrl('/api/clone-repo'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ repoUrl, token })
@@ -414,9 +429,9 @@ export default function App() {
         setIsCloning(false);
         return true;
       } else {
-        const d = await res.json();
-        addLog(`❌ Clone failed: ${d.error || 'Unknown error'}`);
-        alert(`Clone thất bại: ${d.error || 'Thiết lập URL hoặc Token chưa đúng.'}`);
+        const errMsg = await safeParseError(res, 'Unknown error cloning repository');
+        addLog(`❌ Clone failed: ${errMsg}`);
+        alert(`Clone thất bại: ${errMsg}`);
         setIsCloning(false);
         return false;
       }
@@ -430,7 +445,7 @@ export default function App() {
   const handleUpdateRepoPath = async (newPath: string) => {
     addLog(`$ Updating workspace repository path to: ${newPath}...`);
     try {
-      const res = await fetch('/api/set-repo', {
+      const res = await fetch(resolveApiUrl('/api/set-repo'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: newPath })
@@ -440,9 +455,9 @@ export default function App() {
         addLog(`✓ Joined repository cleanly on directory: ${d.path}`);
         handleRefresh();
       } else {
-        const d = await res.json();
-        addLog(`! Folder path is invalid or lacks .git: ${d.error}`);
-        alert(`Lỗi: ${d.error}`);
+        const errMsg = await safeParseError(res, 'Folder path invalid or inaccessible');
+        addLog(`! Folder path is invalid or lacks .git: ${errMsg}`);
+        alert(`Lỗi: ${errMsg}`);
       }
     } catch (e: any) {
       addLog(`! Failed to execute connection: ${e.message}`);
