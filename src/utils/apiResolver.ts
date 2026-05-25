@@ -11,6 +11,14 @@
 export function resolveApiUrl(endpoint: string): string {
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 
+  // 0. LocalStorage configuration for Vercel/Static Host targeting a running local Server
+  if (typeof window !== 'undefined' && window.localStorage) {
+    const customUrl = window.localStorage.getItem('rebase_overlord_backend_url');
+    if (customUrl) {
+      return `${customUrl.replace(/\/$/, '')}${cleanEndpoint}`;
+    }
+  }
+
   // 1. Explicit environment variable check
   const envApiUrl = (import.meta as any).env?.VITE_API_URL;
   if (envApiUrl) {

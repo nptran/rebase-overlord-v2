@@ -105,6 +105,12 @@ export default function App() {
   const [showLogPanel, setShowLogPanel] = React.useState<boolean>(true);
   const [isCloning, setIsCloning] = React.useState<boolean>(false);
 
+  // Custom API configuration for serverless deployment fallback (Vercel, GitHub Pages, etc.)
+  const [backendStatus, setBackendStatus] = React.useState<'checking' | 'connected' | 'unreachable'>('checking');
+  const [customBackendUrl, setCustomBackendUrl] = React.useState<string>(() => {
+    return (typeof window !== 'undefined' && localStorage.getItem('rebase_overlord_backend_url')) || '';
+  });
+
   const sloc = sanityLoc[tone];
 
   // Core Git States
@@ -159,21 +165,41 @@ export default function App() {
   const handleRefresh = React.useCallback(async () => {
     try {
       addLog(`$ Refreshing git states (Simulation: ${isSimulation})...`);
-      const res = await fetch(resolveApiUrl(`/api/git-status?simulation=${isSimulation}`));
-      if (res.ok) {
-        const data = await res.json();
-        setRepoState(data);
-        
-        // Auto-increment checkout stats locally on initial fetch
-        if (data.isValid) {
-          addLog(`✓ Git states extracted cleanly for path: ${data.repoPath}`);
-        } else {
-          addLog(`! Path does not contain a valid Git repository.`);
-        }
+      const url = resolveApiUrl(`/api/git-status?simulation=${isSimulation}`);
+      const res = await fetch(url);
+      
+      const contentType = res.headers.get('content-type') || '';
+      if (!res.ok || contentType.includes('text/html')) {
+        throw new Error(`Máy chủ trả về trang HTML thay vì JSON (Code ${res.status}). Có thể bạn đang chạy trên Vercel/Static Host mà chưa bật Express Backend.`);
+      }
+      
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (jsonErr) {
+        throw new Error(`Đầu ra API lỗi, không chứa JSON hợp lệ. Response: "${text.substring(0, 50)}..."`);
+      }
+
+      setRepoState(data);
+      setBackendStatus('connected');
+      
+      // Auto-increment checkout stats locally on initial fetch
+      if (data.isValid) {
+        addLog(`✓ Git states extracted cleanly for path: ${data.repoPath}`);
+      } else {
+        addLog(`! Path does not contain a valid Git repository.`);
       }
     } catch (err: any) {
       console.error(err);
-      addLog(`! Network connection problem querying backend status endpoint.`);
+      addLog(`⚠️ Cảnh báo kết nối: ${err.message}`);
+      
+      // Auto toggle simulation on to let interface keep working
+      if (!isSimulation) {
+        setIsSimulation(true);
+        addLog(`🤖 Đã tự động kích hoạt "Simulation Playground" do Backend không phản hồi chính xác JSON.`);
+      }
+      setBackendStatus('unreachable');
     }
   }, [isSimulation]);
 
@@ -494,6 +520,78 @@ export default function App() {
           onCloneRepo={handleCloneRepo}
           onRefresh={handleRefresh}
         />
+
+        {/* Serverless / Vercel Host Warn & Config Banner */}
+        {backendStatus === 'unreachable' && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-slate-900 border border-slate-850 rounded-xl p-5 shadow-xl flex flex-col md:flex-row gap-5 items-start justify-between"
+          >
+            <div className="flex gap-3.5 items-start">
+              <div className="bg-amber-500/10 text-amber-500 p-2.5 rounded-lg border border-amber-500/20 shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div className="space-y-1.5">
+                <h4 className="text-sm font-semibold text-slate-100 font-mono tracking-wide uppercase flex items-center gap-2">
+                  ⚠️ Phát Hiện Máy Chủ Tĩnh (Vercel / GitHub Pages Hosting detected)
+                </h4>
+                <p className="text-xs text-slate-400 leading-relaxed font-sans max-w-3xl">
+                  Để thực hiện các thao tác Git thực tế (như <code className="text-amber-400 bg-slate-950 px-1 py-0.5 rounded font-mono border border-slate-900 text-[10px]">git clone</code>, chọn thư mục ổ đĩa của bạn), hệ thống cần một máy chủ liên tục (stateful Node Express backend). Do Vercel là nền tảng Serverless tĩnh, hệ thống đã <strong className="text-emerald-400 font-semibold">Tự Thừa Kế & Tự Động Kích Hoạt chế độ Giả Lập (Simulation Playground)</strong> để bạn có thể trải nghiệm toàn vẹn dòng chảy logic Rebase mượt mà.
+                </p>
+                <p className="text-[11px] text-indigo-400 leading-relaxed font-mono">
+                  💡 Bạn muốn lấy repo thật từ Windows/MacOS của mình? Hãy chạy lệnh <code className="text-slate-300 bg-slate-950 px-1 rounded">npm start</code> cục bộ trên máy và dán địa chỉ localhost ở khung cấu hình bên phải!
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 w-full md:w-[320px] shrink-0 self-stretch flex flex-col justify-between gap-3 text-xs">
+              <div className="space-y-1.5">
+                <span className="font-mono text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Cầu Nối API Cục Bộ (Hybrid Live Switcher)</span>
+                <input
+                  type="text"
+                  placeholder="Ví dụ: http://localhost:3000"
+                  value={customBackendUrl}
+                  onChange={(e) => setCustomBackendUrl(e.target.value)}
+                  className="w-full bg-[#060814] border border-slate-800 rounded px-2.5 py-1.5 font-mono text-[11px] text-slate-300 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (customBackendUrl.trim()) {
+                      localStorage.setItem('rebase_overlord_backend_url', customBackendUrl.trim());
+                      addLog(`🔗 Kết nối Custom Backend URL: ${customBackendUrl.trim()}`);
+                    } else {
+                      localStorage.removeItem('rebase_overlord_backend_url');
+                      addLog(`🔗 Đã gỡ bỏ Custom Backend URL. Sử dụng cấu hình mặc định.`);
+                    }
+                    handleRefresh();
+                  }}
+                  className="flex-1 bg-indigo-600 hover:bg-slate-500 hover:text-white transition-all text-white font-mono text-[10px] py-1.5 px-2 rounded font-bold cursor-pointer border border-indigo-500/20 active:scale-95 text-center"
+                >
+                  Kết nối Live
+                </button>
+                {localStorage.getItem('rebase_overlord_backend_url') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      localStorage.removeItem('rebase_overlord_backend_url');
+                      setCustomBackendUrl('');
+                      addLog(`🔗 Reset Custom Backend. Sử dụng mặc định.`);
+                      handleRefresh();
+                    }}
+                    className="bg-rose-950/40 hover:bg-rose-900/60 transition-all text-rose-400 font-mono text-[10px] py-1.5 px-2.5 rounded border border-rose-900/30 cursor-pointer text-center"
+                    title="Xóa địa chỉ tùy chỉnh"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         {/* Dashboard Panels Grid split screen */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
