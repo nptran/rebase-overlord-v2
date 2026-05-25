@@ -248,11 +248,12 @@ app.post('/api/select-dir', async (req, res) => {
   
   if (platform === 'win32') {
     // Windows native directory dialog via PowerShell
-    const psCommand = `powershell -NoProfile -ExecutionPolicy Bypass -Command "Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; $f.Description = 'Select your Git repository folder'; $f.ShowNewFolderButton = $true; if($f.ShowDialog() -eq 'OK'){$f.SelectedPath}"`;
+    // Windows native directory dialog via PowerShell with STA threading to prevent MTA hangs
+    const psCommand = `powershell -NoProfile -ExecutionPolicy Bypass -STA -Command "[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null; $f = New-Object System.Windows.Forms.FolderBrowserDialog; $f.Description = 'Select your Git repository folder'; $f.ShowNewFolderButton = $true; if ($f.ShowDialog() -eq 'OK') { $f.SelectedPath } else { 'CANCELLED' }"`;
     try {
       const result = await runCmd(psCommand, process.cwd());
       const selectedPath = result.stdout.trim();
-      if (selectedPath) {
+      if (selectedPath && selectedPath !== 'CANCELLED') {
         return res.json({ success: true, path: selectedPath, mode: 'native_win' });
       } else {
         return res.json({ success: false, cancelled: true });

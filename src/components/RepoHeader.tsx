@@ -204,6 +204,18 @@ export default function RepoHeader({
                 : 'Vui lòng kiểm tra màn hình máy tính của bạn để lựa chọn thư mục Git trong hộp thoại File Dialog.'
               }
             </p>
+            {!isCloning && isSelectingDirLocally && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSelectingDirLocally(false);
+                  setIsDirBrowserOpen(true);
+                }}
+                className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] rounded-lg transition-all border border-indigo-500/20 shadow-lg flex items-center justify-center gap-1.5 cursor-pointer mx-auto active:scale-95 text-center font-mono"
+              >
+                🌐 Hoặc sử dụng Trình duyệt Thư mục Web
+              </button>
+            )}
           </div>
         </div>
       )}
