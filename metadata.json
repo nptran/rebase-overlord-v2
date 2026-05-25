@@ -1,0 +1,6 @@
+{
+  "name": "Rebase Overlord",
+  "description": "Visual dashboard and interactive manager for Git Squashing, Rebase actions, Conflict Resolution, and Repository Health tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
