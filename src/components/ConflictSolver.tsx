@@ -18,7 +18,11 @@ import {
   Undo2,
   Code2,
   Minimize2,
-  Maximize2
+  Maximize2,
+  Search,
+  X,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { ConflictFile, TranslationTone } from '../types';
 
@@ -31,13 +35,13 @@ const localization = {
     guideTitle: "HƯỚNG DẪN CỨU HỘ:",
     guideText: "Khi Rebase Overlord phát hiện xung đột, nó sẽ tạm dừng. Bạn chọn chọn giải pháp nhập liệu của Nhánh chính (Ours) hoặc Nhánh gốc (Theirs) để tự động gộp, sau đó nhấn nút \"Confirm Resolve\".",
     mergeLanes: "Phân làn gộp trực quan",
-    laneA: "LÀN A: OURS (Nhánh tính năng)",
-    laneB: "LÀN B: THEIRS (Nhánh Develop)",
-    btnOurs: "Bản của bạn",
-    btnTheirs: "Bản Merge Gốc",
+    laneA: "LÀN A: OURS (Nhánh Develop / Base)",
+    laneB: "LÀN B: THEIRS (Nhánh Tính năng / Feature)",
+    btnOurs: "Bản Gốc (Left)",
+    btnTheirs: "Bản của bạn (Right)",
     actionTitle: "CHỌN PHƯƠNG ÁN HỢP NHẤT:",
-    optOurs: "Lấy Ours (Lane A)",
-    optTheirs: "Lấy Theirs (Lane B)",
+    optOurs: "Lấy Bản Gốc (Lane A)",
+    optTheirs: "Lấy Bản của bạn (Lane B)",
     optBoth: "Giữ Cả Hai (Lớp A + B)",
     optCustom: "Sửa Thủ Công",
     btnConfirm: "CONFIRM RESOLVED",
@@ -48,7 +52,7 @@ const localization = {
     statusConflict: "XUNG ĐỘT",
     statusResolved: "ĐÃ GIẢI QUYẾT",
     resultPane: "KẾT QUẢ HỢP NHẤT (SỬA THỦ CÔNG)",
-    toolHelp: "Lớp màu tím/xanh nhạt thể hiện các thay đổi cục bộ (Ours). Lớp màu hổ phách đại diện cho mã nguồn develop (Theirs) từ xa."
+    toolHelp: "Lớp màu tím/xanh nhạt thể hiện mã nguồn base/develop (Ours) làm móng. Lớp màu hổ phách đại diện cho các thay đổi từ nhánh tính năng của bạn (Theirs)."
   },
   [TranslationTone.JOKE]: {
     title: "🏥 PHÒNG CẤP CỨU REBASE (REBASE EMERGENCY)",
@@ -56,15 +60,15 @@ const localization = {
     btnContinue: "🔥 TIẾP TỤC KHÔ MÁU (REBASE CONTINUE)",
     colTitle: "HỒ SƠ BỆNH ÁN (CONFLICTS):",
     guideTitle: "KÍP TRỰC CẤP CỨU BÁO:",
-    guideText: "Xe rebase đang đổ đèo thì xịt lốp (conflict). Sếp vui lòng chọn phe nhánh tính năng (Ours) hoặc nhánh mẹ (Theirs) gộp lại nhé, hoặc gõ tay sửa khẩn.",
+    guideText: "Xe rebase đang đổ đèo thì xịt lốp (conflict). Sếp vui lòng chọn phe nhánh develop gốc (Ours) hoặc nhánh tính năng sếp múa (Theirs) gộp lại nhé, hoặc gõ tay sửa khẩn.",
     mergeLanes: "Màn hình gỡ bom hẹn giờ",
-    laneA: "PHE TA: OURS (Code sếp viết)",
-    laneB: "PHE ĐỊCH: THEIRS (Code trên server)",
-    btnOurs: "Lưu hàng của sếp",
-    btnTheirs: "Bơm hàng từ xa về",
+    laneA: "PHE TA: OURS (Nhánh Develop gốc)",
+    laneB: "PHE ĐỊCH: THEIRS (Nhánh Tính năng sếp múa)",
+    btnOurs: "Bơm hàng bên Develop",
+    btnTheirs: "Lưu hàng của sếp",
     actionTitle: "LỰA CHỌN PHÂN CHIA CHIẾN LỢI PHẨM:",
-    optOurs: "Lấy phe Ta (Lane A)",
-    optTheirs: "Lấy phe Địch (Lane B)",
+    optOurs: "Lấy phe Gốc (Lane A)",
+    optTheirs: "Lấy phe Ta (Lane B)",
     optBoth: "Gộp cả 2 phe (A + B)",
     optCustom: "Tự múa phím sửa",
     btnConfirm: "🎯 CHỐT GỠ CONFLICT",
@@ -75,7 +79,7 @@ const localization = {
     statusConflict: "ĐANG NGUY KỊCH",
     statusResolved: "CỨU SỐNG THÀNH CÔNG",
     resultPane: "KẾT QUẢ GỘP HOÀN CHỈNH (HÚ GÕ CHỮ VÀO)",
-    toolHelp: "Làn màu tím mộng mơ đại diện cho chiếc code sếp viết. Làn màu hổ phách đại diện cho chiếc code vô tri từ thượng giới."
+    toolHelp: "Làn màu tím mộng mơ đại diện cho chiếc code gốc trên server (Ours). Làn màu hổ phách đại diện cho chiếc code sếp múa trên nhánh tính năng (Theirs)."
   },
   [TranslationTone.TOXIC]: {
     title: "💀 ĐỐNG NÁT REBASE (REBASE MESS CLEANER)",
@@ -83,15 +87,15 @@ const localization = {
     btnContinue: "🤬 BẤM TIẾP (REBASE CONTINUE)",
     colTitle: "BÃI CHIẾN TRƯỜNG:",
     guideTitle: "VĂN PHÒNG CHỬI BỚT:",
-    guideText: "Sửa chung 1 dòng chứ gì, dở hơi cám hấp! Chọn giải pháp lấy Ours (mày viết) hoặc Theirs (thằng khác viết) để dọn cái đống rác này, đừng để tao cáu.",
+    guideText: "Sửa chung 1 dòng chứ gì, dở hơi cám hấp! Chọn giải pháp lấy Ours (develop gốc) hoặc Theirs (mày tự múa) để dọn cái đống rác này, đừng để tao cáu.",
     mergeLanes: "Lớp chia tài sản tranh chấp",
-    laneA: "BẢN CỦA MÀY: OURS (Tự làm tự chịu)",
-    laneB: "BẢN GỐC: THEIRS (Của thằng đồng nghiệp)",
-    btnOurs: "Lấy đồ của mày",
-    btnTheirs: "Lấy đồ gốc",
+    laneA: "BẢN GỐC: OURS (Nhánh Develop gốc trên server)",
+    laneB: "BẢN CỦA MÀY: THEIRS (Nhánh Tính năng mày viết)",
+    btnOurs: "Lấy đồ gốc",
+    btnTheirs: "Lấy đồ ngu của mày",
     actionTitle: "ĐỊNH ĐOẠT SỐ PHẬN:",
-    optOurs: "Lấy đồ ngu của Tao",
-    optTheirs: "Lấy đồ gốc trên máy",
+    optOurs: "Lấy đồ gốc trên máy (Lane A)",
+    optTheirs: "Lấy đồ ngu của Tao (Lane B)",
     optBoth: "Cố đấm ăn xôi giữ cả hai",
     optCustom: "Sửa bằng tay lẹ lên",
     btnConfirm: "🔥 XÁC NHẬN DỌN XONG",
@@ -102,7 +106,7 @@ const localization = {
     statusConflict: "BÃI RÁC TO ĐÙNG",
     statusResolved: "NÍT GIAO XONG ĐẤY",
     resultPane: "EDIT MANUAL LẸ LÊN CON GIỜI",
-    toolHelp: "Học gõ code đi rồi biết màu nào ra màu nấy. Màu tím là code rác của mày, màu vàng là dọn phân của thằng commit chung."
+    toolHelp: "Học gõ code đi rồi biết màu nào ra màu nấy. Màu tím là code gốc develop của thằng khác trên server, màu vàng là dọn phân rác mày tự viết trên nhánh tính năng."
   },
   [TranslationTone.ENGLISH]: {
     title: "COMPARE & RESOLVE (JETBRAINS 3-WAY MERGE)",
@@ -112,8 +116,8 @@ const localization = {
     guideTitle: "JETBRAINS DIRECTIVES:",
     guideText: "Click code insertion arrows (>> on Left, << on Right) to automatically inject blocks into the center pane. You can edit the code directly inside the Result panel.",
     mergeLanes: "JetBrains 3-Way Comparative Channels",
-    laneA: "LOCAL CHANGES (OURS) — FEATURE BRANCH",
-    laneB: "INCOMING CHANGES (THEIRS) — ORIGIN/DEVELOP",
+    laneA: "BASE CHANGES (OURS) — ORIGIN/DEVELOP",
+    laneB: "INCOMING CHANGES (THEIRS) — FEATURE BRANCH",
     resultPane: "EDITABLE MERGE RESULT EDITOR",
     btnOurs: "Accept Left (>>)",
     btnTheirs: "Accept Right (<<)",
@@ -132,7 +136,7 @@ const localization = {
     statusConflict: "CONFLICT DETECTED",
     statusResolved: "SUCCESSFULLY MERGED",
     quickActions: "Quick merge presets:",
-    toolHelp: "Soft purple/blue indicates your local commit changes. Deep amber highlights development server modifications."
+    toolHelp: "Soft purple/blue indicates base development server modifications (Ours). Deep amber highlights your incoming feature commit changes (Theirs)."
   }
 };
 
@@ -141,6 +145,8 @@ interface ConflictSolverProps {
   tone: TranslationTone;
   onResolveFile: (filepath: string, resolvedContent: string) => void;
   onCompleteRecovery: () => void;
+  currentBranch?: string;
+  baseBranch?: string;
 }
 
 interface CodeBlock {
@@ -236,20 +242,245 @@ const getContentWithConflictMarkers = (file: ConflictFile) => {
   ].join('\n');
 };
 
+interface SearchBarProps {
+  isOpen: boolean;
+  query: string;
+  matchCase: boolean;
+  wholeWord: boolean;
+  useRegex: boolean;
+  activeIndex: number;
+  totalMatches: number;
+  onChange: (updates: { query?: string; matchCase?: boolean; wholeWord?: boolean; useRegex?: boolean; activeIndex?: number }) => void;
+  onClose: () => void;
+  tone: TranslationTone;
+}
+
+function SearchInputBar({
+  isOpen,
+  query,
+  matchCase,
+  wholeWord,
+  useRegex,
+  activeIndex,
+  totalMatches,
+  onChange,
+  onClose,
+  tone
+}: SearchBarProps) {
+  if (!isOpen) return null;
+
+  const handlePrev = () => {
+    if (totalMatches === 0) return;
+    const nextIdx = (activeIndex - 1 + totalMatches) % totalMatches;
+    onChange({ activeIndex: nextIdx });
+  };
+
+  const handleNext = () => {
+    if (totalMatches === 0) return;
+    const nextIdx = (activeIndex + 1) % totalMatches;
+    onChange({ activeIndex: nextIdx });
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      if (e.shiftKey) {
+        handlePrev();
+      } else {
+        handleNext();
+      }
+    } else if (e.key === 'Escape') {
+      onClose();
+    }
+  };
+
+  return (
+    <div className="bg-[#111216] border-b border-[#2d2f3c] px-3 py-1 flex items-center justify-between gap-2 text-xs font-mono select-none animate-fade-in text-slate-300">
+      <div className="flex items-center gap-1.5 flex-1 max-w-[85%]">
+        <div className="relative flex items-center bg-[#1c1d24] border border-[#2d2f3c] focus-within:border-violet-500 rounded-md shadow-inner h-6.5 px-2 w-full max-w-[280px]">
+          <Search className="w-3.5 h-3.5 text-slate-500 mr-2 shrink-0" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => onChange({ query: e.target.value, activeIndex: 0 })}
+            onKeyDown={handleKeyDown}
+            placeholder={tone === TranslationTone.ENGLISH ? "Search in pane (Enter/Shift+Enter)..." : "Tìm trong khung (Enter/Shift+Enter)..."}
+            className="bg-transparent border-none outline-none text-[#e8eef5] text-xs w-full mr-2 h-full placeholder-slate-600 focus:ring-0 focus:outline-none"
+            autoFocus
+          />
+          
+          <div className="flex items-center gap-0.5 shrink-0">
+            <button
+              onClick={() => onChange({ matchCase: !matchCase, activeIndex: 0 })}
+              className={`px-1 py-0.5 text-[8px] font-bold rounded transition-all cursor-pointer border ${
+                matchCase 
+                  ? 'bg-violet-500/20 text-violet-400 border-violet-500/50' 
+                  : 'text-slate-500 hover:text-slate-300 border-transparent bg-transparent'
+              }`}
+              title="Match Case (Cc)"
+            >
+              Cc
+            </button>
+            <button
+              onClick={() => onChange({ wholeWord: !wholeWord, activeIndex: 0 })}
+              className={`px-1 py-0.5 text-[8px] font-bold rounded transition-all cursor-pointer border ${
+                wholeWord 
+                  ? 'bg-violet-500/20 text-violet-400 border-violet-500/50' 
+                  : 'text-slate-500 hover:text-slate-300 border-transparent bg-transparent'
+              }`}
+              title="Words (W)"
+            >
+              W
+            </button>
+            <button
+              onClick={() => onChange({ useRegex: !useRegex, activeIndex: 0 })}
+              className={`px-1 py-0.5 text-[8px] font-bold rounded transition-all cursor-pointer border ${
+                useRegex 
+                  ? 'bg-violet-500/20 text-violet-400 border-violet-500/50' 
+                  : 'text-slate-500 hover:text-slate-300 border-transparent bg-transparent'
+              }`}
+              title="Regular Expression (.*)"
+            >
+              .*
+            </button>
+          </div>
+        </div>
+
+        <span className="text-[10px] text-slate-500 whitespace-nowrap px-1">
+          {totalMatches > 0 ? (
+            <span className="text-violet-400 font-extrabold font-mono">
+              {activeIndex + 1}/{totalMatches} {tone === TranslationTone.ENGLISH ? "results" : "đáp án"}
+            </span>
+          ) : query ? (
+            <span className="text-rose-450 font-bold">0 {tone === TranslationTone.ENGLISH ? "results" : "kết quả"}</span>
+          ) : (
+            <span className="text-slate-550">{tone === TranslationTone.ENGLISH ? "No query" : "Nhập từ khóa"}</span>
+          )}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-1 shrink-0">
+        <button
+          onClick={handlePrev}
+          disabled={totalMatches === 0}
+          className={`p-1 rounded transition-colors ${totalMatches === 0 ? 'text-slate-700 cursor-not-allowed' : 'text-slate-450 hover:text-white hover:bg-[#242532] cursor-pointer'}`}
+          title="Previous Match (Shift+Enter)"
+        >
+          <ChevronUp className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={handleNext}
+          disabled={totalMatches === 0}
+          className={`p-1 rounded transition-colors ${totalMatches === 0 ? 'text-slate-700 cursor-not-allowed' : 'text-slate-450 hover:text-white hover:bg-[#242532] cursor-pointer'}`}
+          title="Next Match (Enter)"
+        >
+          <ChevronDown className="w-3.5 h-3.5" />
+        </button>
+        <div className="w-[1px] h-3 bg-[#2d2f3c] mx-0.5"></div>
+        <button
+          onClick={onClose}
+          className="p-1 rounded text-slate-400 hover:text-white hover:bg-rose-950/40 transition-colors cursor-pointer"
+          title="Close search (Esc)"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const getSearchRegex = (query: string, matchCase: boolean, wholeWord: boolean, useRegex: boolean): RegExp | null => {
+  if (!query) return null;
+  try {
+    let pattern = useRegex ? query : query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    if (wholeWord) {
+      pattern = `\\b${pattern}\\b`;
+    }
+    const flags = matchCase ? 'g' : 'gi';
+    return new RegExp(pattern, flags);
+  } catch (e) {
+    return null; // invalid regex
+  }
+};
+
 export default function ConflictSolver({
   conflicts,
   tone,
   onResolveFile,
-  onCompleteRecovery
+  onCompleteRecovery,
+  currentBranch,
+  baseBranch
 }: ConflictSolverProps) {
   const [selectedFile, setSelectedFile] = React.useState<ConflictFile | null>(conflicts[0] || null);
   const [editorText, setEditorText] = React.useState('');
   const [isMinimized, setIsMinimized] = React.useState(false);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
+
+  const getLaneHeadingA = () => {
+    const branchSuffix = baseBranch ? `: ${baseBranch}` : '';
+    switch (tone) {
+      case TranslationTone.PROFESSIONAL:
+        return `LÀN A: OURS (Nhánh Develop / Base${branchSuffix})`;
+      case TranslationTone.JOKE:
+        return `PHE TA: OURS (Nhánh Develop gốc${branchSuffix})`;
+      case TranslationTone.TOXIC:
+        return `BẢN GỐC: OURS (Code server develop${branchSuffix})`;
+      case TranslationTone.ENGLISH:
+      default:
+        return `BASE CHANGES (OURS) — ORIGIN/DEVELOP${branchSuffix ? ` (${baseBranch})` : ''}`;
+    }
+  };
+
+  const getLaneHeadingB = () => {
+    const branchSuffix = currentBranch ? `: ${currentBranch}` : '';
+    switch (tone) {
+      case TranslationTone.PROFESSIONAL:
+        return `LÀN B: THEIRS (Nhánh Tính năng / Feature${branchSuffix})`;
+      case TranslationTone.JOKE:
+        return `PHE ĐỊCH: THEIRS (Nhánh Tính năng sếp múa${branchSuffix})`;
+      case TranslationTone.TOXIC:
+        return `BẢN CỦA MÀY: THEIRS (Nhánh Tính năng mày viết${branchSuffix})`;
+      case TranslationTone.ENGLISH:
+      default:
+        return `INCOMING CHANGES (THEIRS) — FEATURE BRANCH${branchSuffix ? ` (${currentBranch})` : ''}`;
+    }
+  };
   
   // Track resolved status per block index
   const [resolvedBlocks, setResolvedBlocks] = React.useState<Record<number, 'ours' | 'theirs' | 'both' | 'ignore'>>({});
+
+  // 3-way Search states
+  const [stateLeftSearch, setStateLeftSearch] = React.useState({
+    isOpen: false,
+    query: '',
+    matchCase: false,
+    wholeWord: false,
+    useRegex: false,
+    activeIndex: 0
+  });
+
+  const [stateRightSearch, setStateRightSearch] = React.useState({
+    isOpen: false,
+    query: '',
+    matchCase: false,
+    wholeWord: false,
+    useRegex: false,
+    activeIndex: 0
+  });
+
+  const [stateResultSearch, setStateResultSearch] = React.useState({
+    isOpen: false,
+    query: '',
+    matchCase: false,
+    wholeWord: false,
+    useRegex: false,
+    activeIndex: 0
+  });
+
+  // Reference hooks
+  const leftPaneContainerRef = React.useRef<HTMLDivElement>(null);
+  const rightPaneContainerRef = React.useRef<HTMLDivElement>(null);
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   React.useEffect(() => {
     if (conflicts.length > 0 && (!selectedFile || !conflicts.some(c => c.filepath === selectedFile.filepath))) {
@@ -267,7 +498,257 @@ export default function ConflictSolver({
     return parseConflictFile(activeContent);
   }, [activeContent]);
 
+  // Parse arrays of lines sequentially to find matches easily in left and right lanes
+  const leftLines = React.useMemo(() => {
+    const linesList: { text: string; blockIdx: number; lineIdxInBlock: number; isConflict: boolean }[] = [];
+    blocks.forEach((block, bIdx) => {
+      if (block.type === 'normal') {
+        const lines = block.commonText ? block.commonText.split('\n') : [''];
+        lines.forEach((line, lIdx) => {
+          linesList.push({ text: line, blockIdx: bIdx, lineIdxInBlock: lIdx, isConflict: false });
+        });
+      } else {
+        const oursLines = block.oursText ? block.oursText.split('\n') : [''];
+        oursLines.forEach((line, lIdx) => {
+          linesList.push({ text: line, blockIdx: bIdx, lineIdxInBlock: lIdx, isConflict: true });
+        });
+      }
+    });
+    return linesList;
+  }, [blocks]);
+
+  const rightLines = React.useMemo(() => {
+    const linesList: { text: string; blockIdx: number; lineIdxInBlock: number; isConflict: boolean }[] = [];
+    blocks.forEach((block, bIdx) => {
+      if (block.type === 'normal') {
+        const lines = block.commonText ? block.commonText.split('\n') : [''];
+        lines.forEach((line, lIdx) => {
+          linesList.push({ text: line, blockIdx: bIdx, lineIdxInBlock: lIdx, isConflict: false });
+        });
+      } else {
+        const theirsLines = block.theirsText ? block.theirsText.split('\n') : [''];
+        theirsLines.forEach((line, lIdx) => {
+          linesList.push({ text: line, blockIdx: bIdx, lineIdxInBlock: lIdx, isConflict: true });
+        });
+      }
+    });
+    return linesList;
+  }, [blocks]);
+
+  // Calculate Matches in our lanes using high performance regex generators
+  const leftMatches = React.useMemo(() => {
+    if (!stateLeftSearch.isOpen || !stateLeftSearch.query) return [];
+    const regex = getSearchRegex(stateLeftSearch.query, stateLeftSearch.matchCase, stateLeftSearch.wholeWord, stateLeftSearch.useRegex);
+    if (!regex) return [];
+
+    const matches: { globalLineIdx: number; start: number; end: number; text: string }[] = [];
+    leftLines.forEach((lineObj, globalLineIdx) => {
+      const text = lineObj.text;
+      regex.lastIndex = 0;
+      let match;
+      if (regex.global) {
+        while ((match = regex.exec(text)) !== null) {
+          if (match.index === regex.lastIndex) {
+            regex.lastIndex++;
+          }
+          matches.push({
+            globalLineIdx,
+            start: match.index,
+            end: match.index + match[0].length,
+            text: match[0]
+          });
+        }
+      } else {
+        match = regex.exec(text);
+        if (match) {
+          matches.push({
+            globalLineIdx,
+            start: match.index,
+            end: match.index + match[0].length,
+            text: match[0]
+          });
+        }
+      }
+    });
+    return matches;
+  }, [leftLines, stateLeftSearch.isOpen, stateLeftSearch.query, stateLeftSearch.matchCase, stateLeftSearch.wholeWord, stateLeftSearch.useRegex]);
+
+  const rightMatches = React.useMemo(() => {
+    if (!stateRightSearch.isOpen || !stateRightSearch.query) return [];
+    const regex = getSearchRegex(stateRightSearch.query, stateRightSearch.matchCase, stateRightSearch.wholeWord, stateRightSearch.useRegex);
+    if (!regex) return [];
+
+    const matches: { globalLineIdx: number; start: number; end: number; text: string }[] = [];
+    rightLines.forEach((lineObj, globalLineIdx) => {
+      const text = lineObj.text;
+      regex.lastIndex = 0;
+      let match;
+      if (regex.global) {
+        while ((match = regex.exec(text)) !== null) {
+          if (match.index === regex.lastIndex) {
+            regex.lastIndex++;
+          }
+          matches.push({
+            globalLineIdx,
+            start: match.index,
+            end: match.index + match[0].length,
+            text: match[0]
+          });
+        }
+      } else {
+        match = regex.exec(text);
+        if (match) {
+          matches.push({
+            globalLineIdx,
+            start: match.index,
+            end: match.index + match[0].length,
+            text: match[0]
+          });
+        }
+      }
+    });
+    return matches;
+  }, [rightLines, stateRightSearch.isOpen, stateRightSearch.query, stateRightSearch.matchCase, stateRightSearch.wholeWord, stateRightSearch.useRegex]);
+
+  const middleMatches = React.useMemo(() => {
+    if (!stateResultSearch.isOpen || !stateResultSearch.query) return [];
+    const regex = getSearchRegex(stateResultSearch.query, stateResultSearch.matchCase, stateResultSearch.wholeWord, stateResultSearch.useRegex);
+    if (!regex) return [];
+
+    const matches: { start: number; end: number; text: string }[] = [];
+    regex.lastIndex = 0;
+    let match;
+    if (regex.global) {
+      while ((match = regex.exec(editorText)) !== null) {
+        if (match.index === regex.lastIndex) {
+          regex.lastIndex++;
+        }
+        matches.push({
+          start: match.index,
+          end: match.index + match[0].length,
+          text: match[0]
+        });
+      }
+    } else {
+      match = regex.exec(editorText);
+      if (match) {
+        matches.push({
+          start: match.index,
+          end: match.index + match[0].length,
+          text: match[0]
+        });
+      }
+    }
+    return matches;
+  }, [editorText, stateResultSearch.isOpen, stateResultSearch.query, stateResultSearch.matchCase, stateResultSearch.wholeWord, stateResultSearch.useRegex]);
+
+  // Handle auto scrolling into view for search navigation
   React.useEffect(() => {
+    if (stateLeftSearch.isOpen && leftPaneContainerRef.current && leftMatches.length > 0) {
+      const activeIdx = stateLeftSearch.activeIndex;
+      if (activeIdx >= 0 && activeIdx < leftMatches.length) {
+        const match = leftMatches[activeIdx];
+        const lineEl = leftPaneContainerRef.current.querySelector(`[data-left-line="${match.globalLineIdx}"]`);
+        if (lineEl) {
+          lineEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        }
+      }
+    }
+  }, [stateLeftSearch.isOpen, stateLeftSearch.activeIndex, leftMatches]);
+
+  React.useEffect(() => {
+    if (stateRightSearch.isOpen && rightPaneContainerRef.current && rightMatches.length > 0) {
+      const activeIdx = stateRightSearch.activeIndex;
+      if (activeIdx >= 0 && activeIdx < rightMatches.length) {
+        const match = rightMatches[activeIdx];
+        const lineEl = rightPaneContainerRef.current.querySelector(`[data-right-line="${match.globalLineIdx}"]`);
+        if (lineEl) {
+          lineEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        }
+      }
+    }
+  }, [stateRightSearch.isOpen, stateRightSearch.activeIndex, rightMatches]);
+
+  React.useEffect(() => {
+    if (stateResultSearch.isOpen && textareaRef.current && middleMatches.length > 0) {
+      const activeIdx = stateResultSearch.activeIndex;
+      if (activeIdx >= 0 && activeIdx < middleMatches.length) {
+        const match = middleMatches[activeIdx];
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(match.start, match.end);
+
+        // Center on matched line inside result pane
+        const textToMatch = editorText.substring(0, match.start);
+        const linesBefore = textToMatch.split('\n').length;
+        const lineHeight = 20;
+        const textarea = textareaRef.current;
+        const targetScrollTop = (linesBefore - 1) * lineHeight - (textarea.clientHeight / 2);
+        textarea.scrollTop = Math.max(0, targetScrollTop);
+      }
+    }
+  }, [stateResultSearch.isOpen, stateResultSearch.activeIndex, middleMatches, editorText]);
+
+  // Utility to render text strings with matching highlights
+  const renderLineWithHighlight = (
+    lineText: string,
+    globalLineIdx: number,
+    paneMatches: { globalLineIdx: number; start: number; end: number; text: string }[],
+    paneActiveIdx: number
+  ) => {
+    const lineMatches = paneMatches.filter(m => m.globalLineIdx === globalLineIdx);
+    if (lineMatches.length === 0) {
+      return <span>{lineText || '\u00A0'}</span>;
+    }
+
+    const sortedMatches = [...lineMatches].sort((a, b) => a.start - b.start);
+    const elements: React.ReactNode[] = [];
+    let lastIndex = 0;
+
+    sortedMatches.forEach((m, matchIdx) => {
+      const globalMatchIndex = paneMatches.indexOf(m);
+      const isActive = globalMatchIndex === paneActiveIdx;
+
+      if (m.start > lastIndex) {
+        elements.push(
+          <span key={`text-${lastIndex}`}>
+            {lineText.substring(lastIndex, m.start)}
+          </span>
+        );
+      }
+
+      elements.push(
+        <mark
+          key={`match-${m.start}`}
+          className={`px-0.5 rounded font-bold transition-colors select-text ${
+            isActive
+              ? 'bg-[#214283] text-white ring-2 ring-blue-400'
+              : 'bg-amber-500/30 text-[#e8eef5] ring-1 ring-amber-500/40'
+          }`}
+        >
+          {lineText.substring(m.start, m.end)}
+        </mark>
+      );
+
+      lastIndex = m.end;
+    });
+
+    if (lastIndex < lineText.length) {
+      elements.push(
+        <span key={`text-end`}>
+          {lineText.substring(lastIndex)}
+        </span>
+      );
+    }
+
+    return <>{elements}</>;
+  };
+
+  React.useEffect(() => {
+    // Reset our search fields on file selection transition
+    setStateLeftSearch(prev => ({ ...prev, isOpen: false, query: '', activeIndex: 0 }));
+    setStateRightSearch(prev => ({ ...prev, isOpen: false, query: '', activeIndex: 0 }));
+    setStateResultSearch(prev => ({ ...prev, isOpen: false, query: '', activeIndex: 0 }));
+
     if (selectedFile) {
       if (selectedFile.isResolved && selectedFile.resolvedContent) {
         setEditorText(selectedFile.resolvedContent);
@@ -393,20 +874,26 @@ export default function ConflictSolver({
   // Render Left Code column
   const renderLeftPane = () => {
     let lineNum = 1;
+    let globalLineCounter = 0;
     return (
-      <div className="font-mono text-[11px] leading-5 text-slate-300">
+      <div className="font-mono text-[11px] leading-5 text-slate-300 w-full">
         {blocks.map((block, bIdx) => {
           if (block.type === 'normal') {
             const lines = block.commonText ? block.commonText.split('\n') : [''];
             return lines.map((line, lIdx) => {
               const currNum = lineNum++;
+              const currentGlobalLineIdx = globalLineCounter++;
               return (
-                <div key={`n-L-${bIdx}-${lIdx}`} className="flex hover:bg-[#202124]/40 min-h-[20px] items-center">
-                  <div className="w-9 text-right pr-2 text-slate-600 select-none border-r border-[#2d2f3c]/60 bg-[#16171a] font-mono text-[10px]">
+                <div 
+                  key={`n-L-${bIdx}-${lIdx}`} 
+                  data-left-line={currentGlobalLineIdx}
+                  className="flex hover:bg-[#202124]/40 min-h-[20px] items-center animate-fade-in"
+                >
+                  <div className="w-9 text-right pr-2 text-slate-600 select-none border-r border-[#2d2f3c]/60 bg-[#16171a] font-mono text-[10px] shrink-0">
                     {currNum}
                   </div>
-                  <div className="pl-3 truncate select-text whitespace-pre text-slate-400">
-                    {line}
+                  <div className="pl-3 select-text whitespace-pre text-slate-400 font-mono">
+                    {renderLineWithHighlight(line, currentGlobalLineIdx, leftMatches, stateLeftSearch.activeIndex)}
                   </div>
                 </div>
               );
@@ -421,21 +908,23 @@ export default function ConflictSolver({
               const line = oursLines[lIdx];
               const hasLine = lIdx < oursLines.length;
               const currNum = hasLine ? lineNum++ : '';
+              const currentGlobalLineIdx = globalLineCounter++;
               
               return (
                 <div 
                   key={`c-L-${bIdx}-${lIdx}`} 
+                  data-left-line={currentGlobalLineIdx}
                   className={`flex relative min-h-[20px] items-center ${
                     isResolved 
                       ? 'bg-emerald-950/15 text-emerald-400/80 border-l-2 border-emerald-500/50' 
                       : 'bg-rose-950/20 text-[#f28b82] border-l-2 border-rose-500/80'
                   }`}
                 >
-                  <div className="w-9 text-right pr-2 text-rose-550 bg-rose-950/30 select-none border-r border-[#2d2f3c]/60 font-mono text-[10px] font-bold">
+                  <div className="w-9 text-right pr-2 text-rose-550 bg-rose-950/30 select-none border-r border-[#2d2f3c]/60 font-mono text-[10px] font-bold shrink-0">
                     {currNum || '\u00A0'}
                   </div>
-                  <div className="pl-3 truncate flex-1 select-text whitespace-pre pr-24 font-medium">
-                    {hasLine ? line : ''}
+                  <div className="pl-3 flex-1 select-text whitespace-pre pr-24 font-medium font-mono">
+                    {hasLine ? renderLineWithHighlight(line, currentGlobalLineIdx, leftMatches, stateLeftSearch.activeIndex) : ''}
                   </div>
 
                   {hasLine && lIdx === 0 && !isResolved && (
@@ -474,20 +963,26 @@ export default function ConflictSolver({
   // Render Right Code column
   const renderRightPane = () => {
     let lineNum = 1;
+    let globalLineCounter = 0;
     return (
-      <div className="font-mono text-[11px] leading-5 text-slate-300">
+      <div className="font-mono text-[11px] leading-5 text-slate-300 w-full">
         {blocks.map((block, bIdx) => {
           if (block.type === 'normal') {
             const lines = block.commonText ? block.commonText.split('\n') : [''];
             return lines.map((line, lIdx) => {
               const currNum = lineNum++;
+              const currentGlobalLineIdx = globalLineCounter++;
               return (
-                <div key={`n-R-${bIdx}-${lIdx}`} className="flex hover:bg-[#202124]/40 min-h-[20px] items-center">
-                  <div className="w-9 text-right pr-2 text-slate-600 select-none border-r border-[#2d2f3c]/60 bg-[#16171a] font-mono text-[10px]">
+                <div 
+                  key={`n-R-${bIdx}-${lIdx}`} 
+                  data-right-line={currentGlobalLineIdx}
+                  className="flex hover:bg-[#202124]/40 min-h-[20px] items-center animate-fade-in"
+                >
+                  <div className="w-9 text-right pr-2 text-slate-600 select-none border-r border-[#2d2f3c]/60 bg-[#16171a] font-mono text-[10px] shrink-0">
                     {currNum}
                   </div>
-                  <div className="pl-3 truncate select-text whitespace-pre text-slate-400">
-                    {line}
+                  <div className="pl-3 select-text whitespace-pre text-slate-400 font-mono">
+                    {renderLineWithHighlight(line, currentGlobalLineIdx, rightMatches, stateRightSearch.activeIndex)}
                   </div>
                 </div>
               );
@@ -502,21 +997,23 @@ export default function ConflictSolver({
               const line = theirsLines[lIdx];
               const hasLine = lIdx < theirsLines.length;
               const currNum = hasLine ? lineNum++ : '';
+              const currentGlobalLineIdx = globalLineCounter++;
               
               return (
                 <div 
                   key={`c-R-${bIdx}-${lIdx}`} 
+                  data-right-line={currentGlobalLineIdx}
                   className={`flex relative min-h-[20px] items-center ${
                     isResolved 
                       ? 'bg-emerald-950/15 text-emerald-400/80 border-r-2 border-emerald-500/50' 
                       : 'bg-[#3d2f1f]/60 text-amber-300 border-r-2 border-amber-500/80'
                   }`}
                 >
-                  <div className="w-9 text-right pr-2 text-amber-550 bg-amber-950/30 select-none border-r border-[#2d2f3c]/60 font-mono text-[10px] font-bold">
+                  <div className="w-9 text-right pr-2 text-amber-550 bg-amber-950/30 select-none border-r border-[#2d2f3c]/60 font-mono text-[10px] font-bold shrink-0">
                     {currNum || '\u00A0'}
                   </div>
-                  <div className="pl-3 truncate flex-1 select-text whitespace-pre pr-24 font-medium">
-                    {hasLine ? line : ''}
+                  <div className="pl-3 flex-1 select-text whitespace-pre pr-24 font-medium font-mono">
+                    {hasLine ? renderLineWithHighlight(line, currentGlobalLineIdx, rightMatches, stateRightSearch.activeIndex) : ''}
                   </div>
 
                   {hasLine && lIdx === 0 && !isResolved && (
@@ -743,37 +1240,83 @@ export default function ConflictSolver({
                   
                   {/* LEFT PANE - Local Changes (Ours) */}
                   <div className="flex flex-col bg-[#1e2026] rounded-lg border border-[#2d2f3c]/70 overflow-hidden">
-                    <div className="bg-[#17181c] px-3 py-1.5 border-b border-[#2d2f3c]/70 flex justify-between items-center">
-                      <span className="text-[10px] font-mono text-indigo-400 font-extrabold uppercase tracking-wider">{loc.laneA}</span>
-                      <span className="text-[9px] font-mono text-slate-500">Read-Only</span>
+                    <div className="bg-[#17181c] px-3 py-1.5 border-b border-[#2d2f3c]/70 flex justify-between items-center select-none">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-mono text-indigo-400 font-extrabold uppercase tracking-wider">{getLaneHeadingA()}</span>
+                        <div className="h-2.5 w-[1px] bg-[#2d2f3c]"></div>
+                        <span className="text-[9px] font-mono text-slate-500">Read-Only</span>
+                      </div>
+                      <button
+                        onClick={() => setStateLeftSearch(prev => ({ ...prev, isOpen: !prev.isOpen }))}
+                        className={`p-1 rounded transition-colors ${stateLeftSearch.isOpen ? 'bg-violet-600 text-white animate-pulse' : 'text-slate-400 hover:text-slate-200 hover:bg-[#252632]'} cursor-pointer`}
+                        title="Search inside this box"
+                      >
+                        <Search className="w-3.5 h-3.5" />
+                      </button>
                     </div>
 
-                    <div className={`flex relative items-stretch ${isFullscreen ? 'h-[calc(100vh-320px)] lg:h-[calc(100vh-280px)] min-h-[420px]' : 'h-[420px]'} overflow-y-auto index-0 bg-[#0f1013]`}>
+                    <SearchInputBar
+                      isOpen={stateLeftSearch.isOpen}
+                      query={stateLeftSearch.query}
+                      matchCase={stateLeftSearch.matchCase}
+                      wholeWord={stateLeftSearch.wholeWord}
+                      useRegex={stateLeftSearch.useRegex}
+                      activeIndex={stateLeftSearch.activeIndex}
+                      totalMatches={leftMatches.length}
+                      onChange={(updates) => setStateLeftSearch(prev => ({ ...prev, ...updates }))}
+                      onClose={() => setStateLeftSearch(prev => ({ ...prev, isOpen: false }))}
+                      tone={tone}
+                    />
+
+                    <div 
+                      ref={leftPaneContainerRef}
+                      className={`flex relative items-stretch ${isFullscreen ? 'h-[calc(100vh-320px)] lg:h-[calc(100vh-280px)] min-h-[420px]' : 'h-[420px]'} overflow-y-auto index-0 bg-[#0f1013] scrollbar-thin scrollbar-thumb-slate-800`}
+                    >
                       {renderLeftPane()}
                     </div>
                   </div>
 
                   {/* MIDDLE PANE - Merged result (Editable result) */}
                   <div className="flex flex-col bg-[#16171d] rounded-lg border-2 border-violet-500/50 shadow-inner overflow-hidden">
-                    <div className="bg-[#0f1013] px-3 py-1.5 border-b border-[#2d2f3c]/70 flex justify-between items-center">
+                    <div className="bg-[#0f1013] px-3 py-1.5 border-b border-[#2d2f3c]/70 flex justify-between items-center select-none">
                       <span className="text-[10px] font-mono text-violet-400 font-extrabold uppercase tracking-widest flex items-center gap-1">
                         <Settings2 className="w-3.5 h-3.5 text-violet-400" />
                         {loc.resultPane}
                       </span>
                       <div className="flex items-center gap-1.5">
                         {isCurrentlyDirty ? (
-                          <span className="text-[10px] px-2 py-0.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-md font-extrabold font-mono flex items-center gap-1 animate-pulse">
-                            <AlertTriangle className="w-3 h-3 text-rose-400" />
-                            {totalMarkerBlocks} {tone === TranslationTone.ENGLISH ? "REMAIN" : "MARKER CÒN LẠI"}
+                          <span className="text-[10px] px-1.5 py-0.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-md font-extrabold font-mono flex items-center gap-1 animate-pulse shrink-0">
+                            <AlertTriangle className="w-3.5 h-3.5 text-rose-400 animate-bounce" />
+                            {totalMarkerBlocks} {tone === TranslationTone.ENGLISH ? "REMAIN" : "CÒN LẠI"}
                           </span>
                         ) : (
-                          <span className="text-[10px] px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-md font-extrabold font-mono flex items-center gap-1">
-                            <Check className="w-3 h-3 text-emerald-400" />
-                            READY TO APPLY
+                          <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-md font-extrabold font-mono flex items-center gap-1 shrink-0">
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            READY
                           </span>
                         )}
+                        <button
+                          onClick={() => setStateResultSearch(prev => ({ ...prev, isOpen: !prev.isOpen }))}
+                          className={`p-1 rounded transition-colors ${stateResultSearch.isOpen ? 'bg-violet-600 text-white animate-pulse' : 'text-slate-400 hover:text-slate-200 hover:bg-[#252632]'} cursor-pointer`}
+                          title="Search inside this box"
+                        >
+                          <Search className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
+
+                    <SearchInputBar
+                      isOpen={stateResultSearch.isOpen}
+                      query={stateResultSearch.query}
+                      matchCase={stateResultSearch.matchCase}
+                      wholeWord={stateResultSearch.wholeWord}
+                      useRegex={stateResultSearch.useRegex}
+                      activeIndex={stateResultSearch.activeIndex}
+                      totalMatches={middleMatches.length}
+                      onChange={(updates) => setStateResultSearch(prev => ({ ...prev, ...updates }))}
+                      onClose={() => setStateResultSearch(prev => ({ ...prev, isOpen: false }))}
+                      tone={tone}
+                    />
 
                     <div className={`flex relative items-stretch ${isFullscreen ? 'h-[calc(100vh-320px)] lg:h-[calc(100vh-280px)] min-h-[420px]' : 'h-[420px]'} overflow-y-auto font-mono text-[11px] leading-5`}>
                       <div className="bg-[#0e0f12] px-2 text-right text-slate-600 select-none border-r border-[#2d2f3c]/60 w-9 select-none pt-1">
@@ -783,15 +1326,16 @@ export default function ConflictSolver({
                       </div>
 
                       <textarea
+                        ref={textareaRef}
                         value={editorText}
                         onChange={(e) => setEditorText(e.target.value)}
-                        className="w-full bg-[#16171d] border-none text-[#e8eef5] outline-none p-3 resize-none font-mono text-[11.5px] leading-5 focus:ring-0 leading-relaxed overflow-x-auto whitespace-pre select-text h-full placeholder:text-slate-650 scrollbar-thin scrollbar-thumb-slate-800"
+                        className="w-full bg-[#16171d] border-none text-[#e8eef5] outline-none p-3 resize-none font-mono text-[11.5px] leading-5 focus:ring-0 leading-relaxed overflow-x-auto whitespace-pre select-text h-full placeholder:text-slate-650 scrollbar-thin scrollbar-thumb-slate-800 font-mono"
                         placeholder={loc.placeholderCustom}
                       />
 
                       {isCurrentlyDirty && (
                         <span className="absolute bottom-3 right-3 px-2 py-1 bg-rose-950/90 border border-rose-500/40 text-rose-350 rounded-md font-extrabold text-[9px] shadow-lg flex items-center gap-1 font-mono pointer-events-none select-none z-10">
-                          <AlertTriangle className="w-3 h-3 text-rose-400" />
+                          <AlertTriangle className="w-3 h-3 text-rose-400 animate-pulse" />
                           {totalMarkerBlocks} UNRESOLVED
                         </span>
                       )}
@@ -800,12 +1344,38 @@ export default function ConflictSolver({
 
                   {/* RIGHT PANE - Incoming Changes (Theirs) */}
                   <div className="flex flex-col bg-[#1e2026] rounded-lg border border-[#2d2f3c]/70 overflow-hidden">
-                    <div className="bg-[#17181c] px-3 py-1.5 border-b border-[#2d2f3c]/70 flex justify-between items-center">
-                      <span className="text-[10px] font-mono text-amber-400 font-extrabold uppercase tracking-wider">{loc.laneB}</span>
-                      <span className="text-[9px] font-mono text-slate-500">Read-Only</span>
+                    <div className="bg-[#17181c] px-3 py-1.5 border-b border-[#2d2f3c]/70 flex justify-between items-center select-none">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-mono text-amber-400 font-extrabold uppercase tracking-wider">{getLaneHeadingB()}</span>
+                        <div className="h-2.5 w-[1px] bg-[#2d2f3c]"></div>
+                        <span className="text-[9px] font-mono text-slate-500">Read-Only</span>
+                      </div>
+                      <button
+                        onClick={() => setStateRightSearch(prev => ({ ...prev, isOpen: !prev.isOpen }))}
+                        className={`p-1 rounded transition-colors ${stateRightSearch.isOpen ? 'bg-violet-600 text-white animate-pulse' : 'text-slate-400 hover:text-slate-200 hover:bg-[#252632]'} cursor-pointer`}
+                        title="Search inside this box"
+                      >
+                        <Search className="w-3.5 h-3.5" />
+                      </button>
                     </div>
 
-                    <div className={`flex relative items-stretch ${isFullscreen ? 'h-[calc(100vh-320px)] lg:h-[calc(100vh-280px)] min-h-[420px]' : 'h-[420px]'} overflow-y-auto index-0 bg-[#0f1013]`}>
+                    <SearchInputBar
+                      isOpen={stateRightSearch.isOpen}
+                      query={stateRightSearch.query}
+                      matchCase={stateRightSearch.matchCase}
+                      wholeWord={stateRightSearch.wholeWord}
+                      useRegex={stateRightSearch.useRegex}
+                      activeIndex={stateRightSearch.activeIndex}
+                      totalMatches={rightMatches.length}
+                      onChange={(updates) => setStateRightSearch(prev => ({ ...prev, ...updates }))}
+                      onClose={() => setStateRightSearch(prev => ({ ...prev, isOpen: false }))}
+                      tone={tone}
+                    />
+
+                    <div 
+                      ref={rightPaneContainerRef}
+                      className={`flex relative items-stretch ${isFullscreen ? 'h-[calc(100vh-320px)] lg:h-[calc(100vh-280px)] min-h-[420px]' : 'h-[420px]'} overflow-y-auto index-0 bg-[#0f1013] scrollbar-thin scrollbar-thumb-slate-800`}
+                    >
                       {renderRightPane()}
                     </div>
                   </div>

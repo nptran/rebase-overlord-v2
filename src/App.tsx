@@ -98,11 +98,41 @@ async function safeParseError(res: Response, fallbackMsg: string): Promise<strin
 }
 
 export default function App() {
-  // Configs persistent states
-  const [tone, setTone] = React.useState<TranslationTone>(TranslationTone.PROFESSIONAL);
-  const [useEmoji, setUseEmoji] = React.useState<boolean>(false);
-  const [isSimulation, setIsSimulation] = React.useState<boolean>(true);
-  const [showLogPanel, setShowLogPanel] = React.useState<boolean>(true);
+  // Configs persistent states with localStorage fallback
+  const [tone, setTone] = React.useState<TranslationTone>(() => {
+    try {
+      const saved = localStorage.getItem('rebase_overlord_tone');
+      if (saved && Object.values(TranslationTone).includes(saved as TranslationTone)) {
+        return saved as TranslationTone;
+      }
+    } catch (e) {}
+    return TranslationTone.PROFESSIONAL;
+  });
+
+  const [useEmoji, setUseEmoji] = React.useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('rebase_overlord_use_emoji');
+      if (saved !== null) return saved === 'true';
+    } catch (e) {}
+    return false;
+  });
+
+  const [isSimulation, setIsSimulation] = React.useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('rebase_overlord_is_simulation');
+      if (saved !== null) return saved === 'true';
+    } catch (e) {}
+    return true;
+  });
+
+  const [showLogPanel, setShowLogPanel] = React.useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('rebase_overlord_show_log_panel');
+      if (saved !== null) return saved === 'true';
+    } catch (e) {}
+    return true;
+  });
+
   const [isCloning, setIsCloning] = React.useState<boolean>(false);
 
   // Custom API configuration for serverless deployment fallback (Vercel, GitHub Pages, etc.)
@@ -113,22 +143,30 @@ export default function App() {
 
   const sloc = sanityLoc[tone];
 
-  // Core Git States
-  const [repoState, setRepoState] = React.useState<GitRepoState>({
-    repoPath: '.',
-    isValid: true,
-    currentBranch: 'feature/payment-v2',
-    baseBranch: 'develop',
-    isDirty: true,
-    dirtyFiles: ['src/routes/payment.ts', 'src/services/stripe.ts', 'config/keys.json'],
-    branches: [],
-    commits: [],
-    rebaseInProgress: false,
-    mergeInProgress: false,
-    conflicts: [],
-    ghAvailable: true,
-    ghErrorKey: '',
-    commandHistory: []
+  // Core Git States with localStorage fallback
+  const [repoState, setRepoState] = React.useState<GitRepoState>(() => {
+    try {
+      const saved = localStorage.getItem('rebase_overlord_repo_state');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {}
+    return {
+      repoPath: '.',
+      isValid: true,
+      currentBranch: 'feature/payment-v2',
+      baseBranch: 'develop',
+      isDirty: true,
+      dirtyFiles: ['src/routes/payment.ts', 'src/services/stripe.ts', 'config/keys.json'],
+      branches: [],
+      commits: [],
+      rebaseInProgress: false,
+      mergeInProgress: false,
+      conflicts: [],
+      ghAvailable: true,
+      ghErrorKey: '',
+      commandHistory: []
+    };
   });
 
   // Session stats state
@@ -137,29 +175,88 @@ export default function App() {
     firstRun: new Date().toISOString().split('T')[0]
   });
 
-  // Wizard state machine
-  const [wizard, setWizard] = React.useState<WizardState>({
-    step: 0,
-    baseBranch: 'develop',
-    doFetch: true,
-    detectedType: 'clean',
-    detectedReason: 'Nhánh gọn gàng, không trùng lặp commits',
-    historyType: 'clean',
-    basePoint: '',
-    commitTotal: 0,
-    selectedCommits: [],
-    doBackup: true,
-    backupBranchName: '',
-    finalMsg: 'feat: add payment intent and webhook handles',
-    autoPush: false,
-    status: 'idle'
+  // Wizard state machine with localStorage fallback
+  const [wizard, setWizard] = React.useState<WizardState>(() => {
+    try {
+      const saved = localStorage.getItem('rebase_overlord_wizard');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {}
+    return {
+      step: 0,
+      baseBranch: 'develop',
+      doFetch: true,
+      detectedType: 'clean',
+      detectedReason: 'Nhánh gọn gàng, không trùng lặp commits',
+      historyType: 'clean',
+      basePoint: '',
+      commitTotal: 0,
+      selectedCommits: [],
+      doBackup: true,
+      backupBranchName: '',
+      finalMsg: 'feat: add payment intent and webhook handles',
+      autoPush: false,
+      status: 'idle'
+    };
   });
 
-  // Log buffer for terminal
-  const [logs, setLogs] = React.useState<string[]>([
-    '// Rebase Overlord Engine v0.3.5 activated.',
-    '// Welcome aboard Nguyen Tran. Tone: Professional VN.'
-  ]);
+  // Log buffer for terminal with localStorage fallback
+  const [logs, setLogs] = React.useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('rebase_overlord_logs');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {}
+    return [
+      '// Rebase Overlord Engine v0.3.5 activated.',
+      '// Welcome aboard Nguyen Tran. Tone: Professional VN.'
+    ];
+  });
+
+  // Side effects to seamlessly persist states inside localStorage on changes
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('rebase_overlord_tone', tone);
+    } catch (e) {}
+  }, [tone]);
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('rebase_overlord_use_emoji', String(useEmoji));
+    } catch (e) {}
+  }, [useEmoji]);
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('rebase_overlord_is_simulation', String(isSimulation));
+    } catch (e) {}
+  }, [isSimulation]);
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('rebase_overlord_show_log_panel', String(showLogPanel));
+    } catch (e) {}
+  }, [showLogPanel]);
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('rebase_overlord_repo_state', JSON.stringify(repoState));
+    } catch (e) {}
+  }, [repoState]);
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('rebase_overlord_wizard', JSON.stringify(wizard));
+    } catch (e) {}
+  }, [wizard]);
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('rebase_overlord_logs', JSON.stringify(logs));
+    } catch (e) {}
+  }, [logs]);
 
   // Fetch metrics upon settings updates
   const handleRefresh = React.useCallback(async (overrideSim?: boolean) => {
@@ -184,6 +281,24 @@ export default function App() {
 
       setRepoState(data);
       setBackendStatus('connected');
+
+      // Align wizard state if a rebase was aborted or finished outside of the app
+      if (!data.rebaseInProgress) {
+        setWizard(prev => {
+          if (prev.status === 'paused_conflict' || prev.status === 'running') {
+            // Needs to log within state update, but we can do it safely
+            setTimeout(() => {
+              addLog(`🔙 Wizard synchronized: Rebase progress was terminated outside the application.`);
+            }, 50);
+            return {
+              ...prev,
+              status: 'idle',
+              step: 0
+            };
+          }
+          return prev;
+        });
+      }
       
       // Auto-increment checkout stats locally on initial fetch
       if (data.isValid) {
@@ -203,6 +318,52 @@ export default function App() {
       setBackendStatus('unreachable');
     }
   }, [isSimulation]);
+
+  const quietRefresh = React.useCallback(async () => {
+    try {
+      const url = resolveApiUrl(`/api/git-status?simulation=false`);
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setRepoState(data);
+
+        // Align wizard state in background if rebase stopped externally
+        if (!data.rebaseInProgress) {
+          setWizard(prev => {
+            if (prev.status === 'paused_conflict' || prev.status === 'running') {
+              setTimeout(() => {
+                addLog(`🔙 Background auto-sync: Rebase progress was terminated outside the application.`);
+              }, 50);
+              return {
+                ...prev,
+                status: 'idle',
+                step: 0
+              };
+            }
+            return prev;
+          });
+        }
+      }
+    } catch (err) {
+      // quiet fail
+    }
+  }, []);
+
+  // Background polling during real active rebase operations to track external aborts or progress
+  React.useEffect(() => {
+    if (isSimulation) return;
+    
+    const shouldPoll = repoState.rebaseInProgress || wizard.status === 'paused_conflict' || wizard.status === 'running';
+    if (!shouldPoll) return;
+
+    const intervalId = setInterval(() => {
+      quietRefresh();
+    }, 4000);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [isSimulation, repoState.rebaseInProgress, wizard.status, quietRefresh]);
 
   // Sync statistics from node server
   const fetchStats = async () => {
@@ -828,6 +989,8 @@ export default function App() {
               <ConflictSolver
                 conflicts={repoState.conflicts}
                 tone={tone}
+                currentBranch={repoState.currentBranch || 'feature-branch'}
+                baseBranch={wizard.baseBranch || repoState.baseBranch || 'develop'}
                 onResolveFile={handleResolveFile}
                 onCompleteRecovery={handleCompleteRecovery}
               />
