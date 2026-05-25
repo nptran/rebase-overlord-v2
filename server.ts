@@ -7,6 +7,7 @@ import express from 'express';
 import { exec } from 'child_process';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { createServer as createViteServer } from 'vite';
 
 const app = express();
@@ -238,6 +239,168 @@ app.post('/api/set-repo', (req, res) => {
     return res.json({ success: true, path: resolved, isGit: isGitFolder(resolved) });
   } else {
     return res.status(404).json({ error: 'Folder does not exist or is not a directory' });
+  }
+});
+
+// Trigger Native Operating System Folder Picker Dialog
+app.post('/api/select-dir', async (req, res) => {
+  const platform = process.platform;
+  
+  if (platform === 'win32') {
+    // Windows native directory dialog via PowerShell
+    const psCommand = `powershell -NoProfile -ExecutionPolicy Bypass -Command "Add-Type -AssemblyName System.Windows.Forms; $f = New-Object System.Windows.Forms.FolderBrowserDialog; $f.Description = 'Select your Git repository folder'; $f.ShowNewFolderButton = $true; if($f.ShowDialog() -eq 'OK'){$f.SelectedPath}"`;
+    try {
+      const result = await runCmd(psCommand, process.cwd());
+      const selectedPath = result.stdout.trim();
+      if (selectedPath) {
+        return res.json({ success: true, path: selectedPath, mode: 'native_win' });
+      } else {
+        return res.json({ success: false, cancelled: true });
+      }
+    } catch (err: any) {
+      return res.json({ success: false, fallback: true, error: err.message });
+    }
+  } else if (platform === 'darwin') {
+    // macOS native directory dialog via AppleScript
+    const appleScript = `osascript -e 'Tell application "System Events" to activate' -e 'POSIX path of (choose folder with prompt "Select your Git repository folder:")'`;
+    try {
+      const result = await runCmd(appleScript, process.cwd());
+      const selectedPath = result.stdout.trim();
+      if (selectedPath) {
+        return res.json({ success: true, path: selectedPath, mode: 'native_darwin' });
+      } else {
+        return res.json({ success: false, cancelled: true });
+      }
+    } catch (err: any) {
+      return res.json({ success: false, fallback: true, error: err.message });
+    }
+  } else {
+    // Other/Headless platforms (e.g. Linux container dev-environment) - demand UI fallback
+    return res.json({ success: false, fallback: true, reason: 'Platform does not support native desktop picker dialogs.' });
+  }
+});
+
+// API endpoint to retrieve directories at any local absolute path for custom web explorer fallback
+app.post('/api/list-local-dirs', (req, res) => {
+  let { currentPath } = req.body;
+  
+  if (!currentPath || currentPath === '.' || currentPath === '🤖 [Playground Giả lập]') {
+    currentPath = activeRepoPath || process.cwd();
+  }
+
+  // Support user home dir short alias
+  if (currentPath === '~') {
+    currentPath = os.homedir();
+  } else {
+    currentPath = path.resolve(currentPath);
+  }
+
+  try {
+    // If path is a file, trace its parent directory
+    if (fs.existsSync(currentPath) && !fs.statSync(currentPath).isDirectory()) {
+      currentPath = path.dirname(currentPath);
+    }
+
+    // Double check existence
+    if (!fs.existsSync(currentPath)) {
+      // Fallback to active repo or process cwd
+      currentPath = activeRepoPath || process.cwd();
+    }
+
+    const parentPath = path.dirname(currentPath);
+    const files = fs.readdirSync(currentPath, { withFileTypes: true });
+    
+    // Read subdirectories safely
+    const subdirectories = files
+      .filter(item => {
+        try {
+          return item.isDirectory() && !item.name.startsWith('.');
+        } catch {
+          return false;
+        }
+      })
+      .map(item => {
+        const fullDir = path.join(currentPath, item.name);
+        return {
+          name: item.name,
+          path: fullDir,
+          isGit: isGitFolder(fullDir)
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return res.json({
+      success: true,
+      currentPath,
+      parentPath: parentPath !== currentPath ? parentPath : null,
+      directories: subdirectories
+    });
+  } catch (error: any) {
+    console.error('Error listing local dirs:', error);
+    
+    // In case of error (e.g. restricted permissions), offer activeRepoPath or system home as fallback
+    const recoveryPath = os.homedir() || process.cwd();
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Cannot browse directory due to permission constraints or folder system limits.', 
+      details: error.message,
+      currentPath,
+      recoveryPath
+    });
+  }
+});
+
+// Real HTTPS Git Repository Cloning API
+app.post('/api/clone-repo', async (req, res) => {
+  const { repoUrl, token } = req.body;
+  if (!repoUrl) {
+    return res.status(400).json({ error: 'Repository URL is required' });
+  }
+
+  // Create a safe directory name
+  const safeName = repoUrl.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50) + '_' + Date.now().toString().substring(10);
+  const targetDir = path.join('/tmp', 'rebase-overlord-repos', safeName);
+
+  try {
+    // Ensure parent workspace exists
+    fs.mkdirSync(path.dirname(targetDir), { recursive: true });
+
+    // Format URL with token if provided
+    let cloneUrl = repoUrl.trim();
+    if (token) {
+      const trimmedToken = token.trim();
+      if (cloneUrl.startsWith('https://')) {
+        cloneUrl = `https://${trimmedToken}@${cloneUrl.substring(8)}`;
+      } else if (cloneUrl.startsWith('http://')) {
+        cloneUrl = `http://${trimmedToken}@${cloneUrl.substring(7)}`;
+      }
+    }
+
+    // Run shallow clone with depth 50 to keep it extremely fast
+    const cmd = `git clone --depth 50 "${cloneUrl}" "${targetDir}"`;
+    const cloneResult = await runCmd(cmd, process.cwd());
+
+    if (cloneResult.code !== 0) {
+      return res.status(500).json({ 
+        error: 'Failed to clone repository. Make sure URL is correct and public, or provide a correct Access Token.', 
+        details: cloneResult.stderr || cloneResult.stdout 
+      });
+    }
+
+    // Successfully cloned! Let's configure it so user can execute commits / branches safely
+    await runCmd('git config user.name "Rebase Overlord User"', targetDir);
+    await runCmd('git config user.email "overlord@user.internal"', targetDir);
+
+    activeRepoPath = targetDir;
+    return res.json({ 
+      success: true, 
+      path: targetDir, 
+      isGit: true 
+    });
+
+  } catch (error: any) {
+    console.error('Error cloning repo:', error);
+    return res.status(500).json({ error: 'Exception occurred during clone.', details: error.message });
   }
 });
 

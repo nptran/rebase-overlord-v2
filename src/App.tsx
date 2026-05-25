@@ -88,6 +88,7 @@ export default function App() {
   const [useEmoji, setUseEmoji] = React.useState<boolean>(false);
   const [isSimulation, setIsSimulation] = React.useState<boolean>(true);
   const [showLogPanel, setShowLogPanel] = React.useState<boolean>(true);
+  const [isCloning, setIsCloning] = React.useState<boolean>(false);
 
   const sloc = sanityLoc[tone];
 
@@ -396,6 +397,36 @@ export default function App() {
     addLog(`✓ Deleted local and remote tracking of ${branchName}`);
   };
 
+  const handleCloneRepo = async (repoUrl: string, token: string) => {
+    setIsCloning(true);
+    addLog(`$ git clone --depth 50 ${repoUrl} (Cloning to secure container sandbox...)`);
+    try {
+      const res = await fetch('/api/clone-repo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ repoUrl, token })
+      });
+      if (res.ok) {
+        const d = await res.json();
+        addLog(`✓ Successfully cloned repository: ${repoUrl}`);
+        addLog(`📂 Root sandbox set to: ${d.path}`);
+        await handleRefresh();
+        setIsCloning(false);
+        return true;
+      } else {
+        const d = await res.json();
+        addLog(`❌ Clone failed: ${d.error || 'Unknown error'}`);
+        alert(`Clone thất bại: ${d.error || 'Thiết lập URL hoặc Token chưa đúng.'}`);
+        setIsCloning(false);
+        return false;
+      }
+    } catch (e: any) {
+      addLog(`❌ Exception during clone: ${e.message}`);
+      setIsCloning(false);
+      return false;
+    }
+  };
+
   const handleUpdateRepoPath = async (newPath: string) => {
     addLog(`$ Updating workspace repository path to: ${newPath}...`);
     try {
@@ -431,6 +462,7 @@ export default function App() {
           tone={tone}
           useEmoji={useEmoji}
           isSimulation={isSimulation}
+          isCloning={isCloning}
           onSetTone={(t) => {
             setTone(t);
             addLog(`🗣️ Updated translation personality tone to: ${t}`);
@@ -444,6 +476,7 @@ export default function App() {
             addLog(`🤖 Mode toggled. Simulation Playground: ${val ? 'ACTIVE' : 'OFF'}`);
           }}
           onUpdateRepoPath={handleUpdateRepoPath}
+          onCloneRepo={handleCloneRepo}
           onRefresh={handleRefresh}
         />
 

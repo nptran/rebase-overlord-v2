@@ -15,10 +15,14 @@ import {
   Database,
   Search,
   RefreshCw,
-  TrendingUp
+  TrendingUp,
+  Link,
+  Key,
+  FolderOpen
 } from 'lucide-react';
 import { TranslationTone, GitRepoState, SessionStats } from '../types';
 import { translate } from '../i18n';
+import DirectoryBrowserModal from './DirectoryBrowserModal';
 
 interface RepoHeaderProps {
   repoState: GitRepoState;
@@ -26,10 +30,12 @@ interface RepoHeaderProps {
   tone: TranslationTone;
   useEmoji: boolean;
   isSimulation: boolean;
+  isCloning: boolean;
   onSetTone: (t: TranslationTone) => void;
   onToggleEmoji: () => void;
   onToggleSimulation: (val: boolean) => void;
   onUpdateRepoPath: (path: string) => void;
+  onCloneRepo: (repoUrl: string, token: string) => Promise<boolean>;
   onRefresh: () => void;
 }
 
@@ -106,26 +112,101 @@ export default function RepoHeader({
   tone,
   useEmoji,
   isSimulation,
+  isCloning,
   onSetTone,
   onToggleEmoji,
   onToggleSimulation,
   onUpdateRepoPath,
+  onCloneRepo,
   onRefresh
 }: RepoHeaderProps) {
   const [editingPath, setEditingPath] = React.useState(repoState.repoPath || '.');
+  const [cloneUrl, setCloneUrl] = React.useState('');
+  const [accessToken, setAccessToken] = React.useState('');
+  const [connectionType, setConnectionType] = React.useState<'https' | 'local'>('https');
+  const [isDirBrowserOpen, setIsDirBrowserOpen] = React.useState(false);
+  const [isSelectingDirLocally, setIsSelectingDirLocally] = React.useState(false);
   const loc = headerLoc[tone] || headerLoc[TranslationTone.PROFESSIONAL];
 
   React.useEffect(() => {
     setEditingPath(repoState.repoPath);
   }, [repoState.repoPath]);
 
+  const handleChooseLocalFolder = async () => {
+    if (isSimulation) return;
+    setIsSelectingDirLocally(true);
+    try {
+      const response = await fetch('/api/select-dir', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setEditingPath(data.path);
+        onUpdateRepoPath(data.path);
+      } else if (data.fallback) {
+        // Fallback silently to custom Web Directory Browser modal
+        setIsDirBrowserOpen(true);
+      } else if (data.cancelled) {
+        // User cancelled - do nothing
+      } else {
+        // Fallback to custom Web Directory Browser modal on any other issue
+        setIsDirBrowserOpen(true);
+      }
+    } catch (err) {
+      console.error('Failed to trigger native directory selector:', err);
+      setIsDirBrowserOpen(true);
+    } finally {
+      setIsSelectingDirLocally(false);
+    }
+  };
+
   const handleSubmitPath = (e: React.FormEvent) => {
     e.preventDefault();
     onUpdateRepoPath(editingPath);
   };
 
+  const handleCloneSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cloneUrl.trim()) return;
+    const ok = await onCloneRepo(cloneUrl, accessToken);
+    if (ok) {
+      setCloneUrl('');
+      setAccessToken('');
+    }
+  };
+
+  const handleSelectPreset = async (url: string) => {
+    setCloneUrl(url);
+    await onCloneRepo(url, '');
+  };
+
   return (
-    <div id="repo-header-container" className="bg-[#0f172a] border border-slate-800 rounded-xl p-5 shadow-2xl">
+    <div id="repo-header-container" className="bg-[#0f172a] border border-slate-800 rounded-xl p-5 shadow-2xl relative overflow-hidden">
+      
+      {/* Background loading spinner overlay for Cloning or Folder selecting */}
+      {(isCloning || isSelectingDirLocally) && (
+        <div className="absolute inset-0 bg-[#060814]/90 backdrop-blur-sm flex flex-col items-center justify-center z-55 animate-fade-in gap-3">
+          <div className="relative">
+            <div className="w-12 h-12 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin" />
+            <span className="absolute inset-0 flex items-center justify-center text-xs">
+              {isCloning ? '📥' : '📂'}
+            </span>
+          </div>
+          <div className="text-center px-4">
+            <p className="text-sm font-semibold text-white font-mono uppercase tracking-wider">
+              {isCloning ? 'CLONING REMOTE REPOSITORY...' : 'ĐANG MỞ HỘP THOẠI HỆ ĐIỀU HÀNH...'}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1 font-sans">
+              {isCloning 
+                ? 'Chúng tôi đang tải nhánh mặc định với --depth 50 về máy chủ ảo an toàn.' 
+                : 'Vui lòng kiểm tra màn hình máy tính của bạn để lựa chọn thư mục Git trong hộp thoại File Dialog.'
+              }
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b border-slate-800 pb-4 mb-4">
         {/* Main Title & Brand */}
         <div>
@@ -134,7 +215,7 @@ export default function RepoHeader({
             <h1 id="app-main-heading" className="text-2xl font-black tracking-tight text-white font-mono flex items-center gap-2">
               REBASE OVERLORD
               <span className="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20 font-sans tracking-normal font-medium animate-pulse">
-                v0.3.5 - Web Client
+                v0.4.0 - Web Native
               </span>
             </h1>
           </div>
@@ -229,62 +310,210 @@ export default function RepoHeader({
       </div>
 
       {/* Connection & Repo Statistics Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
+        
         {/* Repo connection form / path status */}
-        <div className="lg:col-span-8">
-          <form id="repo-path-form" onSubmit={handleSubmitPath} className="flex gap-2 w-full">
-            <div className="relative flex-grow">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500 text-xs font-mono">
-                {isSimulation ? '🤖' : '📁'}
-              </span>
-              <input
-                id="repo-path-input"
-                type="text"
-                disabled={isSimulation}
-                value={editingPath}
-                onChange={(e) => setEditingPath(e.target.value)}
-                placeholder={loc.repoPathPlaceholder}
-                className={`w-full pl-9 pr-3 py-2 text-xs font-mono rounded-lg border transition-all duration-150 outline-none ${
-                  isSimulation 
-                    ? 'bg-slate-950/60 border-slate-900 text-slate-500 cursor-not-allowed'
-                    : 'bg-slate-950 border-slate-800 text-slate-300 focus:border-slate-600 focus:ring-1 focus:ring-slate-700'
-                }`}
-              />
-            </div>
-            {!isSimulation && (
-              <button
-                id="save-repo-path-btn"
-                type="submit"
-                className="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-xs text-white rounded-lg font-mono transition-colors border border-indigo-500/20 shadow-md flex items-center gap-1"
-              >
-                Connect
-              </button>
-            )}
-            <button
-                id="refresh-repo-btn"
-                type="button"
-                onClick={onRefresh}
-                className="bg-slate-900 border border-slate-800 text-slate-400 hover:text-white p-2 rounded-lg transition-colors shadow-sm flex items-center justify-center"
-                title={loc.refreshTitle}
-            >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-          </form>
+        <div className="lg:col-span-8 flex flex-col justify-between">
           
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400 font-mono">
+          {isSimulation ? (
+            /* SIMULATION MODE ACTIVE BANNER */
+            <div className="p-3 bg-teal-500/10 border border-teal-500/20 rounded-lg text-xs font-mono text-teal-300 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="animate-bounce">🤖</span>
+                <div>
+                  <strong>PLAYGROUND GIẢ LẬP ĐANG KÍCH HOẠT:</strong>
+                  <p className="text-[10px] text-slate-400 mt-0.5">Bạn không cần kết nối Git thật. Hệ thống đã chuẩn bị sẵn sơ đồ commits và tập tin xung đột mô phỏng.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => onToggleSimulation(false)}
+                className="px-2.5 py-1 bg-teal-500 hover:bg-teal-400 transition-colors text-slate-950 font-bold rounded text-[10px] uppercase font-sans cursor-pointer shrink-0"
+              >
+                Kết nối Repo Thật
+              </button>
+            </div>
+          ) : (
+            /* REAL GIT CONNECTION CONTROLS */
+            <div className="flex flex-col gap-3">
+              {/* Connection Type Tabs */}
+              <div className="flex border-b border-slate-800 pb-1.5 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setConnectionType('https')}
+                  className={`text-xs font-mono pb-1 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                    connectionType === 'https' 
+                      ? 'border-indigo-500 text-white font-bold' 
+                      : 'border-transparent text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <Link className="w-3.5 h-3.5 text-indigo-400" />
+                  Clone &amp; Connect HTTPS Repo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConnectionType('local')}
+                  className={`text-xs font-mono pb-1 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                    connectionType === 'local' 
+                      ? 'border-indigo-500 text-white font-bold' 
+                      : 'border-transparent text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <FolderOpen className="w-3.5 h-3.5 text-slate-400" />
+                  Manual Server Directory
+                </button>
+              </div>
+
+              {connectionType === 'https' ? (
+                /* HTTPS CLONE FORM */
+                <form onSubmit={handleCloneSubmit} className="flex flex-col md:flex-row gap-2 items-end">
+                  <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500 text-xs">
+                        <Link className="w-3.5 h-3.5" />
+                      </span>
+                      <input
+                        type="url"
+                        required
+                        value={cloneUrl}
+                        onChange={(e) => setCloneUrl(e.target.value)}
+                        placeholder="Git HTTPS URL (vd: https://github.com/octocat/Spoon-Knife.git)"
+                        className="w-full pl-9 pr-3 py-2 text-xs font-mono bg-slate-950 border border-slate-800 text-slate-200 rounded-lg outline-none focus:border-slate-600 focus:ring-1 focus:ring-slate-700 placeholder-slate-600"
+                      />
+                    </div>
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500 text-xs">
+                        <Key className="w-3.5 h-3.5" />
+                      </span>
+                      <input
+                        type="password"
+                        value={accessToken}
+                        onChange={(e) => setAccessToken(e.target.value)}
+                        placeholder="Personal Access Token / PAT (Tuỳ chọn cho Repo riêng tư)"
+                        className="w-full pl-9 pr-3 py-2 text-xs font-mono bg-slate-950 border border-slate-800 text-slate-200 rounded-lg outline-none focus:border-slate-600 focus:ring-1 focus:ring-slate-700 placeholder-slate-650"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-1.5 shrink-0 w-full md:w-auto justify-end">
+                    <button
+                      type="submit"
+                      disabled={!cloneUrl.trim()}
+                      className={`px-4 py-2 text-xs rounded-lg font-mono transition-all duration-150 border font-bold shadow-md w-full md:w-auto flex items-center justify-center gap-1.5 cursor-pointer ${
+                        cloneUrl.trim() 
+                          ? 'bg-gradient-to-r from-indigo-600 to-violet-600 border-indigo-500/30 text-white hover:from-indigo-500 hover:to-violet-500' 
+                          : 'bg-slate-900 border-slate-800 text-slate-500 cursor-not-allowed'
+                      }`}
+                    >
+                      Clone &amp; Connect
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onRefresh}
+                      className="bg-slate-900 border border-slate-800 text-slate-400 hover:text-white p-2 rounded-lg transition-colors shadow-sm flex items-center justify-center"
+                      title={loc.refreshTitle}
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                /* LOCAL PATH DIRECTORY SYSTEM FORM */
+                <form id="repo-path-form" onSubmit={handleSubmitPath} className="flex flex-col gap-1 w-full">
+                  <div className="flex gap-2 w-full items-center">
+                    <div className="relative flex-grow">
+                      <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500 text-xs">
+                        <FolderOpen className="w-3.5 h-3.5" />
+                      </span>
+                      <input
+                        id="repo-path-input"
+                        type="text"
+                        value={editingPath}
+                        onClick={handleChooseLocalFolder}
+                        onChange={(e) => setEditingPath(e.target.value)}
+                        placeholder={loc.repoPathPlaceholder}
+                        className="w-full pl-9 pr-28 py-2 text-xs font-mono rounded-lg border bg-slate-950 border-slate-800 text-slate-300 focus:border-slate-600 focus:ring-1 focus:ring-slate-700 outline-none placeholder-slate-600 cursor-pointer hover:bg-slate-900/40 transition-colors"
+                      />
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-1.5">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleChooseLocalFolder();
+                          }}
+                          className="px-2.5 py-1 text-[10px] font-bold font-sans bg-indigo-500/10 hover:bg-indigo-500 hover:text-white rounded text-indigo-400 transition-all border border-indigo-500/20 active:scale-95 cursor-pointer shadow-sm hover:shadow-indigo-500/15"
+                        >
+                          Chọn thư mục...
+                        </button>
+                      </div>
+                    </div>
+                    <button
+                      id="save-repo-path-btn"
+                      type="submit"
+                      className="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 text-xs text-white rounded-lg font-mono transition-colors border border-indigo-500/20 shadow-md flex items-center gap-1 shrink-0 cursor-pointer"
+                    >
+                      Connect
+                    </button>
+                    <button
+                      id="refresh-repo-btn"
+                      type="button"
+                      onClick={onRefresh}
+                      className="bg-slate-900 border border-slate-800 text-slate-400 hover:text-white p-2 rounded-lg transition-colors shadow-sm flex items-center justify-center shrink-0 cursor-pointer"
+                      title={loc.refreshTitle}
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <p className="text-[10.5px] text-slate-400 font-mono flex items-center gap-1.5 mt-1 px-2.5 py-1 rounded bg-indigo-500/5 border border-indigo-500/10 w-fit">
+                    <span className="text-indigo-400 font-bold">💡 Chỉ dẫn:</span>
+                    Nhấp vào hộp đường dẫn hoặc nút <strong className="text-indigo-300 font-semibold">Chọn thư mục...</strong> để mở nhanh hộp thoại chọn thư mục Windows Explorer/Finder.
+                  </p>
+                </form>
+              )}
+
+              {/* public template presets */}
+              {connectionType === 'https' && (
+                <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono text-slate-400">
+                  <span className="text-slate-500">⚡ Kho thử nghiệm chuẩn nhanh:</span>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectPreset('https://github.com/octocat/Spoon-Knife.git')}
+                    className="px-1.5 py-0.5 bg-slate-900 hover:bg-indigo-950/40 text-indigo-400 hover:text-indigo-300 rounded border border-slate-800 hover:border-indigo-500/30 transition-all cursor-pointer"
+                  >
+                    Spoon-Knife.git (Chỉ 200KB)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectPreset('https://github.com/expressjs/express.git')}
+                    className="px-1.5 py-0.5 bg-slate-900 hover:bg-indigo-950/40 text-indigo-400 hover:text-indigo-300 rounded border border-slate-800 hover:border-indigo-500/30 transition-all cursor-pointer"
+                  >
+                    Express.git (Nhanh)
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-400 font-mono border-t border-slate-900 pt-2.5">
             <span className="flex items-center gap-1">
               {loc.repoStatus}{' '}
               {repoState.isValid ? (
-                <span className="text-emerald-400 flex items-center gap-0.5">● {loc.valid}</span>
+                <span className="text-emerald-400 flex items-center gap-0.5 font-semibold">● {loc.valid}</span>
               ) : (
-                <span className="text-rose-400 flex items-center gap-0.5">● {translate('not_git_repo', tone, undefined, useEmoji)}</span>
+                <span className="text-rose-400 flex items-center gap-0.5 font-semibold">● {translate('not_git_repo', tone, undefined, useEmoji)}</span>
               )}
             </span>
-            <span className="text-slate-600">|</span>
+            <span className="text-slate-700">|</span>
+            <span className="flex items-center gap-1">
+              Active Path:{' '}
+              <span className="text-slate-300 px-1 py-0.2 bg-slate-950 rounded border border-slate-800 text-[10px] max-w-[150px] truncate" title={repoState.repoPath}>
+                {repoState.repoPath || 'N/A'}
+              </span>
+            </span>
+            <span className="text-slate-700">|</span>
             <span className="flex items-center gap-1">
               {loc.branch} <span className="text-sky-400 font-semibold">{repoState.currentBranch || 'N/A'}</span>
             </span>
-            <span className="text-slate-600">|</span>
+            <span className="text-slate-700">|</span>
             <span className="flex items-center gap-1">
               {loc.changeStatus}{' '}
               {repoState.isDirty ? (
@@ -292,7 +521,7 @@ export default function RepoHeader({
                   ⚡ {loc.hasChanges} ({repoState.dirtyFiles.length})
                 </span>
               ) : (
-                <span className="text-emerald-400">{translate('no_local_changes', tone, undefined, useEmoji)} {loc.clean}</span>
+                <span className="text-emerald-400 font-semibold">{translate('no_local_changes', tone, undefined, useEmoji)} {loc.clean}</span>
               )}
             </span>
           </div>
@@ -300,7 +529,7 @@ export default function RepoHeader({
 
         {/* Real-time Session Analytics Stats */}
         <div className="lg:col-span-4 flex items-center gap-3 bg-slate-950/50 border border-slate-900 rounded-lg p-3">
-          <div className="bg-emerald-500/10 p-2 rounded-lg border border-emerald-500/20 text-emerald-400">
+          <div className="bg-emerald-500/10 p-2 rounded-lg border border-emerald-500/20 text-emerald-400 shrink-0">
             <TrendingUp className="w-5 h-5 animate-pulse" />
           </div>
           <div className="text-xs font-mono">
@@ -313,7 +542,19 @@ export default function RepoHeader({
             </div>
           </div>
         </div>
+
       </div>
+
+      {/* Custom Directory Browser Fallback Modal */}
+      <DirectoryBrowserModal
+        isOpen={isDirBrowserOpen}
+        onClose={() => setIsDirBrowserOpen(false)}
+        initialPath={editingPath}
+        onSelect={(selectedPath) => {
+          setEditingPath(selectedPath);
+          onUpdateRepoPath(selectedPath);
+        }}
+      />
     </div>
   );
 }
