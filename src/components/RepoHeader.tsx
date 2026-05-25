@@ -133,33 +133,9 @@ export default function RepoHeader({
     setEditingPath(repoState.repoPath);
   }, [repoState.repoPath]);
 
-  const handleChooseLocalFolder = async () => {
+  const handleChooseLocalFolder = () => {
     if (isSimulation) return;
-    setIsSelectingDirLocally(true);
-    try {
-      const response = await fetch(resolveApiUrl('/api/select-dir'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await response.json();
-      if (response.ok && data.success) {
-        setEditingPath(data.path);
-        onUpdateRepoPath(data.path);
-      } else if (data.fallback) {
-        // Fallback silently to custom Web Directory Browser modal
-        setIsDirBrowserOpen(true);
-      } else if (data.cancelled) {
-        // User cancelled - do nothing
-      } else {
-        // Fallback to custom Web Directory Browser modal on any other issue
-        setIsDirBrowserOpen(true);
-      }
-    } catch (err) {
-      console.error('Failed to trigger native directory selector:', err);
-      setIsDirBrowserOpen(true);
-    } finally {
-      setIsSelectingDirLocally(false);
-    }
+    setIsDirBrowserOpen(true);
   };
 
   const handleSubmitPath = (e: React.FormEvent) => {

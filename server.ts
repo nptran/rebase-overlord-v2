@@ -405,6 +405,40 @@ app.post('/api/clone-repo', async (req, res) => {
   }
 });
 
+// Save resolved file and execute git add
+app.post('/api/save-resolved-file', async (req, res) => {
+  const { filepath, content } = req.body;
+  if (!filepath) {
+    return res.status(400).json({ error: 'filepath is required' });
+  }
+
+  if (!activeRepoPath) {
+    return res.status(400).json({ error: 'Active repository path is not setup.' });
+  }
+
+  const fullPath = path.resolve(activeRepoPath, filepath);
+  
+  // Guard path traversal
+  if (!fullPath.startsWith(activeRepoPath)) {
+    return res.status(400).json({ error: 'Access denied: path is outside active checkout repository.' });
+  }
+
+  try {
+    fs.writeFileSync(fullPath, content || '', 'utf-8');
+    
+    // Run git add
+    const addResult = await runCmd(`git add "${filepath}"`, activeRepoPath);
+    if (addResult.code !== 0) {
+      return res.status(500).json({ error: 'Failed to index resolved file with git add', details: addResult.stderr });
+    }
+
+    return res.json({ success: true, path: filepath });
+  } catch (err: any) {
+    console.error('Error saving resolved file:', err);
+    return res.status(500).json({ error: 'Failed to write file contents', details: err.message });
+  }
+});
+
 // Retrieve Statistics
 app.get('/api/stats', (req, res) => {
   res.json(loadStats());

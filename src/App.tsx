@@ -162,10 +162,11 @@ export default function App() {
   ]);
 
   // Fetch metrics upon settings updates
-  const handleRefresh = React.useCallback(async () => {
+  const handleRefresh = React.useCallback(async (overrideSim?: boolean) => {
     try {
-      addLog(`$ Refreshing git states (Simulation: ${isSimulation})...`);
-      const url = resolveApiUrl(`/api/git-status?simulation=${isSimulation}`);
+      const activeSim = overrideSim !== undefined ? overrideSim : isSimulation;
+      addLog(`$ Refreshing git states (Simulation: ${activeSim})...`);
+      const url = resolveApiUrl(`/api/git-status?simulation=${activeSim}`);
       const res = await fetch(url);
       
       const contentType = res.headers.get('content-type') || '';
@@ -195,7 +196,7 @@ export default function App() {
       addLog(`⚠️ Cảnh báo kết nối: ${err.message}`);
       
       // Auto toggle simulation on to let interface keep working
-      if (!isSimulation) {
+      if (overrideSim === undefined && !isSimulation) {
         setIsSimulation(true);
         addLog(`🤖 Đã tự động kích hoạt "Simulation Playground" do Backend không phản hồi chính xác JSON.`);
       }
@@ -270,84 +271,223 @@ export default function App() {
   // Execute wizard rebase triggering breakpoints simulation
   const handleExecuteWizardRebase = async () => {
     handleUpdateWizard({ status: 'running' });
-    addLog(`$ git checkout -b ${wizard.backupBranchName}`);
-    addLog(`✓ Backup created successfully: ${wizard.backupBranchName}`);
-    addLog(`$ git rebase -i ${wizard.baseBranch}`);
+    
+    if (isSimulation) {
+      addLog(`$ git checkout -b ${wizard.backupBranchName}`);
+      addLog(`✓ Backup created successfully: ${wizard.backupBranchName}`);
+      addLog(`$ git rebase -i ${wizard.baseBranch}`);
 
-    // Wait 2 seconds to simulate conflicts breakpoint
-    setTimeout(() => {
-      // Setup conflict files state dynamically inside app
-      const activeConflicts: ConflictFile[] = [
-        {
-          filepath: 'src/routes/payment.ts',
-          status: 'conflicted',
-          conflictsCount: 1,
-          contentBefore: '<<<<<<< HEAD\n// Code changes on local commit\n=======\n// Code changes on incoming develop base\n>>>>>>> develop',
-          contentAfter: ''
+      // Wait 2 seconds to simulate conflicts breakpoint
+      setTimeout(() => {
+        // Setup conflict files state dynamically inside app
+        const activeConflicts: ConflictFile[] = [
+          {
+            filepath: 'src/routes/payment.ts',
+            status: 'conflicted',
+            conflictsCount: 1,
+            contentBefore: '<<<<<<< HEAD\n// Code changes on local commit\n=======\n// Code changes on incoming develop base\n>>>>>>> develop',
+            contentAfter: ''
+          }
+        ];
+
+        setRepoState(prev => ({
+          ...prev,
+          rebaseInProgress: true,
+          conflicts: activeConflicts
+        }));
+
+        handleUpdateWizard({ status: 'paused_conflict' });
+        addLog(`⚠️ CONFLICT DETECTED in src/routes/payment.ts during interactive rebase. Rebase paused.`);
+        addLog(`// Please use the Recovery Center to salvage line items.`);
+      }, 2000);
+    } else {
+      // REAL LIVE GIT REBASE WORKFLOW
+      try {
+        if (wizard.doBackup && wizard.backupBranchName) {
+          addLog(`$ git checkout -b ${wizard.backupBranchName}`);
+          const backupRes = await fetch(resolveApiUrl('/api/execute-command'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: `git checkout -b ${wizard.backupBranchName}` })
+          });
+          const backupData = await backupRes.json();
+          if (backupRes.ok && backupData.code === 0) {
+            addLog(`✓ Created backup branch: ${wizard.backupBranchName}`);
+          } else {
+            addLog(`⚠️ Backup branch warning: ${backupData.stderr || 'Branch might already exist.'}`);
+          }
         }
-      ];
 
-      setRepoState(prev => ({
-        ...prev,
-        rebaseInProgress: true,
-        conflicts: activeConflicts
-      }));
+        addLog(`$ git rebase ${wizard.baseBranch}`);
+        const rebaseRes = await fetch(resolveApiUrl('/api/execute-command'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command: `git rebase ${wizard.baseBranch}` })
+        });
+        const rebaseData = await rebaseRes.json();
+        
+        // Refresh the actual Git state right away
+        addLog(`$ Refreshing repository status to fetch conflicts...`);
+        const refreshUrl = resolveApiUrl(`/api/git-status?simulation=false`);
+        const refreshRes = await fetch(refreshUrl);
+        if (refreshRes.ok) {
+          const refreshedRepoState = await refreshRes.json();
+          setRepoState(refreshedRepoState);
 
-      handleUpdateWizard({ status: 'paused_conflict' });
-      addLog(`⚠️ CONFLICT DETECTED in src/routes/payment.ts during interactive rebase. Rebase paused.`);
-      addLog(`// Please use the Recovery Center to salvage line items.`);
-    }, 2000);
+          if (rebaseData.code === 0) {
+            addLog(`✓ Rebase completed successfully without any conflicts!`);
+            handleUpdateWizard({ status: 'completed', step: 5 });
+          } else {
+            if (refreshedRepoState.rebaseInProgress) {
+              handleUpdateWizard({ status: 'paused_conflict' });
+              addLog(`⚠️ CONFLICT DETECTED during real rebase. Please use the Conflict Solver below.`);
+            } else {
+              addLog(`❌ Rebase failed to proceed: ${rebaseData.stderr || 'Unknown Git error'}`);
+              handleUpdateWizard({ status: 'idle' });
+            }
+          }
+        } else {
+          addLog(`❌ Failed to retrieve git status after rebase execution`);
+          handleUpdateWizard({ status: 'idle' });
+        }
+      } catch (err: any) {
+        addLog(`❌ Network thread exception: ${err.message}`);
+        handleUpdateWizard({ status: 'idle' });
+      }
+    }
   };
 
   // Conflict resolved signal from child solver click
-  const handleResolveFile = (filepath: string, resolvedContent: string) => {
-    setRepoState(prev => {
-      const updated = prev.conflicts.map(c => 
-        c.filepath === filepath ? { ...c, isResolved: true, resolvedContent } : c
-      );
-      return { ...prev, conflicts: updated };
-    });
+  const handleResolveFile = async (filepath: string, resolvedContent: string) => {
+    if (isSimulation) {
+      setRepoState(prev => {
+        const updated = prev.conflicts.map(c => 
+          c.filepath === filepath ? { ...c, isResolved: true, resolvedContent } : c
+        );
+        return { ...prev, conflicts: updated };
+      });
 
-    addLog(`✓ Resolved conflict lines in: ${filepath}`);
-    addLog(`$ git add ${filepath}`);
+      addLog(`✓ Resolved conflict lines in: ${filepath}`);
+      addLog(`$ git add ${filepath}`);
+    } else {
+      try {
+        addLog(`✏️ Saving resolved content and running git add for: ${filepath}...`);
+        const res = await fetch(resolveApiUrl('/api/save-resolved-file'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filepath, content: resolvedContent })
+        });
+        if (res.ok) {
+          addLog(`✓ Content saved and git add executed cleanly for: ${filepath}`);
+          setRepoState(prev => {
+            const updated = prev.conflicts.map(c => 
+              c.filepath === filepath ? { ...c, isResolved: true, resolvedContent } : c
+            );
+            return { ...prev, conflicts: updated };
+          });
+        } else {
+          const errMsg = await safeParseError(res, 'Failed to save merge output');
+          addLog(`❌ Save merge failed: ${errMsg}`);
+          alert(`Lỗi lưu gộp file: ${errMsg}`);
+        }
+      } catch (err: any) {
+        addLog(`❌ Network thread exception: ${err.message}`);
+      }
+    }
   };
 
   // Complete rebase recovery and return home safely
   const handleCompleteRecovery = async () => {
-    addLog(`$ git rebase --continue`);
-    addLog(`✓ Rebase completed successfully! Squashed ${wizard.selectedCommits.length} commits.`);
-    
-    // Save locally
-    setRepoState(prev => ({
-      ...prev,
-      rebaseInProgress: false,
-      conflicts: []
-    }));
+    if (isSimulation) {
+      addLog(`$ git rebase --continue`);
+      addLog(`✓ Rebase completed successfully! Squashed ${wizard.selectedCommits.length} commits.`);
+      
+      // Save locally
+      setRepoState(prev => ({
+        ...prev,
+        rebaseInProgress: false,
+        conflicts: []
+      }));
 
-    handleUpdateWizard({ status: 'completed', step: 5 });
+      handleUpdateWizard({ status: 'completed', step: 5 });
 
-    // Update session count
-    try {
-      const incrementRes = await fetch(resolveApiUrl('/api/stats/increment'), { method: 'POST' });
-      if (incrementRes.ok) {
-        const d = await incrementRes.json();
-        setStats(d);
+      // Update session count
+      try {
+        const incrementRes = await fetch(resolveApiUrl('/api/stats/increment'), { method: 'POST' });
+        if (incrementRes.ok) {
+          const d = await incrementRes.json();
+          setStats(d);
+        }
+      } catch {
+        setStats(prev => ({ ...prev, rebaseCount: prev.rebaseCount + 1 }));
       }
-    } catch {
-      setStats(prev => ({ ...prev, rebaseCount: prev.rebaseCount + 1 }));
+    } else {
+      try {
+        addLog(`$ git -c core.editor=true rebase --continue`);
+        const res = await fetch(resolveApiUrl('/api/execute-command'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command: 'git -c core.editor=true rebase --continue' })
+        });
+        const data = await res.json();
+        
+        // Refresh git status to see if completed or another conflict occurred
+        const refreshUrl = resolveApiUrl(`/api/git-status?simulation=false`);
+        const refreshRes = await fetch(refreshUrl);
+        if (refreshRes.ok) {
+          const refreshedRepoState = await refreshRes.json();
+          setRepoState(refreshedRepoState);
+
+          if (refreshedRepoState.rebaseInProgress) {
+            addLog(`🚧 Rebase paused at next commit conflicts. Please continue resolving conflicts below.`);
+          } else {
+            addLog(`✓ Real Git rebase completed successfully on disk!`);
+            handleUpdateWizard({ status: 'completed', step: 5 });
+            
+            // Increment statistics
+            try {
+              const incrementRes = await fetch(resolveApiUrl('/api/stats/increment'), { method: 'POST' });
+              if (incrementRes.ok) {
+                const d = await incrementRes.json();
+                setStats(d);
+              }
+            } catch {
+              // Ignore stats increments issues
+            }
+          }
+        }
+      } catch (err: any) {
+        addLog(`❌ Failed executing rebase --continue: ${err.message}`);
+      }
     }
   };
 
   // Reset/Abort wizard flow
-  const handleResetWizard = () => {
-    addLog(`$ git rebase --abort`);
-    addLog(`🔙 Wizard reset. Rebase process aborted cleanly.`);
-    
-    setRepoState(prev => ({
-      ...prev,
-      rebaseInProgress: false,
-      conflicts: []
-    }));
+  const handleResetWizard = async () => {
+    if (isSimulation) {
+      addLog(`$ git rebase --abort`);
+      addLog(`🔙 Wizard reset. Rebase process aborted cleanly.`);
+      
+      setRepoState(prev => ({
+        ...prev,
+        rebaseInProgress: false,
+        conflicts: []
+      }));
+    } else {
+      try {
+        addLog(`$ git rebase --abort`);
+        const res = await fetch(resolveApiUrl('/api/execute-command'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command: 'git rebase --abort' })
+        });
+        const data = await res.json();
+        addLog(`🔙 Real Rebase Aborted. Code ${data.code}`);
+        handleRefresh(false);
+      } catch (err: any) {
+        addLog(`❌ Failed execution rebase --abort: ${err.message}`);
+      }
+    }
 
     setWizard({
       step: 0,
@@ -451,7 +591,8 @@ export default function App() {
         const d = await res.json();
         addLog(`✓ Successfully cloned repository: ${repoUrl}`);
         addLog(`📂 Root sandbox set to: ${d.path}`);
-        await handleRefresh();
+        setIsSimulation(false);
+        await handleRefresh(false);
         setIsCloning(false);
         return true;
       } else {
@@ -479,7 +620,8 @@ export default function App() {
       if (res.ok) {
         const d = await res.json();
         addLog(`✓ Joined repository cleanly on directory: ${d.path}`);
-        handleRefresh();
+        setIsSimulation(false);
+        handleRefresh(false);
       } else {
         const errMsg = await safeParseError(res, 'Folder path invalid or inaccessible');
         addLog(`! Folder path is invalid or lacks .git: ${errMsg}`);
@@ -515,6 +657,7 @@ export default function App() {
           onToggleSimulation={(val) => {
             setIsSimulation(val);
             addLog(`🤖 Mode toggled. Simulation Playground: ${val ? 'ACTIVE' : 'OFF'}`);
+            handleRefresh(val);
           }}
           onUpdateRepoPath={handleUpdateRepoPath}
           onCloneRepo={handleCloneRepo}
