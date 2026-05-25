@@ -446,8 +446,39 @@ export default function ConflictSolver({
     }
   };
   
-  // Track resolved status per block index
-  const [resolvedBlocks, setResolvedBlocks] = React.useState<Record<number, 'ours' | 'theirs' | 'both' | 'ignore'>>({});
+  // Track resolved status per block index with independent left and right options for JetBrains style
+  const [blockChoices, setBlockChoices] = React.useState<Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }>>({});
+  const [scrollOffset, setScrollOffset] = React.useState(0);
+  const isScrollingRef = React.useRef(false);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement | HTMLTextAreaElement>) => {
+    if (isScrollingRef.current) return;
+    isScrollingRef.current = true;
+
+    const target = e.currentTarget;
+    const top = target.scrollTop;
+    setScrollOffset(top);
+
+    if (leftPaneContainerRef.current && leftPaneContainerRef.current !== target) {
+      if (Math.abs(leftPaneContainerRef.current.scrollTop - top) > 1) {
+        leftPaneContainerRef.current.scrollTop = top;
+      }
+    }
+    if (rightPaneContainerRef.current && rightPaneContainerRef.current !== target) {
+      if (Math.abs(rightPaneContainerRef.current.scrollTop - top) > 1) {
+        rightPaneContainerRef.current.scrollTop = top;
+      }
+    }
+    if (textareaRef.current && textareaRef.current !== target) {
+      if (Math.abs(textareaRef.current.scrollTop - top) > 1) {
+        textareaRef.current.scrollTop = top;
+      }
+    }
+
+    window.requestAnimationFrame(() => {
+      isScrollingRef.current = false;
+    });
+  };
 
   // 3-way Search states
   const [stateLeftSearch, setStateLeftSearch] = React.useState({
@@ -497,6 +528,62 @@ export default function ConflictSolver({
   const blocks = React.useMemo(() => {
     return parseConflictFile(activeContent);
   }, [activeContent]);
+
+  // For each block, calculate the start line index in left pane (and right pane):
+  const leftBlockLines = React.useMemo(() => {
+    let currentLine = 0;
+    return blocks.map((block) => {
+      const startLine = currentLine;
+      if (block.type === 'normal') {
+        const linesCount = block.commonText ? block.commonText.split('\n').length : 1;
+        currentLine += linesCount;
+        return { startLine, height: linesCount };
+      } else {
+        const oursCount = block.oursText ? block.oursText.split('\n').length : 1;
+        const theirsCount = block.theirsText ? block.theirsText.split('\n').length : 1;
+        const maxLines = Math.max(oursCount, theirsCount);
+        currentLine += maxLines;
+        return { startLine, height: maxLines };
+      }
+    });
+  }, [blocks]);
+
+  // For each block, calculate start line index inside middle (result) textarea editor:
+  const middleBlockLines = React.useMemo(() => {
+    let currentLine = 0;
+    return blocks.map((block, idx) => {
+      const startLine = currentLine;
+      if (block.type === 'normal') {
+        const linesCount = block.commonText ? block.commonText.split('\n').length : 1;
+        currentLine += linesCount;
+        return { startLine, height: linesCount };
+      } else {
+        const choice = blockChoices[idx] || { left: 'pending', right: 'pending' };
+        let linesCount = 0;
+        if (choice.left === 'accepted' && choice.right === 'accepted') {
+          const oursCount = block.oursText ? block.oursText.split('\n').length : 1;
+          const theirsCount = block.theirsText ? block.theirsText.split('\n').length : 1;
+          linesCount = oursCount + theirsCount;
+        } else if (choice.left === 'accepted') {
+          linesCount = block.oursText ? block.oursText.split('\n').length : 1;
+        } else if (choice.right === 'accepted') {
+          linesCount = block.theirsText ? block.theirsText.split('\n').length : 1;
+        } else if (choice.left === 'ignored' && choice.right === 'ignored') {
+          linesCount = 0;
+        } else if (choice.left === 'ignored' && choice.right === 'pending') {
+          linesCount = block.theirsText ? block.theirsText.split('\n').length : 1;
+        } else if (choice.right === 'ignored' && choice.left === 'pending') {
+          linesCount = block.oursText ? block.oursText.split('\n').length : 1;
+        } else {
+          const oursCount = block.oursText ? block.oursText.split('\n').length : 1;
+          const theirsCount = block.theirsText ? block.theirsText.split('\n').length : 1;
+          linesCount = oursCount + theirsCount + 3;
+        }
+        currentLine += linesCount;
+        return { startLine, height: linesCount };
+      }
+    });
+  }, [blocks, blockChoices]);
 
   // Parse arrays of lines sequentially to find matches easily in left and right lanes
   const leftLines = React.useMemo(() => {
@@ -753,96 +840,138 @@ export default function ConflictSolver({
       if (selectedFile.isResolved && selectedFile.resolvedContent) {
         setEditorText(selectedFile.resolvedContent);
         // mark all block indexes as resolved
-        const initialResolved: Record<number, 'ours' | 'theirs' | 'both' | 'ignore'> = {};
+        const initialChoices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }> = {};
         blocks.forEach((b, i) => {
           if (b.type === 'conflict') {
-            initialResolved[i] = 'ours';
+            initialChoices[i] = { left: 'accepted', right: 'ignored' };
           }
         });
-        setResolvedBlocks(initialResolved);
+        setBlockChoices(initialChoices);
       } else {
         setEditorText(activeContent);
-        setResolvedBlocks({});
+        const initialChoices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }> = {};
+        blocks.forEach((b, i) => {
+          if (b.type === 'conflict') {
+            initialChoices[i] = { left: 'pending', right: 'pending' };
+          }
+        });
+        setBlockChoices(initialChoices);
       }
     } else {
       setEditorText('');
-      setResolvedBlocks({});
+      setBlockChoices({});
     }
   }, [selectedFile, activeContent, blocks]);
 
-  const handleResolveBlock = (blockIdx: number, choice: 'ours' | 'theirs' | 'both' | 'ignore') => {
-    const updatedChoices = { ...resolvedBlocks, [blockIdx]: choice };
-    setResolvedBlocks(updatedChoices);
-
-    const merged = blocks.map((block, idx) => {
+  const getMergedContent = React.useCallback((choices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }>) => {
+    return blocks.map((block, idx) => {
       if (block.type === 'normal') {
         return block.commonText;
       } else {
-        const bChoice = updatedChoices[idx];
-        if (bChoice === 'ours') {
-          return block.oursText;
-        } else if (bChoice === 'theirs') {
-          return block.theirsText;
-        } else if (bChoice === 'both') {
+        const choice = choices[idx] || { left: 'pending', right: 'pending' };
+        
+        // If both accepted
+        if (choice.left === 'accepted' && choice.right === 'accepted') {
           return `${block.oursText}\n${block.theirsText}`;
-        } else if (bChoice === 'ignore') {
-          return '';
-        } else {
-          return `<<<<<<< HEAD\n${block.oursText}\n=======\n${block.theirsText}\n>>>>>>> incoming`;
         }
+        // If left accepted
+        if (choice.left === 'accepted') {
+          return block.oursText;
+        }
+        // If right accepted
+        if (choice.right === 'accepted') {
+          return block.theirsText;
+        }
+        // If both ignored
+        if (choice.left === 'ignored' && choice.right === 'ignored') {
+          return '';
+        }
+        // If left ignored, right pending
+        if (choice.left === 'ignored' && choice.right === 'pending') {
+          return block.theirsText;
+        }
+        // If right ignored, left pending
+        if (choice.right === 'ignored' && choice.left === 'pending') {
+          return block.oursText;
+        }
+        // Both pending
+        return `<<<<<<< HEAD\n${block.oursText}\n=======\n${block.theirsText}\n>>>>>>> incoming`;
       }
     }).join('\n');
-    
-    setEditorText(merged);
+  }, [blocks]);
+
+  const handleResolveSide = (blockIdx: number, side: 'left' | 'right', action: 'accept' | 'ignore') => {
+    setBlockChoices(prev => {
+      const current = prev[blockIdx] || { left: 'pending', right: 'pending' };
+      const updated = { ...current };
+
+      if (side === 'left') {
+        if (action === 'accept') {
+          updated.left = 'accepted';
+          if (updated.right === 'pending') {
+            updated.right = 'ignored';
+          }
+        } else {
+          updated.left = 'ignored';
+        }
+      } else {
+        if (action === 'accept') {
+          updated.right = 'accepted';
+          if (updated.left === 'pending') {
+            updated.left = 'ignored';
+          }
+        } else {
+          updated.right = 'ignored';
+        }
+      }
+
+      const nextChoices = { ...prev, [blockIdx]: updated };
+      setEditorText(getMergedContent(nextChoices));
+      return nextChoices;
+    });
   };
 
   const handleApplyLeft = () => {
-    const updated: Record<number, 'ours' | 'theirs' | 'both' | 'ignore'> = {};
+    const nextChoices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }> = {};
     blocks.forEach((block, idx) => {
       if (block.type === 'conflict') {
-        updated[idx] = 'ours';
+        nextChoices[idx] = { left: 'accepted', right: 'ignored' };
       }
     });
-    setResolvedBlocks(updated);
-    const merged = blocks.map((block, idx) => {
-      if (block.type === 'normal') return block.commonText;
-      return block.oursText;
-    }).join('\n');
-    setEditorText(merged);
+    setBlockChoices(nextChoices);
+    setEditorText(getMergedContent(nextChoices));
   };
 
   const handleApplyRight = () => {
-    const updated: Record<number, 'ours' | 'theirs' | 'both' | 'ignore'> = {};
+    const nextChoices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }> = {};
     blocks.forEach((block, idx) => {
       if (block.type === 'conflict') {
-        updated[idx] = 'theirs';
+        nextChoices[idx] = { left: 'ignored', right: 'accepted' };
       }
     });
-    setResolvedBlocks(updated);
-    const merged = blocks.map((block, idx) => {
-      if (block.type === 'normal') return block.commonText;
-      return block.theirsText;
-    }).join('\n');
-    setEditorText(merged);
+    setBlockChoices(nextChoices);
+    setEditorText(getMergedContent(nextChoices));
   };
 
   const handleApplyBoth = () => {
-    const updated: Record<number, 'ours' | 'theirs' | 'both' | 'ignore'> = {};
+    const nextChoices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }> = {};
     blocks.forEach((block, idx) => {
       if (block.type === 'conflict') {
-        updated[idx] = 'both';
+        nextChoices[idx] = { left: 'accepted', right: 'accepted' };
       }
     });
-    setResolvedBlocks(updated);
-    const merged = blocks.map((block, idx) => {
-      if (block.type === 'normal') return block.commonText;
-      return `${block.oursText}\n${block.theirsText}`;
-    }).join('\n');
-    setEditorText(merged);
+    setBlockChoices(nextChoices);
+    setEditorText(getMergedContent(nextChoices));
   };
 
   const handleResetMerge = () => {
-    setResolvedBlocks({});
+    const nextChoices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }> = {};
+    blocks.forEach((block, idx) => {
+      if (block.type === 'conflict') {
+        nextChoices[idx] = { left: 'pending', right: 'pending' };
+      }
+    });
+    setBlockChoices(nextChoices);
     setEditorText(activeContent);
   };
 
@@ -871,12 +1000,11 @@ export default function ConflictSolver({
   const totalMarkerBlocks = countOccurrences(editorText, '<<<<<<<');
   const isCurrentlyDirty = editorText.includes('<<<<<<<') || editorText.includes('=======') || editorText.includes('>>>>>>>');
 
-  // Render Left Code column
   const renderLeftPane = () => {
     let lineNum = 1;
     let globalLineCounter = 0;
     return (
-      <div className="font-mono text-[11px] leading-5 text-slate-300 w-full">
+      <div className="font-mono text-[11px] leading-5 text-slate-300 w-full pt-3 pb-8">
         {blocks.map((block, bIdx) => {
           if (block.type === 'normal') {
             const lines = block.commonText ? block.commonText.split('\n') : [''];
@@ -902,7 +1030,7 @@ export default function ConflictSolver({
             const oursLines = block.oursText ? block.oursText.split('\n') : [''];
             const theirsLines = block.theirsText ? block.theirsText.split('\n') : [''];
             const maxLines = Math.max(oursLines.length, theirsLines.length);
-            const isResolved = resolvedBlocks[bIdx] !== undefined;
+            const choice = blockChoices[bIdx] || { left: 'pending', right: 'pending' };
 
             return Array.from({ length: maxLines }).map((_, lIdx) => {
               const line = oursLines[lIdx];
@@ -910,14 +1038,19 @@ export default function ConflictSolver({
               const currNum = hasLine ? lineNum++ : '';
               const currentGlobalLineIdx = globalLineCounter++;
               
+              const isIgnored = choice.left === 'ignored';
+              const isAccepted = choice.left === 'accepted';
+              
               return (
                 <div 
                   key={`c-L-${bIdx}-${lIdx}`} 
                   data-left-line={currentGlobalLineIdx}
                   className={`flex relative min-h-[20px] items-center ${
-                    isResolved 
-                      ? 'bg-emerald-950/15 text-emerald-400/80 border-l-2 border-emerald-500/50' 
-                      : 'bg-rose-950/20 text-[#f28b82] border-l-2 border-rose-500/80'
+                    isAccepted
+                      ? 'bg-emerald-950/20 text-emerald-400 border-l-2 border-emerald-500/80'
+                      : isIgnored
+                        ? 'bg-slate-900/40 text-slate-500/80 border-l-2 border-slate-700/50 line-through decoration-slate-600/50'
+                        : 'bg-rose-950/20 text-[#f28b82] border-l-2 border-rose-500/80'
                   }`}
                 >
                   <div className="w-9 text-right pr-2 text-rose-550 bg-rose-950/30 select-none border-r border-[#2d2f3c]/60 font-mono text-[10px] font-bold shrink-0">
@@ -927,12 +1060,12 @@ export default function ConflictSolver({
                     {hasLine ? renderLineWithHighlight(line, currentGlobalLineIdx, leftMatches, stateLeftSearch.activeIndex) : ''}
                   </div>
 
-                  {hasLine && lIdx === 0 && !isResolved && (
+                  {hasLine && lIdx === 0 && choice.left === 'pending' && (
                     <div className="absolute right-2 z-15 flex gap-1 pointer-events-auto">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleResolveBlock(bIdx, 'ours');
+                          handleResolveSide(bIdx, 'left', 'accept');
                         }}
                         className="bg-indigo-600 hover:bg-indigo-500 hover:scale-105 active:scale-95 text-white font-mono font-bold px-1.5 py-0.5 rounded text-[9px] shadow cursor-pointer transition-all flex items-center gap-0.5"
                         title={loc.btnOurs}
@@ -942,10 +1075,10 @@ export default function ConflictSolver({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleResolveBlock(bIdx, 'ignore');
+                          handleResolveSide(bIdx, 'left', 'ignore');
                         }}
                         className="bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-white px-1 py-0.5 rounded text-[9px] cursor-pointer"
-                        title="Ignore block"
+                        title="Ignore block (Reject)"
                       >
                         ×
                       </button>
@@ -965,7 +1098,7 @@ export default function ConflictSolver({
     let lineNum = 1;
     let globalLineCounter = 0;
     return (
-      <div className="font-mono text-[11px] leading-5 text-slate-300 w-full">
+      <div className="font-mono text-[11px] leading-5 text-slate-300 w-full pt-3 pb-8">
         {blocks.map((block, bIdx) => {
           if (block.type === 'normal') {
             const lines = block.commonText ? block.commonText.split('\n') : [''];
@@ -991,7 +1124,7 @@ export default function ConflictSolver({
             const oursLines = block.oursText ? block.oursText.split('\n') : [''];
             const theirsLines = block.theirsText ? block.theirsText.split('\n') : [''];
             const maxLines = Math.max(oursLines.length, theirsLines.length);
-            const isResolved = resolvedBlocks[bIdx] !== undefined;
+            const choice = blockChoices[bIdx] || { left: 'pending', right: 'pending' };
 
             return Array.from({ length: maxLines }).map((_, lIdx) => {
               const line = theirsLines[lIdx];
@@ -999,14 +1132,19 @@ export default function ConflictSolver({
               const currNum = hasLine ? lineNum++ : '';
               const currentGlobalLineIdx = globalLineCounter++;
               
+              const isIgnored = choice.right === 'ignored';
+              const isAccepted = choice.right === 'accepted';
+              
               return (
                 <div 
                   key={`c-R-${bIdx}-${lIdx}`} 
                   data-right-line={currentGlobalLineIdx}
                   className={`flex relative min-h-[20px] items-center ${
-                    isResolved 
-                      ? 'bg-emerald-950/15 text-emerald-400/80 border-r-2 border-emerald-500/50' 
-                      : 'bg-[#3d2f1f]/60 text-amber-300 border-r-2 border-amber-500/80'
+                    isAccepted
+                      ? 'bg-emerald-950/20 text-emerald-400 border-r-2 border-emerald-500/80'
+                      : isIgnored
+                        ? 'bg-slate-900/40 text-slate-500/80 border-r-2 border-slate-700/50 line-through decoration-slate-600/50'
+                        : 'bg-[#3d2f1f]/50 text-amber-300 border-r-2 border-amber-500/80'
                   }`}
                 >
                   <div className="w-9 text-right pr-2 text-amber-550 bg-amber-950/30 select-none border-r border-[#2d2f3c]/60 font-mono text-[10px] font-bold shrink-0">
@@ -1016,12 +1154,12 @@ export default function ConflictSolver({
                     {hasLine ? renderLineWithHighlight(line, currentGlobalLineIdx, rightMatches, stateRightSearch.activeIndex) : ''}
                   </div>
 
-                  {hasLine && lIdx === 0 && !isResolved && (
+                  {hasLine && lIdx === 0 && choice.right === 'pending' && (
                     <div className="absolute right-2 z-15 flex gap-1 pointer-events-auto">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleResolveBlock(bIdx, 'theirs');
+                          handleResolveSide(bIdx, 'right', 'accept');
                         }}
                         className="bg-amber-600 hover:bg-amber-500 hover:scale-105 active:scale-95 text-slate-950 font-mono font-bold px-1.5 py-0.5 rounded text-[9px] shadow cursor-pointer transition-all flex items-center gap-0.5"
                         title={loc.btnTheirs}
@@ -1031,10 +1169,10 @@ export default function ConflictSolver({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleResolveBlock(bIdx, 'ignore');
+                          handleResolveSide(bIdx, 'right', 'ignore');
                         }}
                         className="bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-white px-1 py-0.5 rounded text-[9px] cursor-pointer"
-                        title="Ignore block"
+                        title="Ignore block (Reject)"
                       >
                         ×
                       </button>
