@@ -58,7 +58,10 @@ const wizardLoc: Record<TranslationTone, any> = {
       title: "PHÂN TÍCH LỊCH SỬ NHÁNH:",
       desc: "Phát hiện thấy nhánh của bạn đang đi trước {baseBranch} với tổng số {commitsLength} commits chưa được squash. Hãy tick chọn các commits bạn muốn nén làm một:",
       selectedCount: "* Đã chọn: {count} / {total} commits để nén dọn sạch nhánh.",
-      selectAtLeastOne: "Vui lòng chọn ít nhất 1 commit để tiến hành squash!"
+      selectAtLeastOne: "Vui lòng chọn ít nhất 1 commit để tiến hành squash!",
+      selectAll: "Chọn tất cả",
+      deselectAll: "Bỏ chọn tất cả",
+      warningNote: "⚠️ Lưu ý quan trọng: Nếu chừa lại một số commit không nén hết, rebase có nguy cơ cao bùng nổ conflict lặp đi lặp lại nhiều lần ứng với từng commit lẻ tẻ. Khuyên dùng: Chọn tất cả lịch sử để dồn nén sạch sẽ tại một điểm duy nhất."
     },
     step3: {
       title: "CHẾ ĐỘ PHÒNG VỆ AN TOÀN (SAFE BACKUP):",
@@ -131,7 +134,10 @@ const wizardLoc: Record<TranslationTone, any> = {
       title: "PHÒNG CHIẾN THUẬT SQUASH COMMITS:",
       desc: "Vãi chưởng, sếp múa tận {commitsLength} commits đi trước {baseBranch}. Chọn ngay các phát súng sếp muốn dồn đạn dập dẹp thành 1 viên duy nhất đi nào sếp:",
       selectedCount: "🎯 Đã nhắm: {count} / {total} phát súng để thổi bay.",
-      selectAtLeastOne: "Ít nhất phải chọn một phát súng để nén chứ ní!"
+      selectAtLeastOne: "Ít nhất phải chọn một phát súng để nén chứ ní!",
+      selectAll: "Chọn tuốt sếp ơi",
+      deselectAll: "Thôi khỏi chọn",
+      warningNote: "⚠️ Mách nhỏ sếp: Nếu không nén trọn ổ súng mà chừa lại vài viên lẻ tẻ, lát rebase nó nổ bùng conflict sếp gánh nợ gỡ mệt đứt hơi á ghen! Khuyên sếp cứ click 'Chọn tuốt' gom hết cả cụm nén một lượt cho rảnh nợ cuộc đời bớt sầu!"
     },
     step3: {
       title: "MUA BẢO HIỂM NHÁNH PHÒNG THÂN (SAFE BACKUP):",
@@ -204,7 +210,10 @@ const wizardLoc: Record<TranslationTone, any> = {
       title: "ĐỐNG NÁT COMMITS CHỜ ĐÉO SQUASH:",
       desc: "Tổ chức múa phím ngu đẻ tận {commitsLength} commits đè lên {baseBranch}. Chọn mẹ các commit cần khai tử để gom lại một bãi duy nhất hộ cái:",
       selectedCount: "🤬 Đã nhặt: {count} / {total} đống phân để dọn.",
-      selectAtLeastOne: "Mày bị ngáo à? Chọn ít nhất 1 commit để gom bãi chứ!"
+      selectAtLeastOne: "Mày bị ngáo à? Chọn ít nhất 1 commit để gom bãi chứ!",
+      selectAll: "Hốt trọn gói",
+      deselectAll: "Thôi đéo thèm chọn",
+      warningNote: "🔥 Cảnh báo cực mạnh: Đéo chọn nén sạch cả cụm mà chừa lại dăm ba cú commit đi lẻ, tý nữa git rebase nó vả conflict lặp đi lặp lại từng đợt sưng mồm thì tự gỡ mệt vcl chứ ai cứu. Khôn hồn thì ấn mẹ 'Hốt trọn gói' mà dọn sạch cả bãi một lần cho nhanh!"
     },
     step3: {
       title: "ƯƠM CHẬU BẢO HIỂM LẤY LỖI SĨ DIỆN (SAFE BACKUP):",
@@ -277,7 +286,10 @@ const wizardLoc: Record<TranslationTone, any> = {
       title: "BRANCH HISTORY ANALYSIS:",
       desc: "Detected your branch is ahead of {baseBranch} by {commitsLength} commits. Select the target commits you want to squish into a single clean commit:",
       selectedCount: "* Selected: {count} / {total} commits to be squashed.",
-      selectAtLeastOne: "Please select at least one commit to squish!"
+      selectAtLeastOne: "Please select at least one commit to squish!",
+      selectAll: "Select All",
+      deselectAll: "Deselect All",
+      warningNote: "⚠️ Crucial Warning: If you do not select all commits to squash, Git Rebase may trigger consecutive conflict resolution checkpoints for each isolated commit. Recommendation: Use 'Select All' to consolidate the entire branch history at once safely."
     },
     step3: {
       title: "SAFE BACKUP BRANCH MODE (DISASTER RECOVERY):",
@@ -354,6 +366,19 @@ export default function WizardPanel({
       : [...wizard.selectedCommits, sha];
     onUpdateWizard({ selectedCommits: updated });
   };
+
+  // Auto-select all commits on step 2 transition by default
+  const hasSelectedAllForStep2 = React.useRef(false);
+
+  React.useEffect(() => {
+    if (wizard.step !== 2) {
+      hasSelectedAllForStep2.current = false;
+    } else if (wizard.step === 2 && !hasSelectedAllForStep2.current && commits.length > 0) {
+      const allSha = commits.map(c => c.sha);
+      onUpdateWizard({ selectedCommits: allSha });
+      hasSelectedAllForStep2.current = true;
+    }
+  }, [wizard.step, commits, onUpdateWizard]);
 
   const handleApplyTemplate = (prefix: string) => {
     const rawMsg = localFinalMsg.includes(':') 
@@ -520,6 +545,42 @@ export default function WizardPanel({
               </div>
             </div>
 
+            <div className="flex items-center justify-between bg-slate-900/40 px-3.5 py-2 rounded-xl border border-slate-900/60 text-[11px] font-mono leading-relaxed">
+              <span className="text-slate-400 font-medium">
+                {loc.step2.selectedCount.replace('{count}', wizard.selectedCommits.length).replace('{total}', commits.length)}
+              </span>
+              <div className="flex items-center gap-2 font-sans">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const allSha = commits.map(c => c.sha);
+                    onUpdateWizard({ selectedCommits: allSha });
+                  }}
+                  className="px-2.5 py-1 text-[11px] font-bold rounded bg-indigo-600 hover:bg-indigo-550 text-white shadow-sm hover:scale-[1.02] active:scale-95 transition-all border border-indigo-500/10 cursor-pointer text-center"
+                >
+                  {loc.step2.selectAll}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onUpdateWizard({ selectedCommits: [] });
+                  }}
+                  className="px-2.5 py-1 text-[11px] font-semibold rounded bg-slate-800 hover:bg-slate-700/80 text-slate-300 hover:text-white hover:scale-[1.02] active:scale-95 transition-all border border-slate-700/40 cursor-pointer text-center"
+                >
+                  {loc.step2.deselectAll}
+                </button>
+              </div>
+            </div>
+
+            {wizard.selectedCommits.length < commits.length && wizard.selectedCommits.length > 0 && (
+              <div className="bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/20 text-amber-200 p-3 rounded-xl text-[11px] leading-relaxed flex gap-2.5 transition-all duration-300">
+                <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 animate-pulse" />
+                <div className="font-sans">
+                  {loc.step2.warningNote}
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col gap-2 max-h-56 overflow-y-auto pr-1">
               {commits.map((commit) => {
                 const isSelected = wizard.selectedCommits.includes(commit.sha);
@@ -555,10 +616,6 @@ export default function WizardPanel({
                   </div>
                 );
               })}
-            </div>
-
-            <div className="text-[11px] text-slate-500 font-mono">
-              {loc.step2.selectedCount.replace('{count}', wizard.selectedCommits.length).replace('{total}', commits.length)}
             </div>
           </div>
         )}
