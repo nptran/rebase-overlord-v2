@@ -424,7 +424,8 @@ export default function App() {
       case 3: return 'Safe Backup configuration';
       case 4: return 'Rebase/Squash execution engine';
       case 5: return 'Unified commit message editing';
-      case 6: return 'Finalize check with Push optionality';
+      case 6: return 'Verify rebase integrity & local consistency checks';
+      case 7: return 'Finalize check with Push optionality';
       default: return 'Idle';
     }
   };
