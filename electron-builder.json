@@ -11,6 +11,7 @@
     "electron-main.js"
   ],
   "win": {
+    "icon": "build/icon.ico",
     "target": [
       {
         "target": "nsis",

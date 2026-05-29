@@ -12,7 +12,7 @@
     "start": "node dist/server.cjs",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "desktop:build": "npm run build && electron-builder",
+    "desktop:build": "npm run build && electron-builder --publish never",
     "electron:dev": "npm run build && electron ."
   },
   "dependencies": {
