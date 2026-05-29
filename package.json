@@ -1,6 +1,8 @@
 {
   "name": "react-example",
   "private": true,
+  "description": "Git Rebase Overlord visual aid tool for developers",
+  "author": "NPTran",
   "version": "0.0.0",
   "type": "module",
   "main": "electron-main.js",

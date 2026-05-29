@@ -11,6 +11,7 @@
     "electron-main.js"
   ],
   "win": {
+    "executableName": "RebaseOverlord",
     "target": [
       {
         "target": "nsis",
