@@ -681,7 +681,8 @@ app.post('/api/execute-command', async (req, res) => {
 
 // Mounting Vite dev client
 const startServer = async () => {
-  console.log('NODE_ENV=', process.env.NODE_ENV);
+  console.log('[SERVER] startServer() entered');
+  console.log('[SERVER] NODE_ENV=', process.env.NODE_ENV);
 
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
@@ -707,7 +708,9 @@ const startServer = async () => {
     });
   }
 
+  console.log('[SERVER] About to listen on', PORT);
   app.listen(PORT, '0.0.0.0', () => {
+    console.log('[SERVER] Listening on', PORT);
     console.log(`[Rebase Overlord Backend Server Started on port ${PORT}]`);
   });
 };

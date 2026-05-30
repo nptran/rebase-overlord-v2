@@ -13,19 +13,30 @@ const __dirname = path.dirname(__filename);
 // Pre-boot local express helper
 let serverInstance;
 
+// 1. Add Global Error Handlers
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] uncaughtException');
+  console.error(err);
+  console.error(err.stack);
+});
+
+process.on('unhandledRejection', (err) => {
+  console.error('[FATAL] unhandledRejection');
+  console.error(err);
+});
+
 function startBackendServer() {
-  console.log('Preparing background Rebase Overlord Backend instance...');
-  // Dynamically load the server module
+  console.log('[BOOT] Electron started');
+  console.log('[BOOT] Calling import(server.cjs)...');
+
   import('./dist/server.cjs')
     .then(() => {
-      console.log('✓ Local background Express instance integrated smoothly.');
+      console.log('[BOOT] Backend module loaded');
     })
     .catch((err) => {
-      console.warn('Backend express bundle not found. Attempting server.ts load...', err.message);
-      // Fallback in dev context
-      import('./server.ts').catch((tsErr) => {
-        console.warn('Could not launch backend. Please ensure "npm run build" is run or backend server is launched separately.', tsErr.message);
-      });
+      console.error('[BOOT] Backend module load failed');
+      console.error(err);
+      console.error(err.stack);
     });
 }
 
