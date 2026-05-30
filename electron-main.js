@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, dialog } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,16 +14,53 @@ const __dirname = path.dirname(__filename);
 // Pre-boot local express helper
 let serverInstance;
 
+// Robust error reporting handler
+function reportError(title, err) {
+  const errMsg = err ? (err.stack || err.message || String(err)) : 'Unknown stack trace';
+  const logContent = `========================================\n[${new Date().toISOString()}] ${title}\n========================================\n${errMsg}\n\n`;
+
+  console.error(`[ERROR_REPORT] ${title}:`, errMsg);
+
+  // Write to multiple directories to guarantee user visibility & persistence
+  const pathsToTry = [
+    { name: 'Desktop', getPath: () => path.join(app.getPath('desktop'), 'rebase-overlord-error.log') },
+    { name: 'Home', getPath: () => path.join(app.getPath('home'), 'rebase-overlord-error.log') },
+    { name: 'UserData', getPath: () => path.join(app.getPath('userData'), 'rebase-overlord-error.log') },
+    { name: 'CWD', getPath: () => path.join(process.cwd(), 'rebase-overlord-error.log') }
+  ];
+
+  for (const target of pathsToTry) {
+    try {
+      const logPath = target.getPath();
+      fs.appendFileSync(logPath, logContent, 'utf8');
+      console.log(`[BOOT] Saved error log file in ${target.name} directory: ${logPath}`);
+    } catch (fsErr) {
+      console.error(`[BOOT] Failed to write error log to ${target.name}:`, fsErr.message);
+    }
+  }
+
+  // Pop up native desktop OS dialog error box
+  try {
+    dialog.showErrorBox(
+      title,
+      `Rebase Overlord Backend Error.\n\nError details:\n${errMsg}\n\nA copy of this crash log has been written to your Desktop as "rebase-overlord-error.log".`
+    );
+  } catch (dialogErr) {
+    console.error('[BOOT] Failed to raise dialog.showErrorBox:', dialogErr.message);
+  }
+}
+
 // 1. Add Global Error Handlers
 process.on('uncaughtException', (err) => {
   console.error('[FATAL] uncaughtException');
   console.error(err);
-  console.error(err.stack);
+  reportError('[FATAL] uncaughtException', err);
 });
 
 process.on('unhandledRejection', (err) => {
   console.error('[FATAL] unhandledRejection');
   console.error(err);
+  reportError('[FATAL] unhandledRejection', err);
 });
 
 function startBackendServer() {
@@ -36,7 +74,7 @@ function startBackendServer() {
     .catch((err) => {
       console.error('[BOOT] Backend module load failed');
       console.error(err);
-      console.error(err.stack);
+      reportError('[BOOT] Backend module load failed (failed to load/execute server.cjs)', err);
     });
 }
 
