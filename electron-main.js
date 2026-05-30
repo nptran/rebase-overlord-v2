@@ -44,6 +44,14 @@ function createWindow() {
     }
   });
 
+  // Diagnostics: Open developer tools to debug black screens
+  mainWindow.webContents.openDevTools();
+
+  // Diagnostics: Track loading failures
+  mainWindow.webContents.on('did-fail-load', (...args) => {
+    console.error('did-fail-load', args);
+  });
+
   // Load the running localhost app (served by the express static layer on 3000)
   setTimeout(() => {
     mainWindow.loadURL('http://localhost:3000').catch((e) => {
@@ -62,6 +70,10 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Set NODE_ENV according to packaging state to prevent development Vite middleware in bundled builds
+  process.env.NODE_ENV = app.isPackaged ? 'production' : 'development';
+  console.log('App isPackaged:', app.isPackaged, '-> NODE_ENV set to:', process.env.NODE_ENV);
+
   // Spin up local Node Express server thread
   startBackendServer();
   

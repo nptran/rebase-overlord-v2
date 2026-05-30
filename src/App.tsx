@@ -1064,6 +1064,11 @@ export default function App() {
               showLogPanel={showLogPanel}
               onToggleLogPanel={() => setShowLogPanel(!showLogPanel)}
               onClearLogs={() => setLogs([])}
+              tone={tone}
+              isSimulation={isSimulation}
+              onCommandExecuted={() => handleRefresh(true)}
+              addLog={addLog}
+              resolveApiUrl={resolveApiUrl}
             />
 
           </div>

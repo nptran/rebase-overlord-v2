@@ -9,6 +9,10 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import { createServer as createViteServer } from 'vite';
+import dotenv from 'dotenv';
+dotenv.config();
+import { GoogleGenAI, Type } from '@google/genai';
+import { fileURLToPath } from 'url';
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
@@ -463,6 +467,193 @@ app.post('/api/stats/increment', (req, res) => {
   res.json(stats);
 });
 
+let aiClient: GoogleGenAI | null = null;
+function getGeminiClient(): GoogleGenAI {
+  if (!aiClient) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.warn("GEMINI_API_KEY is not defined in environment variables.");
+    }
+    aiClient = new GoogleGenAI({
+      apiKey: apiKey || '',
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
+  }
+  return aiClient;
+}
+
+// Explain/suggest git command using Gemini 3.5 Flash server-side API
+app.post('/api/explain-git-command', async (req, res) => {
+  const { command, tone } = req.body;
+  if (!command) {
+    return res.status(400).json({ error: 'Command details are missing.' });
+  }
+
+  // Quick offline parsing / fallback mapping in case Gemini API is missing or fails
+  const parts = command.trim().split(/\s+/);
+  const isGit = parts[0]?.toLowerCase() === 'git';
+  const subcmd = isGit && parts[1] ? parts[1].toLowerCase() : 'unknown';
+
+  let offlineExplanation = "Lệnh Git tùy chỉnh.";
+  let offlineDestructive = false;
+  let offlineWarning = "";
+  let offlineSuggestion = "Hãy cẩn trọng khi tự gõ các lệnh Git tùy chỉnh.";
+
+  // Default fallback suggestions
+  let offlineSuggestedCommands = ['git status', 'git log --oneline -n 5', 'git branch -a', 'git stash list', 'git remote -v'];
+
+  // Smart spelling/misspelling corrections and keyword-aware defaults
+  const lowerCmd = command.toLowerCase();
+  
+  if (lowerCmd.includes('stat')) {
+    offlineSuggestedCommands = ['git status', 'git diff', 'git status -s'];
+    offlineExplanation = "Xem trạng thái hiện tại của workspace (các file đã chỉnh sửa, thêm mới hoặc xóa).";
+  } else if (lowerCmd.includes('log') || lowerCmd.includes('commit') || lowerCmd.includes('show')) {
+    offlineSuggestedCommands = ['git log --oneline -n 5', 'git show HEAD', 'git status'];
+    offlineExplanation = "Xem lịch sử commit hoặc thông tin chi tiết của một commit cụ thể.";
+  } else if (lowerCmd.includes('check') || lowerCmd.includes('co') || lowerCmd.includes('switch')) {
+    offlineSuggestedCommands = ['git checkout develop', 'git checkout main', 'git checkout -b feature/payment-v2'];
+    offlineExplanation = "Chuyển nhanh sang nhánh khác hoặc hoàn tác các tập tin đã sửa đổi.";
+  } else if (lowerCmd.includes('branch') || lowerCmd.includes('br')) {
+    offlineSuggestedCommands = ['git branch -a', 'git branch -v', 'git checkout -b feature/new-branch'];
+    offlineExplanation = "Quản lý nhánh (create, list, delete branch).";
+  } else if (lowerCmd.includes('stash')) {
+    offlineSuggestedCommands = ['git stash list', 'git stash pop', 'git stash apply'];
+    offlineExplanation = "Giải pháp cất tạm thời các code đang sửa dở dang sang một hàng đợi tạm thời.";
+  } else if (lowerCmd.includes('rebase')) {
+    offlineSuggestedCommands = ['git rebase --continue', 'git rebase --abort', 'git rebase develop'];
+    offlineExplanation = "Gộp/Đắp lại các commit trên ngọn cây lịch sử mới.";
+  } else if (lowerCmd.includes('reset')) {
+    offlineSuggestedCommands = ['git reset HEAD~1', 'git reset --hard HEAD', 'git restore .'];
+    offlineExplanation = "Sử dụng cỗ máy thời gian quay ngược cấu hình hoặc hủy bỏ staging file.";
+  } else if (lowerCmd.includes('push')) {
+    offlineSuggestedCommands = ['git push origin HEAD', 'git push --force-with-lease', 'git remote -v'];
+    offlineExplanation = "Đẩy các commit local hiện tại lên remote repository.";
+  } else if (lowerCmd.includes('pull')) {
+    offlineSuggestedCommands = ['git pull origin develop', 'git fetch origin', 'git pull --rebase origin main'];
+    offlineExplanation = "Kéo các commit mới nhất trên server về kết hợp với nhánh của bạn.";
+  } else if (lowerCmd.includes('add')) {
+    offlineSuggestedCommands = ['git add .', 'git add -u', 'git status'];
+    offlineExplanation = "Lưu tạm snapshot thay đổi vào Staging Area chuẩn bị cho việc tạo commit.";
+  } else {
+    // Detect spelling mistakes
+    const tokens = command.trim().split(/\s+/);
+    const cmdToken = tokens[1] || '';
+    if (cmdToken) {
+      const candidates = ['status', 'log', 'branch', 'checkout', 'add', 'commit', 'push', 'pull', 'fetch', 'stash', 'reset', 'rebase'];
+      const matched = candidates.find(candidate => {
+        return candidate.startsWith(cmdToken.substring(0, 3)) || cmdToken.startsWith(candidate.substring(0, 3));
+      });
+      if (matched) {
+        offlineSuggestedCommands = [
+          `git ${matched}`,
+          `git status`,
+          `git log --oneline -n 5`
+        ];
+        offlineExplanation = `Có vẻ lệnh bạn vừa gõ là một lỗi chính tả của "git ${matched}". Chúng tôi khuyến nghị bạn sửa lại thành: git ${matched}`;
+        offlineSuggestion = `Hãy thử click vào nút gợi ý gợi nhớ "git ${matched}" bên dưới để sửa lỗi lập tức.`;
+      }
+    }
+  }
+
+  // Quick hazard detection list
+  const dangerousCommands = ['clean', 'reset', 'revert', 'push', 'checkout', 'branch', 'rm'];
+  const dangerousArgs = ['--hard', '--force', '-f', '-D', 'force-with-lease'];
+  
+  const hasDangerousArg = parts.some(arg => dangerousArgs.includes(arg.toLowerCase()));
+  if (dangerousCommands.includes(subcmd) || hasDangerousArg) {
+    offlineDestructive = true;
+    offlineWarning = "Cảnh báo nguy hiểm: Lệnh này có thể ghi đè lịch sử commits hoặc xoá file chưa lưu!";
+  }
+
+  // If Gemini API is available, ask the Oracle!
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (apiKey) {
+    try {
+      const ai = getGeminiClient();
+      
+      // Determine System Instruction based on tone persona
+      let systemInstruction = "Bạn là trợ lý ảo 'Rebase Overlord Engine' thông thái chuyên về Git. Hãy giải thích lệnh Git một cách ngắn gọn, súc tích (phạm vi 2-3 câu). Trả về JSON theo đúng định dạng được cấu hình.";
+      
+      if (tone === 'vn_pro') {
+        systemInstruction = "Bạn là trợ lý ảo 'Rebase Overlord Engine' chuẩn mực, chuyên nghiệp và thông thái về Git. Hãy giải thích lệnh Git rành mạch, rực rỡ, dễ hiểu với thuật ngữ chuẩn hóa bằng tiếng Việt.";
+      } else if (tone === 'vn_joke') {
+        systemInstruction = "Bạn là con robot vui tính, tấu táo, vô cùng thân thiện về Git, gọi user là 'sếp' hoặc 'ní'. Hãy giải thích lệnh Git hóm hỉnh, khôi hài, dùng các thuật ngữ hài hước giới dev (như 'toang', 'gánh team', 'bay màu', 'gỡ tơ vò', 'hóng hớt', 'combat').";
+      } else if (tone === 'vn_toxic') {
+        systemInstruction = "Bạn là con AI chửi dạo, cực kỳ cọc cằn, châm biếm, cà khịa phong cách 'toxic boss'. Hãy gọi lập trình viên là 'thằng ngáo', 'lập trình viên rác', 'thầy dạy khói', 'thằng gà'. Hãy chửi và sỉ nhục thói quen code ẩu của họ, nhưng phần giải thích giải thuật Git vẫn phải cực kỳ chính xác để họ khôn ra. Viết bằng tiếng Việt hài hước cọc cằn.";
+      } else if (tone === 'en_pro') {
+        systemInstruction = "You are a professional, polite, educational, and intelligent Git assistant 'Rebase Overlord Engine'. Explain the Git command in English clearly, precisely, with standard developer terminology.";
+      }
+
+      const promptUser = `Hãy giải thích lệnh Git sau đây: "${command}". 
+Lưu ý quan trọng: Lệnh này đang được thực hiện tại thư mục repo "${activeRepoPath}".
+
+Nếu lệnh này có tính huỷ hoại cao hoặc nguy hiểm có thể xoá dữ liệu (như: git reset --hard, git push --force/--mirror, git clean, git branch -D, git checkout . đại diện, v.v.), hãy đặc biệt thiết lập isDestructive là true và điền một lời cảnh báo bằng tiếng chuông cảnh tỉnh sâu sắc vào warningMessage!
+
+Ngoài ra, hãy phân tích câu lệnh của người dùng gõ. Nếu câu lệnh bị lỗi chính tả (ví dụ như "git statsu" thay vì "git status" hoặc "git checkoutt" thay vì "git checkout") hoặc thiếu tham số, hãy sửa đổi nó và đề xuất câu đúng vào danh sách 'suggestedCommands'. Trả về ít nhất 3-4 câu lệnh cụ thể, khả thi nhất làm gợi ý hành động tiếp theo.`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.5-flash',
+        contents: promptUser,
+        config: {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              explanation: {
+                type: Type.STRING,
+                description: "Tóm tắt ngắn gọn và trực quan nhất lệnh Git làm cái gì trong phạm vi 2-3 câu."
+              },
+              isDestructive: {
+                type: Type.BOOLEAN,
+                description: "Có phải một lệnh Git nguy hiểm có tính huỷ hoại (ví dụ xoá thay đổi chưa commit, force push, xoá nhánh thô bạo) không?"
+              },
+              warningMessage: {
+                type: Type.STRING,
+                description: "Lời cảnh báo bảo hiểm hoặc thông tin rủi ro nếu có, để trống nếu hoàn toàn an toàn."
+              },
+              suggestion: {
+                type: Type.STRING,
+                description: "Đưa ra mẹo hoặc câu lệnh thay thế an toàn hơn hoặc bước nên làm tiếp theo."
+              },
+              suggestedCommands: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+                description: "Danh sách 3-5 câu lệnh Git chuẩn xác tiếp theo phù hợp nhất cho người dùng (ví dụ: ['git status', 'git checkout main']) hoặc sửa lại lỗi cú pháp nếu câu gõ ban đầu bị lỗi chính tả."
+              }
+            },
+            required: ["explanation", "isDestructive", "warningMessage", "suggestion", "suggestedCommands"]
+          }
+        }
+      });
+
+      const responseText = response.text?.trim() || '{}';
+      try {
+        const geminiResult = JSON.parse(responseText);
+        return res.json(geminiResult);
+      } catch (parseErr) {
+        console.error("Failed to parse Gemini JSON output structure:", responseText, parseErr);
+      }
+    } catch (geminiErr: any) {
+      console.error("Gemini API call incurred an exception:", geminiErr);
+    }
+  }
+
+  // Send fallback if Gemini isn't present or crashed
+  return res.json({
+    explanation: offlineExplanation,
+    isDestructive: offlineDestructive,
+    warningMessage: offlineWarning || (offlineDestructive ? "Cẩn thận! Lệnh này có thể làm mất các biến đổi chưa lưu." : ""),
+    suggestion: offlineSuggestion,
+    suggestedCommands: offlineSuggestedCommands
+  });
+});
+
 // Execute custom git CLI commands (read only/safe simulator elements)
 app.post('/api/execute-command', async (req, res) => {
   const { command } = req.body;
@@ -490,6 +681,8 @@ app.post('/api/execute-command', async (req, res) => {
 
 // Mounting Vite dev client
 const startServer = async () => {
+  console.log('NODE_ENV=', process.env.NODE_ENV);
+
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -497,7 +690,17 @@ const startServer = async () => {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    // Determine the production distribution path based on runtime context (bundled CJS vs ESM)
+    let distPath = '';
+    if (typeof __dirname !== 'undefined') {
+      distPath = __dirname;
+    } else {
+      const __filename = fileURLToPath(import.meta.url);
+      distPath = path.dirname(__filename);
+    }
+    
+    console.log('distPath=', distPath);
+
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
