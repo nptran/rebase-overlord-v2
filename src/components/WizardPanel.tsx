@@ -64,8 +64,8 @@ const wizardLoc: Record<TranslationTone, any> = {
     },
     step2: {
       title: "PHÂN TÍCH LỊCH SỬ NHÁNH:",
-      desc: "Phát hiện thấy nhánh của bạn đang đi trước {baseBranch} với tổng số {commitsLength} commits chưa được squash. Hãy tick chọn các commits bạn muốn nén làm một:",
-      selectedCount: "* Đã chọn: {count} / {total} commits để nén dọn sạch nhánh.",
+      desc: "Phát hiện thấy nhánh của bạn đang đi trước {baseBranch} với tổng số {commitsLength} commit chưa được nén (squash). Hãy tick chọn các commit bạn muốn nén làm một:",
+      selectedCount: "* Đã chọn: {count} / {total} commit để nén dọn sạch nhánh.",
       selectAtLeastOne: "Vui lòng chọn ít nhất 1 commit để tiến hành squash!",
       selectAll: "Chọn tất cả",
       deselectAll: "Bỏ chọn tất cả",
@@ -73,11 +73,11 @@ const wizardLoc: Record<TranslationTone, any> = {
     },
     step3: {
       title: "CHẾ ĐỘ PHÒNG VỆ AN TOÀN (SAFE BACKUP):",
-      desc: "Rebase là thao tác viết lại lịch sử có rủi ro nếu nén sai commits. Rebase Overlord sẽ tự động khởi tạo nhánh backup mang tên {backupBranchName} để phòng bị trước. Nếu bạn không vừa lòng sau rebase, có thể khôi phục rùa bò chỉ trong 1 click.",
-      backupYes: "🛡️ CÓ, BẢO VỆ TAO (KHOAN KHOÁI)",
-      backupYesDesc: "Sao lưu toàn bộ commits an toàn vô điều kiện.",
-      backupNo: "💀 ĐÉO CẦN, TAO LÀ DEV LIỀU",
-      backupNoDesc: "Bỏ qua sao lưu bước này, chấp nhận mất mát nếu rebase gãy.",
+      desc: "Rebase là thao tác viết lại lịch sử có rủi ro nếu nén sai commit. Rebase Overlord sẽ tự động khởi tạo nhánh backup mang tên {backupBranchName} để phòng bị trước. Nếu bạn không vừa lòng sau rebase, có thể khôi phục dễ dàng chỉ trong 1 click.",
+      backupYes: "🛡️ CÓ, SAO LƯU AN TOÀN",
+      backupYesDesc: "Sao lưu toàn bộ commit an toàn vô điều kiện.",
+      backupNo: "💀 KHÔNG CẦN SAO LƯU",
+      backupNoDesc: "Bỏ qua sao lưu bước này, chấp nhận rủi ro nếu rebase gãy.",
       inputLabel: "TÊN NHÁNH SAO LƯU:"
     },
     step4: {
@@ -100,19 +100,19 @@ const wizardLoc: Record<TranslationTone, any> = {
       }
     },
     step6: {
-      title: "XÁC MINH TOÀN VẸN VÀ KIỂM THỬ CODES (VERIFY REBASE):",
-      desc: "Trước khi gửi codes lên GitHub Remote, hệ thống sẽ thực thi các kiểm định chuyên sâu như tính nhất quán của nhánh, so sánh sai lệch Patch-ID, và chạy thử tiến trình build/test dự án để đảm bảo an toàn tuyệt đối.",
+      title: "XÁC MINH TOÀN VẸN VÀ KIỂM THỬ CODE (VERIFY REBASE):",
+      desc: "Trước khi gửi code lên GitHub Remote, hệ thống sẽ thực thi các kiểm định chuyên sâu như tính nhất quán của nhánh, so sánh sai lệch Patch-ID, và chạy thử tiến trình build/test dự án để đảm bảo an toàn tuyệt đối.",
       runBtn: "🔍 CHẠY CHẨN ĐOÁN & KIỂM THỬ KẾT QUẢ",
       running: "Hệ thống đang tiến hành chẩn đoán chéo...",
       checkingAheadBehind: "1. Đang kiểm tra Ahead/Behind giữa Local HEAD và Remote {baseBranch}...",
       checkingPatchID: "2. Đang kiểm tra tính toàn vẹn của Patch (Patch-ID)...",
       runningUnitTests: "3. Chạy kiểm thử tự động (Unit Test / Compile build-check)...",
       patchOk: "✓ Thành công: Patch-ID bảo toàn hoàn hảo so với nhánh backup {backupBranch}! Code logic giữ nguyên không bị thất lạc dòng.",
-      patchLoss: "⚠️ Cảnh báo sai biệt: Phát hiện Patch-ID của bạn đã biến đổi (do xử lý conflict và thêm/bớt codes). Điều này bình thường nếu bạn đã chủ động sửa tay lúc giải quyết xung đột.",
+      patchLoss: "⚠️ Cảnh báo sai biệt: Phát hiện Patch-ID của bạn đã biến đổi (do xử lý conflict và thêm/bớt code). Điều này bình thường nếu bạn đã chủ động sửa tay lúc giải quyết xung đột.",
       aheadOk: "✓ Thành công: Nhánh của bạn hoạt động độc lập đứng trước remote '{baseBranch}' và sẵn sàng push.",
       aheadFail: "❌ Thất bại: Nhánh remote '{baseBranch}' có cập nhật mới chưa được kéo về local. Cần sync trước khi đẩy lên.",
       testsOk: "✓ Đạt chỉ tiêu: Tiến trình debug, build và linter hoàn thành 100% không gặp lỗi cú pháp.",
-      testsFail: "❌ Cảnh báo đỏ: Dự án đang gặp lỗi biên dịch sau rebase. Hãy mở terminal kiểm tra lại codes.",
+      testsFail: "❌ Cảnh báo đỏ: Dự án đang gặp lỗi biên dịch sau rebase. Hãy mở terminal kiểm tra lại code.",
       summaryTitle: "Báo cáo tóm tắt chỉ số an toàn rebase:",
       reRunBtn: "🔄 Tái kiểm tra"
     },
@@ -414,19 +414,55 @@ const wizardLoc: Record<TranslationTone, any> = {
 // Simple custom hover/click-triggered Tooltip wrapper
 export function Tooltip({ text, children }: { text: string; children: React.ReactNode }) {
   const [visible, setVisible] = React.useState(false);
+  const triggerRef = React.useRef<HTMLSpanElement>(null);
+  const [position, setPosition] = React.useState<'center' | 'left' | 'right'>('center');
+
+  React.useEffect(() => {
+    if (visible && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const tooltipWidth = 224; // w-56 is 224px
+      const viewportWidth = window.innerWidth;
+      
+      const spaceOnLeft = rect.left + rect.width / 2;
+      const spaceOnRight = viewportWidth - (rect.left + rect.width / 2);
+      
+      if (spaceOnLeft < tooltipWidth / 2 + 16) {
+        setPosition('left');
+      } else if (spaceOnRight < tooltipWidth / 2 + 16) {
+        setPosition('right');
+      } else {
+        setPosition('center');
+      }
+    }
+  }, [visible]);
+
+  let tooltipClass = "absolute bottom-full mb-2 w-56 bg-[#0f172a] border border-slate-700 text-[11px] text-slate-300 rounded-lg p-3 shadow-2xl z-50 leading-normal font-sans font-normal text-left animate-fade-in block ";
+  let arrowClass = "absolute top-full -mt-1.5 border-4 border-transparent border-t-slate-700 ";
+
+  if (position === 'left') {
+    tooltipClass += "left-0";
+    arrowClass += "left-4";
+  } else if (position === 'right') {
+    tooltipClass += "right-0";
+    arrowClass += "right-4";
+  } else {
+    tooltipClass += "left-1/2 transform -translate-x-1/2";
+    arrowClass += "left-1/2 transform -translate-x-1/2";
+  }
 
   return (
     <span 
-      className="relative group inline-block cursor-help border-b border-dashed border-slate-600/60 pb-0.5 select-none"
+      ref={triggerRef}
+      className="relative group inline-block cursor-help border-b border-dashed border-slate-605/60 pb-0.5 select-none"
       onMouseEnter={() => setVisible(true)}
       onMouseLeave={() => setVisible(false)}
       onClick={(e) => { e.stopPropagation(); setVisible(!visible); }}
     >
       {children}
       {visible && (
-        <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-56 bg-[#0f172a] border border-slate-700 text-[11px] text-slate-300 rounded-lg p-2.5 shadow-2xl z-50 leading-normal font-sans font-normal text-left animate-fade-in block">
+        <span className={tooltipClass}>
           {text}
-          <span className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-1.5 border-4 border-transparent border-t-slate-700"></span>
+          <span className={arrowClass}></span>
         </span>
       )}
     </span>
@@ -572,7 +608,7 @@ const lowTechAnalogies: Record<TranslationTone, Record<number, { title: string; 
       tip: "🤬 Đọc kĩ: Cấm viết cụt ngủn 'done' hay 'fix'. Viết có tâm hộ cái!"
     },
     6: {
-      title: "Phòng tra khảo codes (Verify)",
+      title: "Phòng tra khảo code (Verify)",
       analogy: "Lôi cổ đống code đi khám bệnh xem có bôi nhọ làm bay màu file người khác hay làm hỏng ứng dụng không.",
       realLife: "Cưỡng bức biên dịch linter tìm lỗi cú pháp và đối soát Patch-ID.",
       tip: "🤬 Đọc kĩ: Đỏ lòm là cút xéo về sửa, xanh lét thì tạm thời tha mạng cho đấy."
@@ -957,7 +993,7 @@ export default function WizardPanel({
               </span>
               <p className="mb-2">{loc.step0.desc}</p>
               
-              <div className="flex gap-2 flex-wrap mt-2.5 pt-2.5 border-t border-slate-900 overflow-x-auto text-[10px] text-slate-500 font-mono">
+              <div className="flex gap-2 flex-wrap mt-2.5 pt-2.5 border-t border-slate-900 text-[10px] text-slate-500 font-mono">
                 <span className="self-center font-bold mr-1 text-slate-450">{tone === TranslationTone.ENGLISH ? "❓ Terms:" : "❓ Thuật ngữ:"}</span>
                 <Tooltip text={tone === TranslationTone.ENGLISH ? "The master integration branch of the project (usually develop or main)." : "Nhánh mẹ dọn dẹp chứa code chung ổn định của cả dự án. Thường là main hoặc develop."}>
                   <span className="px-2 py-0.5 rounded bg-slate-900 hover:text-slate-300 text-slate-400 border border-slate-800 transition-colors">Base Branch</span>
@@ -1012,7 +1048,7 @@ export default function WizardPanel({
               </span>
               <p className="mb-2">{loc.step1.desc}</p>
               
-              <div className="flex gap-2 flex-wrap mt-2.5 pt-2.5 border-t border-slate-900 overflow-x-auto text-[10px] text-slate-500 font-mono">
+              <div className="flex gap-2 flex-wrap mt-2.5 pt-2.5 border-t border-slate-900 text-[10px] text-slate-500 font-mono">
                 <span className="self-center font-bold mr-1 text-slate-450">{tone === TranslationTone.ENGLISH ? "❓ Terms:" : "❓ Thuật ngữ:"}</span>
                 <Tooltip text={tone === TranslationTone.ENGLISH ? "Downloads tracking pointers and changes safely from the centralized server without moving your local workspace." : "Lệnh tải các bản ghi chép mới nhất từ server chung về máy của bạn để biết ai đã sửa những gì. Cực kỳ an toàn, không sợ mất code."}>
                   <span className="px-2 py-0.5 rounded bg-slate-900 hover:text-slate-300 text-slate-400 border border-slate-800 transition-colors">git fetch</span>
@@ -1131,10 +1167,12 @@ export default function WizardPanel({
                 }}
               >
                 <div className="flex items-center justify-between border-b border-slate-900 pb-2">
-                  <span className="text-xs font-bold font-mono text-indigo-400 tracking-wider flex items-center gap-1.5 font-sans">
-                    <Sparkles className="w-3.5 h-3.5 fill-indigo-400/20" />
-                    <span>{tone === TranslationTone.ENGLISH ? "📦 SQUASH (KEEP & COMBINE)" : "📦 NÉN & SÁP NHẬP (SQUASH)"}</span>
-                  </span>
+                  <Tooltip text={tone === TranslationTone.ENGLISH ? "Commits in this pile will be squashed and combined into a single clean commit." : "Các commit trong cột này sẽ được dồn nén lại thành một commit duy nhất, giúp lịch sử sạch đẹp."}>
+                    <span className="text-xs font-bold font-mono text-indigo-400 tracking-wider flex items-center gap-1.5 font-sans">
+                      <Sparkles className="w-3.5 h-3.5 fill-indigo-400/20" />
+                      <span>{tone === TranslationTone.ENGLISH ? "📦 SQUASH (KEEP & COMBINE)" : "📦 NÉN & SÁP NHẬP (SQUASH)"}</span>
+                    </span>
+                  </Tooltip>
                   <span className="bg-indigo-500/10 border border-indigo-500/20 text-[10px] text-indigo-400 px-2 py-0.5 rounded font-mono font-bold">
                     {orderedCommits.filter(c => wizard.selectedCommits.includes(c.sha)).length}
                   </span>
@@ -1236,10 +1274,12 @@ export default function WizardPanel({
                 }}
               >
                 <div className="flex items-center justify-between border-b border-slate-900/60 pb-2">
-                  <span className="text-xs font-bold font-mono text-rose-450 tracking-wider flex items-center gap-1.5 font-sans">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                    <span>{tone === TranslationTone.ENGLISH ? "🚫 EXCLUDE (SKIP/DROP COMMITS)" : "🚫 KHÔNG NÉN (LOẠI BỎ / DROP)"}</span>
-                  </span>
+                  <Tooltip text={tone === TranslationTone.ENGLISH ? "Commits in this pile will not be squashed. They are excluded or skipped." : "Các commit trong cột này sẽ được giữ riêng, không tham gia vào tiến trình nén gộp."}>
+                    <span className="text-xs font-bold font-mono text-rose-450 tracking-wider flex items-center gap-1.5 font-sans">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                      <span>{tone === TranslationTone.ENGLISH ? "🚫 EXCLUDE (SKIP/DROP COMMITS)" : "🚫 KHÔNG NÉN (LOẠI BỎ / DROP)"}</span>
+                    </span>
+                  </Tooltip>
                   <span className="bg-slate-900 border border-slate-800 text-[10px] text-slate-500 px-2 py-0.5 rounded font-mono font-bold">
                     {orderedCommits.filter(c => !wizard.selectedCommits.includes(c.sha)).length}
                   </span>
@@ -1306,7 +1346,7 @@ export default function WizardPanel({
               </span>
               <p className="mb-2">{loc.step3.desc.replace('{backupBranchName}', wizard.backupBranchName)}</p>
               
-              <div className="flex gap-2 flex-wrap mt-2.5 pt-2.5 border-t border-slate-900 overflow-x-auto text-[10px] text-slate-500 font-mono">
+              <div className="flex gap-2 flex-wrap mt-2.5 pt-2.5 border-t border-slate-900 text-[10px] text-slate-500 font-mono">
                 <span className="self-center font-bold mr-1 text-slate-450">{tone === TranslationTone.ENGLISH ? "❓ Terms:" : "❓ Thuật ngữ:"}</span>
                 <Tooltip text={tone === TranslationTone.ENGLISH ? "An isolated replica clone of your working line to rollback safely in case anything goes wrong." : "Bản sao chụp clone lại nguyên vẹn trạng thái code của bạn lúc này. Nếu nén code bị lỗi hay mất dòng, khôi phụ lại trong 3 giây."}>
                   <span className="px-2 py-0.5 rounded bg-slate-900 hover:text-slate-300 text-slate-400 border border-slate-800 transition-colors">{tone === TranslationTone.ENGLISH ? "Backup Branch" : "Nhánh sao lưu"}</span>
@@ -1513,7 +1553,9 @@ export default function WizardPanel({
                       <Check className="w-3.5 h-3.5" />
                     </div>
                     <div className="text-[11px] leading-tight">
-                      <div className="font-mono font-bold text-slate-300 uppercase select-none tracking-wider text-[9px] mb-0.5">Ahead/Behind</div>
+                      <Tooltip text={tone === TranslationTone.ENGLISH ? "Checks if your local branch is strictly leading, or has fallen behind remote updates." : "Xem nhánh local có đang dẫn đầu tuyệt đối hay bị tụt hậu chậm trễ so với server."}>
+                        <div className="font-mono font-bold text-slate-300 uppercase select-none tracking-wider text-[9px] mb-0.5">Ahead/Behind</div>
+                      </Tooltip>
                       <div className="text-slate-400">{loc.step6.aheadOk}</div>
                     </div>
                   </div>
@@ -1523,7 +1565,9 @@ export default function WizardPanel({
                       {verifyResults.patchId === 'mutated' ? <AlertTriangle className="w-3.5 h-3.5" /> : <ShieldCheck className="w-3.5 h-3.5" />}
                     </div>
                     <div className="text-[11px] leading-tight">
-                      <div className="font-mono font-bold text-slate-300 uppercase select-none tracking-wider text-[9px] mb-0.5">Patch-ID integrity</div>
+                      <Tooltip text={tone === TranslationTone.ENGLISH ? "Validates logic preservation. Ensures code modifications are identical before and after squash." : "Đối chiếu cấu trúc dòng mã nguồn xem rebase tự động có làm mất mát dòng code nào của bạn hay không."}>
+                        <div className="font-mono font-bold text-slate-300 uppercase select-none tracking-wider text-[9px] mb-0.5">Patch-ID integrity</div>
+                      </Tooltip>
                       <div className="text-slate-400">
                         {verifyResults.patchId === 'mutated' ? loc.step6.patchLoss : loc.step6.patchOk.replace('{backupBranch}', wizard.backupBranchName || 'backup')}
                       </div>
@@ -1535,7 +1579,9 @@ export default function WizardPanel({
                       <Check className="w-3.5 h-3.5" />
                     </div>
                     <div className="text-[11px] leading-tight">
-                      <div className="font-mono font-bold text-slate-300 uppercase select-none tracking-wider text-[9px] mb-0.5">Build & Tests</div>
+                      <Tooltip text={tone === TranslationTone.ENGLISH ? "Runs project build tests and syntax parsers to confirm code is 100% sound." : "Hệ thống tự động biên dịch thử dự án và linter, đảm bảo không dính các lỗi cú pháp."}>
+                        <div className="font-mono font-bold text-slate-300 uppercase select-none tracking-wider text-[9px] mb-0.5">Build & Tests</div>
+                      </Tooltip>
                       <div className="text-slate-400">{loc.step6.testsOk}</div>
                     </div>
                   </div>
@@ -1564,7 +1610,13 @@ export default function WizardPanel({
               <span className="font-mono text-slate-200 block font-bold mb-1 uppercase text-[11px] flex items-center gap-1">
                 <GitPullRequest className="w-4 h-4 text-purple-400 animate-pulse" /> {loc.step7.title}
               </span>
-              {loc.step7.desc}
+              <p className="mb-2">{loc.step7.desc}</p>
+              <div className="flex gap-2 flex-wrap mt-2.5 pt-2.5 border-t border-slate-900 text-[10px] text-slate-500 font-mono font-normal">
+                <span className="self-center font-bold mr-1 text-slate-450">{tone === TranslationTone.ENGLISH ? "❓ Terms:" : "❓ Thuật ngữ:"}</span>
+                <Tooltip text={tone === TranslationTone.ENGLISH ? "Safely overwrites remote commit history only if nobody else pushed to the same branch." : "Lực lượng đẩy đè an toàn: Đẩy đè nhật ký code mới lên máy chủ với điều kiện duy nhất là không có ai khác đã lẻn push code mọc sừng đè lên đầu."}>
+                  <span className="px-2 py-0.5 rounded bg-slate-900 hover:text-slate-300 text-slate-400 border border-slate-800 transition-colors">force-with-lease</span>
+                </Tooltip>
+              </div>
             </div>
 
             <div className="flex gap-4 mt-2">
