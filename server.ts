@@ -8,7 +8,6 @@ import { exec } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
-import { createServer as createViteServer } from 'vite';
 import dotenv from 'dotenv';
 dotenv.config();
 import { GoogleGenAI, Type } from '@google/genai';
@@ -685,6 +684,8 @@ const startServer = async () => {
   console.log('[SERVER] NODE_ENV=', process.env.NODE_ENV);
 
   if (process.env.NODE_ENV !== 'production') {
+    const viteModule = await import('vite');
+    const createViteServer = viteModule.createServer;
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
