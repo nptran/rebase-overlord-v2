@@ -18,7 +18,8 @@ import {
   TrendingUp,
   Link,
   Key,
-  FolderOpen
+  FolderOpen,
+  Bot
 } from 'lucide-react';
 import { TranslationTone, GitRepoState, SessionStats } from '../types';
 import { translate } from '../i18n';
@@ -32,9 +33,11 @@ interface RepoHeaderProps {
   useEmoji: boolean;
   isSimulation: boolean;
   isCloning: boolean;
+  isAiEnabled: boolean;
   onSetTone: (t: TranslationTone) => void;
   onToggleEmoji: () => void;
   onToggleSimulation: (val: boolean) => void;
+  onToggleAi: () => void;
   onUpdateRepoPath: (path: string) => void;
   onCloneRepo: (repoUrl: string, token: string) => Promise<boolean>;
   onRefresh: () => void;
@@ -55,7 +58,20 @@ const headerLoc = {
     rebaseCountLabel: "Đã Rebase/Squash:",
     times: "lần",
     sessionStarted: "Khởi động:",
-    lastRun: "Lần cuối"
+    lastRun: "Lần cuối",
+    playgroundActive: "PLAYGROUND GIẢ LẬP ĐANG KÍCH HOẠT:",
+    playgroundDesc: "Bạn không cần kết nối Git thật. Hệ thống đã chuẩn bị sẵn sơ đồ commits và tập tin xung đột mô phỏng.",
+    connectRealRepo: "Kết nối Repo Thật",
+    cloningTip: "Chúng tôi đang tải nhánh mặc định với --depth 50 về máy chủ ảo an toàn.",
+    fileDialogTip: "Vui lòng kiểm tra màn hình máy tính của bạn để lựa chọn thư mục Git trong hộp thoại File Dialog.",
+    orUseWebDir: "🌐 Hoặc sử dụng Trình duyệt Thư mục Web",
+    patPlaceholder: "Personal Access Token / PAT (Tuỳ chọn cho Repo riêng tư)",
+    chooseFolderBtn: "Chọn thư mục...",
+    instructionTitle: "💡 Chỉ dẫn:",
+    instructionDesc: "Nhấp vào hộp đường dẫn hoặc nút Chọn thư mục... để mở nhanh hộp thoại chọn thư mục Windows Explorer/Finder.",
+    quickRepoTemplates: "⚡ Kho thử nghiệm chuẩn nhanh:",
+    cloningTitle: "ĐANG SAO CHÉP KHO LƯU TRỮ TỪ XA...",
+    systemDialogTitle: "ĐANG MỞ HỘP THOẠI HỆ ĐIỀU HÀNH..."
   },
   [TranslationTone.JOKE]: {
     subtitle: "Bệ phóng dọn rác git commit và nén luồng mượt mà như lụa sếp ơi! 🚀",
@@ -71,7 +87,20 @@ const headerLoc = {
     rebaseCountLabel: "Đã nén tà thuật:",
     times: "phát",
     sessionStarted: "Lên sóng lúc:",
-    lastRun: "Mới múa"
+    lastRun: "Mới múa",
+    playgroundActive: "PHÒNG THÍ NGHIỆM TẢO TÀN ĐANG BAY LÊN: 🧪",
+    playgroundDesc: "Thả cửa phá hoại! Không sợ hỏng code thật đâu sếp, quẩy nhiệt tình đi nha.",
+    connectRealRepo: "Chốt Repo Thật Đi Sếp",
+    cloningTip: "Đang ôm cả bầu trời code tinh hoa về ổ đĩa ảo rồi sếp ơi, đợi tí nhé!",
+    fileDialogTip: "Liếc mắt sang màn hình để bấm chọn thư mục Git xinh tươi đi kìa sếp ơi.",
+    orUseWebDir: "🌐 Hoặc lục lọi bằng Trình duyệt Thư mục Web",
+    patPlaceholder: "Mã PAT bảo mật (Dành cho hầm trú ẩn private, nhập vào đây nhé)",
+    chooseFolderBtn: "Chỉ định ổ code...",
+    instructionTitle: "💡 Cẩm nang võ lâm:",
+    instructionDesc: "Bấm chuột vào ô đường dẫn hoặc nút Chỉ định ổ code... để triệu hồi cửa sổ Windows Explorer/Finder.",
+    quickRepoTemplates: "⚡ Mẫu thử tốc độ ánh sáng:",
+    cloningTitle: "ĐANG KHUÂN VA VẬN CHUYỂN REPO...",
+    systemDialogTitle: "ĐANG TRIỆU HỒI CỬA SỔ HỆ THỐNG..."
   },
   [TranslationTone.TOXIC]: {
     subtitle: "Công cụ dọn đống rác commit của tụi dev vớ vẩn trước khi gộp code.",
@@ -87,7 +116,20 @@ const headerLoc = {
     rebaseCountLabel: "Đã còng lưng dọn:",
     times: "bãi",
     sessionStarted: "Mò mặt vào lúc:",
-    lastRun: "Ngoáy mông cuối"
+    lastRun: "Ngoáy mông cuối",
+    playgroundActive: "ĐANG CHƠI TRÒ TRẺ CON Ở SÂN CHƠI GIẢ LẬP:",
+    playgroundDesc: "Cứ bấm nghịch đi kẻo phá nát code thật rồi khóc lóc. Ở đây đơm xạo mấy cái commit cho nghịch đỡ thèm.",
+    connectRealRepo: "Vào Hàng Thật Đi Thằng Hèn",
+    cloningTip: "Đang kéo cả mớ code rác về rồi, ngồi im đấy đừng có táy máy bấm khùng điên.",
+    fileDialogTip: "Mắt mở to lên mà nhìn cái File Dialog đang hiện ra mà chọn thư mục kìa.",
+    orUseWebDir: "🌐 Hoặc dùng hàng tự chế Web Folder Browser",
+    patPlaceholder: "Token PAT (Chắc lại bày đặt xài repo private chứ gì, ném vào đây)",
+    chooseFolderBtn: "Bới thư mục ra...",
+    instructionTitle: "💡 Đọc kỹ giùm cái:",
+    instructionDesc: "Click vào ô đường dẫn hoặc nút Bới thư mục ra... mà gọi cái Explorer/Finder lên.",
+    quickRepoTemplates: "⚡ Repo cho mấy đứa lười:",
+    cloningTitle: "KÉO REPO VỀ ĐÂY LẸ LÊN...",
+    systemDialogTitle: "HỘP THOẠI ĐANG MỞ, BẬN MẮT MÀ NHÌN..."
   },
   [TranslationTone.ENGLISH]: {
     subtitle: "Advanced interactive assistant for visualizing and flattening Git Squash & Rebase workflows.",
@@ -103,7 +145,20 @@ const headerLoc = {
     rebaseCountLabel: "Rebased/Squashed:",
     times: "times",
     sessionStarted: "Session Started:",
-    lastRun: "Last"
+    lastRun: "Last",
+    playgroundActive: "PLAYGROUND SIMULATION ACTIVE:",
+    playgroundDesc: "No real Git connection needed. The system has pre-configured simulated commit nodes and conflict files.",
+    connectRealRepo: "Connect Real Repo",
+    cloningTip: "We are cloning the default branch with --depth 50 into a secure virtual space.",
+    fileDialogTip: "Please check your screen to select your Git repository in the file dialog.",
+    orUseWebDir: "🌐 Or use Web Directory Browser",
+    patPlaceholder: "Personal Access Token / PAT (Optional for private repos)",
+    chooseFolderBtn: "Choose folder...",
+    instructionTitle: "💡 Instruction:",
+    instructionDesc: "Click the path input or 'Choose folder...' button to quickly open Windows Explorer/Finder dialog.",
+    quickRepoTemplates: "⚡ Quick testing templates:",
+    cloningTitle: "CLONING REMOTE REPOSITORY...",
+    systemDialogTitle: "OPENING SYSTEM FILE DIALOG..."
   }
 };
 
@@ -114,9 +169,11 @@ export default function RepoHeader({
   useEmoji,
   isSimulation,
   isCloning,
+  isAiEnabled,
   onSetTone,
   onToggleEmoji,
   onToggleSimulation,
+  onToggleAi,
   onUpdateRepoPath,
   onCloneRepo,
   onRefresh
@@ -172,13 +229,10 @@ export default function RepoHeader({
           </div>
           <div className="text-center px-4">
             <p className="text-sm font-semibold text-white font-mono uppercase tracking-wider">
-              {isCloning ? 'CLONING REMOTE REPOSITORY...' : 'ĐANG MỞ HỘP THOẠI HỆ ĐIỀU HÀNH...'}
+              {isCloning ? loc.cloningTitle : loc.systemDialogTitle}
             </p>
             <p className="text-[11px] text-slate-400 mt-1 font-sans">
-              {isCloning 
-                ? 'Chúng tôi đang tải nhánh mặc định với --depth 50 về máy chủ ảo an toàn.' 
-                : 'Vui lòng kiểm tra màn hình máy tính của bạn để lựa chọn thư mục Git trong hộp thoại File Dialog.'
-              }
+              {isCloning ? loc.cloningTip : loc.fileDialogTip}
             </p>
             {!isCloning && isSelectingDirLocally && (
               <button
@@ -189,7 +243,7 @@ export default function RepoHeader({
                 }}
                 className="mt-4 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-[11px] rounded-lg transition-all border border-indigo-500/20 shadow-lg flex items-center justify-center gap-1.5 cursor-pointer mx-auto active:scale-95 text-center font-mono"
               >
-                🌐 Hoặc sử dụng Trình duyệt Thư mục Web
+                {loc.orUseWebDir}
               </button>
             )}
           </div>
@@ -258,7 +312,7 @@ export default function RepoHeader({
           <button
             id="toggle-emoji-btn"
             onClick={onToggleEmoji}
-            className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border transition-all ${
+            className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
               useEmoji 
                 ? 'bg-[#1e293b] border-amber-500/30 text-amber-400 font-medium' 
                 : 'bg-slate-950 border-slate-800 text-slate-500'
@@ -266,6 +320,25 @@ export default function RepoHeader({
           >
             <span>{useEmoji ? '🤪' : '😶'}</span>
             <span>Emoji Mode: {useEmoji ? 'ON' : 'OFF'}</span>
+          </button>
+
+          {/* Gemini API toggle for cost saving */}
+          <button
+            id="toggle-gemini-ai-btn"
+            onClick={onToggleAi}
+            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
+              isAiEnabled
+                ? 'bg-indigo-950/45 border-violet-500/35 text-violet-300 font-medium hover:bg-indigo-950/60'
+                : 'bg-slate-950 border-slate-850 text-slate-500 hover:text-slate-400'
+            }`}
+            title={tone === TranslationTone.ENGLISH ? "Enable/Disable Gemini AI model processing to save API costs" : "Bật/tắt xử lý API Gemini để tiết kiệm chi phí dịch vụ"}
+          >
+            <Bot className={`w-3.5 h-3.5 ${isAiEnabled ? 'text-violet-400 animate-pulse' : 'text-slate-600'}`} />
+            <span>
+              {isAiEnabled
+                ? (tone === TranslationTone.ENGLISH ? 'Gemini AI: ON' : tone === TranslationTone.TOXIC ? 'Gemini AI: GÁY TO' : tone === TranslationTone.JOKE ? 'Gemini AI: MỞ BÁT' : 'Gemini AI: BẬT')
+                : (tone === TranslationTone.ENGLISH ? 'Gemini AI: Cost Saved' : tone === TranslationTone.TOXIC ? 'Gemini AI: NÍN (Tiết kiệm)' : tone === TranslationTone.JOKE ? 'Gemini AI: HẾT SÈNG' : 'Gemini AI: TẮT')}
+            </span>
           </button>
 
           {/* Core Simulator / Real Workspace toggle */}
@@ -310,15 +383,15 @@ export default function RepoHeader({
               <div className="flex items-center gap-2">
                 <span className="animate-bounce">🤖</span>
                 <div>
-                  <strong>PLAYGROUND GIẢ LẬP ĐANG KÍCH HOẠT:</strong>
-                  <p className="text-[10px] text-slate-400 mt-0.5">Bạn không cần kết nối Git thật. Hệ thống đã chuẩn bị sẵn sơ đồ commits và tập tin xung đột mô phỏng.</p>
+                  <strong>{loc.playgroundActive}</strong>
+                  <p className="text-[10px] text-slate-400 mt-0.5">{loc.playgroundDesc}</p>
                 </div>
               </div>
               <button
                 onClick={() => onToggleSimulation(false)}
                 className="px-2.5 py-1 bg-teal-500 hover:bg-teal-400 transition-colors text-slate-950 font-bold rounded text-[10px] uppercase font-sans cursor-pointer shrink-0"
               >
-                Kết nối Repo Thật
+                {loc.connectRealRepo}
               </button>
             </div>
           ) : (
@@ -377,7 +450,7 @@ export default function RepoHeader({
                         type="password"
                         value={accessToken}
                         onChange={(e) => setAccessToken(e.target.value)}
-                        placeholder="Personal Access Token / PAT (Tuỳ chọn cho Repo riêng tư)"
+                        placeholder={loc.patPlaceholder}
                         className="w-full pl-9 pr-3 py-2 text-xs font-mono bg-slate-950 border border-slate-800 text-slate-200 rounded-lg outline-none focus:border-slate-600 focus:ring-1 focus:ring-slate-700 placeholder-slate-650"
                       />
                     </div>
@@ -431,7 +504,7 @@ export default function RepoHeader({
                           }}
                           className="px-2.5 py-1 text-[10px] font-bold font-sans bg-indigo-500/10 hover:bg-indigo-500 hover:text-white rounded text-indigo-400 transition-all border border-indigo-500/20 active:scale-95 cursor-pointer shadow-sm hover:shadow-indigo-500/15"
                         >
-                          Chọn thư mục...
+                          {loc.chooseFolderBtn}
                         </button>
                       </div>
                     </div>
@@ -453,8 +526,8 @@ export default function RepoHeader({
                     </button>
                   </div>
                   <p className="text-[10.5px] text-slate-400 font-mono flex items-center gap-1.5 mt-1 px-2.5 py-1 rounded bg-indigo-500/5 border border-indigo-500/10 w-fit">
-                    <span className="text-indigo-400 font-bold">💡 Chỉ dẫn:</span>
-                    Nhấp vào hộp đường dẫn hoặc nút <strong className="text-indigo-300 font-semibold">Chọn thư mục...</strong> để mở nhanh hộp thoại chọn thư mục Windows Explorer/Finder.
+                    <span className="text-indigo-400 font-bold">{loc.instructionTitle}</span>
+                    {loc.instructionDesc}
                   </p>
                 </form>
               )}
@@ -462,7 +535,7 @@ export default function RepoHeader({
               {/* public template presets */}
               {connectionType === 'https' && (
                 <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-mono text-slate-400">
-                  <span className="text-slate-500">⚡ Kho thử nghiệm chuẩn nhanh:</span>
+                  <span className="text-slate-500">{loc.quickRepoTemplates}</span>
                   <button
                     type="button"
                     onClick={() => handleSelectPreset('https://github.com/octocat/Spoon-Knife.git')}
@@ -494,8 +567,8 @@ export default function RepoHeader({
             <span className="text-slate-700">|</span>
             <span className="flex items-center gap-1">
               Active Path:{' '}
-              <span className="text-slate-300 px-1 py-0.2 bg-slate-950 rounded border border-slate-800 text-[10px] max-w-[150px] truncate" title={repoState.repoPath}>
-                {repoState.repoPath || 'N/A'}
+              <span className="text-slate-300 px-1 py-0.2 bg-slate-950 rounded border border-slate-800 text-[10px] max-w-[150px] truncate" title={repoState.repoPath === '🤖 [Playground Giả lập]' && tone === TranslationTone.ENGLISH ? '🤖 [Playground Simulation]' : repoState.repoPath}>
+                {repoState.repoPath === '🤖 [Playground Giả lập]' && tone === TranslationTone.ENGLISH ? '🤖 [Playground Simulation]' : (repoState.repoPath || 'N/A')}
               </span>
             </span>
             <span className="text-slate-700">|</span>

@@ -22,7 +22,9 @@ import {
   Search,
   X,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Bot,
+  Sparkles
 } from 'lucide-react';
 import { ConflictFile, TranslationTone } from '../types';
 
@@ -52,7 +54,7 @@ const localization = {
     statusConflict: "XUNG ĐỘT",
     statusResolved: "ĐÃ GIẢI QUYẾT",
     resultPane: "KẾT QUẢ HỢP NHẤT (SỬA THỦ CÔNG)",
-    toolHelp: "Lớp màu tím/xanh nhạt thể hiện mã nguồn base/develop (Ours) làm móng. Lớp màu hổ phách đại diện cho các thay đổi từ nhánh tính năng của bạn (Theirs)."
+    toolHelp: "Lớp màu tím/xanh nhạt thể hiện mã nguồn base/develop (Ours) làm nền. Lớp màu hổ phách đại diện cho các thay đổi từ nhánh tính năng của bạn (Theirs)."
   },
   [TranslationTone.JOKE]: {
     title: "🏥 PHÒNG CẤP CỨU REBASE (REBASE EMERGENCY)",
@@ -147,6 +149,7 @@ interface ConflictSolverProps {
   onCompleteRecovery: () => void;
   currentBranch?: string;
   baseBranch?: string;
+  isAiEnabled?: boolean;
 }
 
 interface CodeBlock {
@@ -408,13 +411,122 @@ export default function ConflictSolver({
   onResolveFile,
   onCompleteRecovery,
   currentBranch,
-  baseBranch
+  baseBranch,
+  isAiEnabled = true
 }: ConflictSolverProps) {
   const [selectedFile, setSelectedFile] = React.useState<ConflictFile | null>(conflicts[0] || null);
   const [editorText, setEditorText] = React.useState('');
   const [isMinimized, setIsMinimized] = React.useState(false);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
+
+  // AI Resolution and Explanation states
+  const [isAiLoading, setIsAiLoading] = React.useState(false);
+  const [aiExplanation, setAiExplanation] = React.useState<string | null>(null);
+  const [aiProposedContent, setAiProposedContent] = React.useState<string | null>(null);
+  const [aiError, setAiError] = React.useState<string | null>(null);
+  const [wasAiApplied, setWasAiApplied] = React.useState(false);
+
+  const handleAiResolve = async () => {
+    if (!selectedFile) return;
+    setIsAiLoading(true);
+    setAiError(null);
+    setAiExplanation(null);
+    setAiProposedContent(null);
+    setWasAiApplied(false);
+
+    const cacheKey = `${selectedFile.filepath}_${tone}`;
+    let cachedData: any = null;
+    try {
+      const cachedString = localStorage.getItem('rebase_overlord_conflict_cache');
+      if (cachedString) {
+        const cacheStore = JSON.parse(cachedString);
+        if (cacheStore[cacheKey]) {
+          cachedData = cacheStore[cacheKey];
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to read conflict resolve cache", e);
+    }
+
+    if (cachedData) {
+      setTimeout(() => {
+        setAiExplanation(cachedData.explanation + (isAiEnabled ? " (⚡ Cached)" : " (⚡ Offline Cache)"));
+        setAiProposedContent(cachedData.resolvedContent);
+        setIsAiLoading(false);
+      }, 200);
+      return;
+    }
+
+    if (!isAiEnabled) {
+      setTimeout(() => {
+        let msg = '';
+        if (tone === TranslationTone.ENGLISH) {
+          msg = 'Gemini API is currently turned off to save cost. Please toggle it back on in the top header menu to use AI-Powered conflict resolving!';
+        } else if (tone === TranslationTone.TOXIC) {
+          msg = '🔥 Tiết kiệm từng xu lẻ mà đòi sờ vào Gemini á? Lên cái header bật nút lên đi rồi hãy gõ nhé, nín hộ cái!';
+        } else if (tone === TranslationTone.JOKE) {
+          msg = '⚠️ Cửa tiệm AI đã dán biển: "HẾT TIỀN - TẠM NGHỈ BÁN"! Hãy lượn lên Header búng nhẹ công tắc để cứu rỗi nhân phẩm nhé!';
+        } else {
+          msg = 'Tính năng Gemini AI đang tạm tắt để tiết kiệm chi phí. Bạn có thể bật lại trong phần Thiết lập (Header trên cùng) bất cứ lúc nào.';
+        }
+        setAiError(msg);
+        setIsAiLoading(false);
+      }, 300);
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/resolve-conflict-ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filepath: selectedFile.filepath,
+          content: editorText, // Pass current code text with markers inside
+          tone: tone
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(tone === TranslationTone.ENGLISH ? 'Failed to connect to the server.' : 'Không thể kết nối đến máy chủ.');
+      }
+
+      const result = await response.json();
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      setAiExplanation(result.explanation);
+      setAiProposedContent(result.resolvedContent);
+
+      // Save to cache
+      try {
+        const cachedString = localStorage.getItem('rebase_overlord_conflict_cache');
+        const cacheStore = cachedString ? JSON.parse(cachedString) : {};
+        cacheStore[cacheKey] = {
+          explanation: result.explanation,
+          resolvedContent: result.resolvedContent
+        };
+        localStorage.setItem('rebase_overlord_conflict_cache', JSON.stringify(cacheStore));
+      } catch (e) {
+        console.warn("Failed to write conflict resolve cache", e);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setAiError(err.message || (tone === TranslationTone.ENGLISH ? 'An error occurred during AI processing.' : 'Đã có lỗi xảy ra trong quá trình xử lý AI.'));
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  const handleApplyAiProposedContent = () => {
+    if (aiProposedContent) {
+      setEditorText(aiProposedContent);
+      setWasAiApplied(true);
+    }
+  };
 
   const getLaneHeadingA = () => {
     const branchSuffix = baseBranch ? `: ${baseBranch}` : '';
@@ -835,6 +947,13 @@ export default function ConflictSolver({
     setStateLeftSearch(prev => ({ ...prev, isOpen: false, query: '', activeIndex: 0 }));
     setStateRightSearch(prev => ({ ...prev, isOpen: false, query: '', activeIndex: 0 }));
     setStateResultSearch(prev => ({ ...prev, isOpen: false, query: '', activeIndex: 0 }));
+
+    // Reset AI states
+    setAiExplanation(null);
+    setAiProposedContent(null);
+    setAiError(null);
+    setIsAiLoading(false);
+    setWasAiApplied(false);
 
     if (selectedFile) {
       if (selectedFile.isResolved && selectedFile.resolvedContent) {
@@ -1524,6 +1643,141 @@ export default function ConflictSolver({
                   <span className="font-bold text-violet-400 shrink-0 font-mono">Tip:</span> 
                   {loc.toolHelp}
                 </div>
+
+                {/* AI RESOLUTION & EXPLANATION CO-PILOT PANEL */}
+                {(() => {
+                  const getAiLabels = () => {
+                    switch (tone) {
+                      case TranslationTone.JOKE:
+                        return {
+                          title: "🔮 PHÙ THỦY GỠ CONFLICT AI (GEMINI 3.5)",
+                          desc: "Đại ca ơi, code đập nhau sứt đầu mẻ trán rồi kìa! Bấm nút bên dưới để em quăng bùa phép Gemini 3.5 phân xử và gộp sạch sành sanh cho sếp nha!",
+                          btnRun: "🔥 Triệu hồi AI dẹp loạn",
+                          btnRunLoading: "🔮 Đang múa bùa phép...",
+                          btnApply: "🚀 Táng luôn code của AI vào kết quả",
+                          successAlert: "🚀 Hoạt cảnh hoàn hảo! Đã tống khứ conflict marker và táng code giải cứu của AI vào khung kết quả. Đại ca kiểm tra lại rồi chốt nha!",
+                          explanationLabel: "🧙 Báo cáo phân tích quỷ quái của AI:"
+                        };
+                      case TranslationTone.TOXIC:
+                        return {
+                          title: "🤬 CỖ MÁY HUỶ DIỆT RÁC CODE BẰNG AI (CHÂN KINH)",
+                          desc: "Xem hai thằng rác tụi mày đè code lên nhau hăm hở chưa kìa. Để tao lấy AI Gemini 3.5 quét và dọn phân cho tụi mày khôn ra nhé. Bấm nhanh rảnh nợ!",
+                          btnRun: "💀 Dọn rác code ngu này đi",
+                          btnRunLoading: "💩 Đang cào rác, đợi xíu...",
+                          btnApply: "🔥 Lắp code AI nắn gân rác của mày",
+                          successAlert: "🔥 Ok đã cào rác sạch sẽ, đè code AI vào trung tâm rồi đấy. Đọc phần chửi bới của AI bên dưới mà sửa đổi nết code đi con trai!",
+                          explanationLabel: "💀 AI sỉ nhục thẳng mặt:"
+                        };
+                      case TranslationTone.ENGLISH:
+                        return {
+                          title: "🧠 GEMINI AI CONFLICT CO-PILOT",
+                          desc: "Harness the server-side intelligence of Gemini 3.5 Flash to automatically interpret semantic changes and propose a production-ready, synthetic merge solution.",
+                          btnRun: "💡 Analyze & Propose Merge with AI",
+                          btnRunLoading: "🧠 Running AI Synthesis...",
+                          btnApply: "⚡ Apply AI Merged Suggestion",
+                          successAlert: "✓ AI-proposed solution loaded! Review the combined results inside the center editor and make any final custom adjustments as required.",
+                          explanationLabel: "🧠 AI Conflict Analysis Report:"
+                        };
+                      case TranslationTone.PROFESSIONAL:
+                      default:
+                        return {
+                          title: "TRỢ LÝ GIẢI QUYẾT XUNG ĐỘT THÔNG MINH AI (GEMINI)",
+                          desc: "Hệ thống AI 'Rebase Overlord Engine' sẽ quét tập tin xung đột, phân tích chi tiết luồng thay đổi của cả hai bên và tiến hành hợp nhất thông minh, bảo toàn logic nghiệp vụ tối đa cho bạn.",
+                          btnRun: "💡 Phân tích & Gộp thông minh bằng AI",
+                          btnRunLoading: "🔄 Đang phân tích logic...",
+                          btnApply: "⚡ Áp dụng giải pháp hợp nhất từ AI",
+                          successAlert: "🎉 Đã tự động giải quyết xung đột thành công! Toàn bộ mã nguồn sạch của AI đã được điền vào khung trung tâm. Bạn vẫn có thể xem chi tiết hoặc sửa tay tiếp.",
+                          explanationLabel: "📝 Báo cáo phân tích xung đột từ AI:"
+                        };
+                    }
+                  };
+                  const aiLabels = getAiLabels();
+
+                  return (
+                    <div className="bg-[#1b1c25] border border-violet-500/30 p-4 rounded-xl flex flex-col gap-3.5 shrink-0 shadow-lg relative overflow-hidden">
+                      <div className="absolute top-0 right-0 p-1 opacity-10">
+                        <Bot className="w-24 h-24 text-violet-400 rotate-12 -mr-6 -mt-6" />
+                      </div>
+                      
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1 px-1.5 bg-violet-500/20 text-violet-400 rounded-lg border border-violet-500/30">
+                            <Bot className="w-4 h-4 text-violet-400 animate-pulse" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-mono font-black text-[#e8eef5] tracking-wide flex items-center gap-1">
+                              {aiLabels.title}
+                              <span className="h-1.5 w-1.5 bg-violet-400 rounded-full inline-block animate-ping"></span>
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-mono text-purple-400/70 block sm:inline">Powered by Gemini 3.5 Flash</span>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={handleAiResolve}
+                          disabled={isAiLoading}
+                          className={`px-3.5 py-1.5 text-xs font-mono font-bold rounded-lg cursor-pointer transition-all active:scale-95 duration-100 flex items-center justify-center gap-1.5 shadow ${
+                            isAiLoading
+                              ? 'bg-[#252632] text-slate-400 border border-[#2d2f3c] cursor-not-allowed'
+                              : 'bg-violet-600 hover:bg-violet-500 hover:shadow-violet-600/20 text-white border border-violet-500/40'
+                          }`}
+                        >
+                          {isAiLoading ? (
+                            <>
+                              <span className="animate-spin h-3.5 w-3.5 border-2 border-slate-400 border-t-transparent rounded-full mr-1"></span>
+                              <span>{aiLabels.btnRunLoading}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-bounce" />
+                              <span>{aiLabels.btnRun}</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      <p className="text-[11px] text-slate-400 max-w-3xl leading-relaxed">
+                        {aiLabels.desc}
+                      </p>
+
+                      {aiError && (
+                        <div className="bg-rose-950/20 border border-rose-500/30 rounded-lg p-3 text-rose-400 text-xs font-mono">
+                          ⚠️ {aiError}
+                        </div>
+                      )}
+
+                      {aiExplanation && (
+                        <div className="bg-[#111217] border border-[#2d2f3c] rounded-lg p-3.5 flex flex-col gap-2.5 animate-fade-in text-slate-300">
+                          <span className="text-[10px] font-mono font-black text-violet-400 uppercase tracking-widest flex items-center gap-1">
+                            <Bot className="w-3.5 h-3.5 text-violet-400" />
+                            {aiLabels.explanationLabel}
+                          </span>
+                          <div className="text-xs font-sans leading-relaxed text-slate-300 whitespace-pre-line border-l-2 border-violet-500/40 pl-3">
+                            {aiExplanation}
+                          </div>
+                          
+                          {aiProposedContent && !wasAiApplied && (
+                            <div className="mt-2 text-right">
+                              <button
+                                onClick={handleApplyAiProposedContent}
+                                className="px-4 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 hover:shadow-lg hover:shadow-indigo-500/10 text-white font-mono text-xs font-extrabold rounded-lg cursor-pointer transition-all active:scale-95 duration-100 flex items-center gap-1.5 ml-auto"
+                              >
+                                <Sparkles className="w-4 h-4 text-amber-300" />
+                                <span>{aiLabels.btnApply}</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {wasAiApplied && (
+                        <div className="bg-emerald-950/20 border border-emerald-500/30 text-emerald-400 rounded-lg p-3 text-xs font-sans leading-relaxed animate-fade-in">
+                          {aiLabels.successAlert}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* JB BULK CONTROL PANEL */}
                 <div className="bg-[#14151b] p-4 rounded-xl border border-[#2d2f3c]/60 mt-auto shrink-0 animate-fade-in">

@@ -155,6 +155,17 @@ export default function BranchPanel({
         </form>
       )}
 
+      {/* Hint and Information */}
+      <div className="text-[10px] text-slate-500 mb-2.5 font-mono flex items-center gap-1 select-none">
+        <span className="text-sky-500">💡</span>
+        <span>
+          {tone === TranslationTone.ENGLISH && 'Tip: Double-click any row to checkout instantly!'}
+          {tone === TranslationTone.PROFESSIONAL && 'Mẹo: Nhấp đúp chuột vào bất kỳ nhánh nào để chuyển đổi nhanh.'}
+          {tone === TranslationTone.JOKE && 'Mẹo: Click đúp phát để lướt sóng chuyển nhánh tức thì nhé sếp!'}
+          {tone === TranslationTone.TOXIC && 'Mẹo: Gõ đúp chuột vào cái nhánh để cút lẹ sang đó.'}
+        </span>
+      </div>
+
       {/* Filter and Search Bar */}
       <div className="relative mb-3">
         <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-500">
@@ -178,67 +189,68 @@ export default function BranchPanel({
         ) : (
           filtered.map((branch) => {
             const isCurrent = branch.name === currentBranch;
+            const tooltipText = isCurrent
+              ? (tone === TranslationTone.ENGLISH ? `Current branch: ${branch.name}` : tone === TranslationTone.PROFESSIONAL ? `Nhánh hiện tại: ${branch.name}` : tone === TranslationTone.JOKE ? `👑 Nhánh mẹ thiên hạ đang ngự trị: ${branch.name}` : `Nhánh hiện tại: ${branch.name}. Click đúp cũng đéo chạy đi đâu được.`)
+              : (tone === TranslationTone.ENGLISH ? `Double-click to checkout: ${branch.name}` : tone === TranslationTone.PROFESSIONAL ? `Nhấp đúp chuột để chuyển nhanh sang nhánh: ${branch.name}` : tone === TranslationTone.JOKE ? `Click đúp phát để lướt ván sang nhánh: ${branch.name} 🚀` : `Click đúp phát để cút lẹ sang nhánh: ${branch.name}`);
+
             return (
               <div
                 key={branch.name}
-                className={`p-2.5 rounded-lg border transition-all flex items-center justify-between text-xs font-mono ${
+                onDoubleClick={() => {
+                  if (!isCurrent) {
+                    onCheckout(branch.name);
+                  }
+                }}
+                title={tooltipText}
+                className={`p-2.5 rounded-lg border transition-all flex items-center justify-between text-xs font-mono select-none ${
                   isCurrent
                     ? 'bg-sky-500/10 border-sky-400/30 text-sky-300 shadow-md'
-                    : 'bg-slate-950 hover:bg-slate-900/60 border-slate-900 text-slate-400 hover:text-slate-200'
+                    : 'bg-slate-950 hover:bg-slate-900/60 hover:border-slate-700/50 text-slate-400 hover:text-slate-200 cursor-pointer active:scale-[0.99]'
                 }`}
               >
                 {/* Branch Info Left */}
-                <div className="flex items-center gap-2 max-w-[70%] truncate">
+                <div className="flex items-center gap-2 max-w-[calc(100%-28px)] w-full overflow-hidden">
                   {isCurrent ? (
                     <CheckCircle2 className="w-4 h-4 text-sky-400 shrink-0" />
                   ) : (
                     <GitBranch className="w-4 h-4 text-slate-600 shrink-0" />
                   )}
-                  <span className={`font-semibold truncate ${isCurrent ? 'text-sky-300' : 'text-slate-300'}`}>
+                  <span className={`font-semibold truncate flex-grow ${isCurrent ? 'text-sky-300' : 'text-slate-300'}`}>
                     {branch.name}
                   </span>
                   
                   {/* Status Badges */}
                   <div className="flex items-center gap-1 shrink-0">
                     {branch.isBase && (
-                      <span className="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1 rounded uppercase">
+                      <span className="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1 rounded uppercase font-bold">
                         BASE
                       </span>
                     )}
                     {branch.isLocal && !branch.isRemote && (
                       <span className="text-[9px] bg-sky-500/10 text-sky-400 border border-sky-500/20 px-1 rounded uppercase" title="Local only branch">
-                        <Laptop className="w-2.5 h-2.5 inline" /> Local
+                        <Laptop className="w-2.5 h-2.5 inline mr-0.5" />Local
                       </span>
                     )}
                     {branch.isRemote && !branch.isLocal && (
                       <span className="text-[9px] bg-purple-500/10 text-purple-400 border border-purple-500/20 px-1 rounded uppercase" title="Remote only branch">
-                        <Globe className="w-2.5 h-2.5 inline" /> Remote
+                        <Globe className="w-2.5 h-2.5 inline mr-0.5" />Remote
                       </span>
                     )}
                   </div>
                 </div>
 
                 {/* Operations Right */}
-                <div className="flex items-center gap-1.5">
-                  {!isCurrent && (
-                    <button
-                      onClick={() => onCheckout(branch.name)}
-                      className="text-[11px] bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white px-2 py-1 rounded border border-slate-800 active:scale-95 transition-all font-mono"
-                      title="Checkout this branch"
-                    >
-                      {loc.checkoutBtn} <ArrowRight className="w-3 h-3 inline ml-0.5" />
-                    </button>
-                  )}
-                  
+                <div className="flex items-center gap-1.5 shrink-0">
                   {/* Deletion protection */}
                   {!isCurrent && !branch.isBase && (
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation(); // Avoid triggering double click checkout
                         const confirmDel = window.confirm(loc.deleteConfirm(branch.name));
                         if (confirmDel) onDeleteBranch(branch.name);
                       }}
                       className="text-slate-600 hover:text-rose-400 p-1 rounded hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all active:scale-90"
-                      title="Delete branch locale and remote tracking"
+                      title={tone === TranslationTone.ENGLISH ? "Delete branch" : "Xoá nhánh"}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

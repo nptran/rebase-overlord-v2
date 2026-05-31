@@ -158,12 +158,12 @@ const wizardLoc: Record<TranslationTone, any> = {
     },
     step2: {
       title: "PHÒNG CHIẾN THUẬT SQUASH COMMITS:",
-      desc: "Vãi chưởng, sếp múa tận {commitsLength} commits đi trước {baseBranch}. Chọn ngay các phát súng sếp muốn dồn đạn dập dẹp thành 1 viên duy nhất đi nào sếp:",
-      selectedCount: "🎯 Đã nhắm: {count} / {total} phát súng để thổi bay.",
-      selectAtLeastOne: "Ít nhất phải chọn một phát súng để nén chứ ní!",
+      desc: "Vãi chưởng, sếp múa tận {commitsLength} commits đi trước {baseBranch}. Chọn ngay các quả commits sếp muốn vắt nước nén chặt xẹp lép thành 1 nhát duy nhất đi nào sếp:",
+      selectedCount: "🎯 Đã chọn: {count} / {total} quả commits để nén rạp.",
+      selectAtLeastOne: "Ít nhất phải chọn một quả commit để nén chứ ní!",
       selectAll: "Chọn tuốt sếp ơi",
       deselectAll: "Thôi khỏi chọn",
-      warningNote: "⚠️ Mách nhỏ sếp: Nếu không nén trọn ổ súng mà chừa lại vài viên lẻ tẻ, lát rebase nó nổ bùng conflict sếp gánh nợ gỡ mệt đứt hơi á ghen! Khuyên sếp cứ click 'Chọn tuốt' gom hết cả cụm nén một lượt cho rảnh nợ cuộc đời bớt sầu!"
+      warningNote: "⚠️ Mách nhỏ sếp: Nếu không nén trọn ổ commits mà chừa lại vài quả lẻ tẻ, lát rebase nó nổ bùng conflict sếp gánh nợ gỡ mệt đứt hơi á ghen! Khuyên sếp cứ click 'Chọn tuốt' gom hết cả cụm nén một lượt cho rảnh nợ cuộc đời bớt sầu!"
     },
     step3: {
       title: "MUA BẢO HIỂM NHÁNH PHÒNG THÂN (SAFE BACKUP):",
@@ -214,7 +214,7 @@ const wizardLoc: Record<TranslationTone, any> = {
       title: "HỎI Ý KIẾN SÚT LÊN ĐỈNH CLOUD (AUTO PUSH):",
       desc: "Sếp muốn em tự sút thẳng lệnh git push origin Head --force-with-lease lên remote GitHub để dọn dẹp PR cho tươm tất nhanh gọn lẹ không ạ?",
       pushYes: "🚀 OKAY, BẮN THẲNG LÊN MÂY GẤP",
-      pushYesDesc: "Hành xử dứt khoát với súng force-with-lease siêu an toàn.",
+      pushYesDesc: "Hành xử dứt khoát với thao tác push force-with-lease siêu an toàn.",
       pushNo: "🏁 CHỈ LƯU LOCAL, ĐỂ TAY TAO",
       pushNoDesc: "Để sếp soi gương nắn bóp lại rồi sếp tự bắn cơm."
     },
@@ -227,14 +227,14 @@ const wizardLoc: Record<TranslationTone, any> = {
     nextStepBtn: "Cút sang bước tiếp",
     prevStepBtn: "Giật lùi lại",
     steps: [
-      { label: 'Bại Rác', desc: 'Chọn cái nhánh để so bì' },
-      { label: 'Kéo Về', desc: 'Hút đống phân remote' },
-      { label: 'Ép Rác', desc: 'Cắt gọt commits ngu' },
-      { label: 'Màng Bọc', desc: 'Ươm con backup hèn' },
-      { label: 'Ép Cọc', desc: 'Ép nén code tơi tả' },
-      { label: 'Ghi Đè', desc: 'Gõ cái tiêu đề rác' },
-      { label: 'Soi Lỗi', desc: 'Thẩm định thành phẩm rác' },
-      { label: 'Sút Bay', desc: 'Ép push lên server' }
+      { label: 'Bãi Rác', desc: 'Chọn cái nhánh để so bì' },
+      { label: 'Kéo Về', desc: 'Kéo code từ remote' },
+      { label: 'Nén Rác', desc: 'Cắt gọt commits thừa' },
+      { label: 'Màng Bọc', desc: 'Tạo backup phòng thân' },
+      { label: 'Nén Gộp', desc: 'Nén gộp đống commits xập xệ' },
+      { label: 'Ghi Đè', desc: 'Gõ cái tiêu đề commit mới' },
+      { label: 'Soi Lỗi', desc: 'Thẩm định thành phẩm sau nén' },
+      { label: 'Sút Bay', desc: 'Ép push lên server remote' }
     ],
     step0: {
       title: "GÕ HOẶC CHỌN NHÁNH MẸ (BASE BRANCH):",
@@ -247,7 +247,7 @@ const wizardLoc: Record<TranslationTone, any> = {
       desc: "Có chạy git fetch origin --prune để hốt bớt rác rưởi nhánh cũ chết trôi từ remote và đồng bộ đống hỗn độn về không? Không fetch rebase nát bét đừng chửi.",
       syncYes: "CÓ, SỢ CONFLICT THÌ SYNC ĐI (RECOMMENDED)",
       syncYesDesc: "Fetch quét phân sạch rác cứu lấy thân mày.",
-      syncNo: "ĐÉO CẦN, TAO ĐIẾC KHÔNG SỢ SÚNG",
+      syncNo: "ĐÉO CẦN, TAO LIỀU MẠNG CHƠI LUÔN",
       syncNoDesc: "Offline rebase nát bét tự gỡ, mệt vcl."
     },
     step2: {
@@ -270,7 +270,7 @@ const wizardLoc: Record<TranslationTone, any> = {
     },
     step4: {
       idleDesc: "Chuẩn bị xong hết cái đống lộn xộn này rồi. Sẵn sàng châm ngòi nổ nén rebase chưa hả?",
-      idleBtn: "⚡ CHÂM NGÒI NẰNG REBASE SQUASH NOW",
+      idleBtn: "⚡ CHÂM NGÒI NỔ REBASE SQUASH NOW",
       runningTitle: "ĐANG DẬP NÁT VÀ NÉN COMMITS CỦA MÀY...",
       pausedTitle: "🚨 RA RÁC: CONFLICT NỔ BANH XÁC RỒI CON",
       pausedDesc: "Sửa chung một file src/routes/payment.ts chứ gì, ngu hết thuốc chữa! -> Cút xuống thanh cứu hộ ở dưới mà dọn rác đi!",
