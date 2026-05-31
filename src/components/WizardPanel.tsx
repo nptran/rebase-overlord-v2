@@ -120,8 +120,8 @@ const wizardLoc: Record<TranslationTone, any> = {
       title: "ĐẨY LÊN GITHUB (AUTO PUSH CHỐT SỔ):",
       desc: "Bạn có muốn Rebase Overlord tự động thực hiện lệnh git push origin HEAD --force-with-lease để đẩy nhánh thẳng lên remote GitHub và hoàn thành PR một cách sạch sẽ không?",
       pushYes: "🚀 CÓ, AUTO PUSH LUÔN THƯỢNG ĐẾ",
-      pushYesDesc: "Chốt sổ mạnh mẽ với lực lượng --force-with-lease an toàn.",
-      pushNo: "🏁 CHỈ COMMIT LOCAL, CON TỰ PUSH",
+      pushYesDesc: "Chốt sổ mạnh mẽ với tùy chọn --force-with-lease an toàn.",
+      pushNo: "🏁 CHỈ LƯU LOCAL, TÔI TỰ PUSH",
       pushNoDesc: "Dành cho dev cẩn trọng muốn tự soi lại code trước khi click."
     },
     alertDone: "🏁 Toàn bộ quy trình Rebase Overlord đã thu nạp dọn rác thành công. Chi nhánh gọn sạch như ly đóng hộp!",
@@ -139,7 +139,7 @@ const wizardLoc: Record<TranslationTone, any> = {
       { label: 'Nệm Khí', desc: 'Mua bảo hiểm phòng ngừa' },
       { label: 'Giao Chiến', desc: 'Múa tà thuật Rebase' },
       { label: 'Mác Nhãn', desc: 'Đặt quả tên thật bảnh' },
-      { label: 'Thử Lửa', desc: 'Duyệt lại lộc lá code' },
+      { label: 'Thử Lửa', desc: 'Duyệt lại thành quả code' },
       { label: 'Ướp Lên', desc: 'Sút lên server bái bai' }
     ],
     step0: {
@@ -150,7 +150,7 @@ const wizardLoc: Record<TranslationTone, any> = {
     },
     step1: {
       title: "VẤY NƯỚC ORIGIN, ĐỒNG HÓA FETCH?",
-      desc: "Sếp có muốn quất nhẹ quả git fetch origin --prune để em dọn bớt mấy cái nhánh ma cổ lỗ sĩ và kéo lộc lá code gốc về máy không? Rebase đỡ trẹo chân ạ.",
+      desc: "Sếp có muốn quất nhẹ quả git fetch origin --prune để em dọn bớt mấy cái nhánh ma cổ lỗ sĩ và kéo bản code gốc mới nhất về máy không? Rebase đỡ trẹo chân ạ.",
       syncYes: "OK, ĐỒNG Ý SYNC (KHUYÊN DÙNG)",
       syncYesDesc: "Dọn rác bớt đi sếp, chần chừ gì.",
       syncNo: "THÔI, KHỎI CẦN",
@@ -194,14 +194,14 @@ const wizardLoc: Record<TranslationTone, any> = {
       }
     },
     step6: {
-      title: "THỦ TỤC THỬ LỬA - DUYỆT LẠI LỘC LÁ CODES:",
+      title: "THỦ TỤC THỬ LỬA - DUYỆT LẠI THÀNH QUẢ CODE:",
       desc: "Để chắc cú là sếp không 'vô tình' bốc hơi mấy dòng code thần thánh của đồng nghiệp hay đẻ thêm bug, Overlord sẽ nổ máy kiểm thử, đo patch chéo xem sếp có quậy đục nước không nhe.",
       runBtn: "🔍 CHẠY NẮN GÂN MÚA TEST",
       running: "Đang xỉa răng soi code sếp...",
       checkingAheadBehind: "1. Đang dòm xem sếp có đi trước hay đi lùi so với {baseBranch}...",
       checkingPatchID: "2. Chạy tà thuật Patch-ID check xem code cũ mới có tụt mất dòng nào không...",
-      runningUnitTests: "3. Nổ máy chạy thử build & compile dạo xem codes có nát...",
-      patchOk: "✓ Toàn vẹn: Patch-ID trùng khít với nhánh backup {backupBranch}! Không mất mát cọng lông chân nào của codes sếp nhé.",
+      runningUnitTests: "3. Nổ máy chạy thử build & compile dạo xem code có nát...",
+      patchOk: "✓ Toàn vẹn: Patch-ID trùng khít với nhánh backup {backupBranch}! Không mất mát cọng lông chân nào của code sếp nhé.",
       patchLoss: "⚠️ Patch lún rồi: Code lúc nãy sếp táng conflict đã bị biến thể nhẹ. Không sao, sếp tay to giải quyết thủ công thì lệch xíu là chuyện thường tình.",
       aheadOk: "✓ Ngon nghẻ: Nhánh sếp ung dung đi trước '{baseBranch}' đón đầu, không bị hụt hơi.",
       aheadFail: "❌ Gãy: Nhánh mẹ '{baseBranch}' trên remote nhảy số rồi sếp ơi, kéo bỉm về đắp lại thôi.",
@@ -213,10 +213,10 @@ const wizardLoc: Record<TranslationTone, any> = {
     step7: {
       title: "HỎI Ý KIẾN SÚT LÊN ĐỈNH CLOUD (AUTO PUSH):",
       desc: "Sếp muốn em tự sút thẳng lệnh git push origin Head --force-with-lease lên remote GitHub để dọn dẹp PR cho tươm tất nhanh gọn lẹ không ạ?",
-      pushYes: "🚀 OKAY, BẮN THẲNG LÊN MÂY GẤP",
+      pushYes: "🚀 OKAY, ĐẨY THẲNG LÊN CLOUD GẤP",
       pushYesDesc: "Hành xử dứt khoát với thao tác push force-with-lease siêu an toàn.",
-      pushNo: "🏁 CHỈ LƯU LOCAL, ĐỂ TAY TAO",
-      pushNoDesc: "Để sếp soi gương nắn bóp lại rồi sếp tự bắn cơm."
+      pushNo: "🏁 CHỈ LƯU LOCAL, ĐỂ TỚ TỰ XỬ",
+      pushNoDesc: "Để sếp tự soi lại code rồi tự mình push sau."
     },
     alertDone: "🏁 Rebase Overlord đã thu phục đống nợ thành công! Code sạch sẽ mướt rượt như lụa sếp ơi!",
     finishWorkflowBtn: "CHỐT SỔ HOÀN TẤT 🎉"
@@ -262,7 +262,7 @@ const wizardLoc: Record<TranslationTone, any> = {
     step3: {
       title: "ƯƠM CHẬU BẢO HIỂM LẤY LỖI SĨ DIỆN (SAFE BACKUP):",
       desc: "Rebase ngu là bay màu luôn branch. Rebase Overlord đẻ tạm cái nhánh backup rác {backupBranchName} phòng thân đấy, lo mà giữ. Éo vừa lòng thì khôi phục lại, hèn hạ vcl.",
-      backupYes: "🛡️ CÓ, BẢO VỆ CHỨ TAO YẾU TAY NGHỀ",
+      backupYes: "🛡️ CÓ, BẢO VỆ CHỨ TAO CÒN NON TAY TRÌNH CÒI",
       backupYesDesc: "Tạo đống rác sao lưu dự phòng đề phòng gãy răng.",
       backupNo: "💀 ĐÉO CẦN, LIỀU ĂN NHIỀU VÀO",
       backupNoDesc: "Gãy nhánh thì nghỉ việc bỏ code, sợ đéo gì.",
@@ -299,7 +299,7 @@ const wizardLoc: Record<TranslationTone, any> = {
       patchLoss: "⚠️ Biến dị patch: Bản vá bị méo mó rồi (chắc do mày múa phím tay lúc gỡ conflict). Nhớ tự soi lại mắt nếu sụp đổ hệ thống.",
       aheadOk: "✓ May mắn: Local đi trước origin/{baseBranch} ngon ơ, tha hồ mà sút.",
       aheadFail: "❌ Óc chó: Thằng khác push đè lên origin/{baseBranch} rồi, cút về fetch/rebase lại từ đầu đi!",
-      testsOk: "✓ May quá: Codes trôi nổi biên dịch thành công, chưa phá hoại gì thêm.",
+      testsOk: "✓ May quá: Code trôi nổi biên dịch thành công, chưa phá hoại gì thêm.",
       testsFail: "❌ Ăn hại: Dự án gãy build cmnr, lười linter hay gõ bậy thì tự gỡ đi con!",
       summaryTitle: "Bia mộ chất lượng code sau khi rebase bậy:",
       reRunBtn: "🔄 Quét lại coi cút chưa"
@@ -310,7 +310,7 @@ const wizardLoc: Record<TranslationTone, any> = {
       pushYes: "🚀 CÓ, SÚT CÚ NÀY ĐI CHO RẢNH NỢ",
       pushYesDesc: "Chốt bằng force-with-lease cho an toàn, đỡ tị nạnh.",
       pushNo: "🏁 THÔI, ĐỂ TAO TỰ SOI KHÔNG LẠI TOÁC",
-      pushNoDesc: "Hèn nhát sợ bắn bậy muốn tự gõ tay push sau."
+      pushNoDesc: "Sợ gõ nhầm đẩy bậy nên muốn tự tay gõ lệnh push sau."
     },
     alertDone: "🏁 Sương sương dọn xong đống nợ rebase, mệt vãi nồi! Code sạch bóng như ly đóng hộp rồi!",
     finishWorkflowBtn: "XÁC NHẬN SẠCH CHA RỒI 🎉"

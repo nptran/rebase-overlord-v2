@@ -40,6 +40,7 @@ import WizardPanel from './components/WizardPanel';
 import BranchPanel from './components/BranchPanel';
 import TerminalPanel from './components/TerminalPanel';
 import ConflictSolver from './components/ConflictSolver';
+import GitVisualizerPanel from './components/GitVisualizerPanel';
 import { resolveApiUrl } from './utils/apiResolver';
 
 const sanityLoc: Record<TranslationTone, {
@@ -1488,6 +1489,9 @@ export default function App() {
                 )}
               </div>
             </div>
+
+            {/* Dynamic Active Git Operational Visualizer */}
+            <GitVisualizerPanel tone={tone} wizard={wizard} />
 
             {/* Core Wizard state dashboard */}
             <WizardPanel
