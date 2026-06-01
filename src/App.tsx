@@ -82,6 +82,8 @@ const sanityLoc: Record<TranslationTone, {
   doctorApplyRescue: string;
   doctorApplySync: string;
   scanAnomaliesLoading: string;
+  visualTimelineTitle: string;
+  squashCompletedTitle: string;
 }> = {
   [TranslationTone.PROFESSIONAL]: {
     title: "CHẨN ĐOÁN & KIỂM TRA (GIT SANITY CHECKS)",
@@ -121,7 +123,9 @@ const sanityLoc: Record<TranslationTone, {
     doctorApplyRebase: "Áp dụng: Pull --rebase",
     doctorApplyRescue: "Áp dụng: Tạo cứu hộ",
     doctorApplySync: "Áp dụng: Đồng bộ nhánh base",
-    scanAnomaliesLoading: "Đang quét lỗi bất thường của kho lưu trữ..."
+    scanAnomaliesLoading: "Đang quét lỗi bất thường của kho lưu trữ...",
+    visualTimelineTitle: "TRỰC QUAN HÓA SƠ ĐỒ COMMITS (VISUAL COMMIT TIMELINE GRAPH)",
+    squashCompletedTitle: "HỢP NHẤT THÀNH CÔNG (CÒN LẠI 1 COMMIT)"
   },
   [TranslationTone.JOKE]: {
     title: "KHÁM SỨC KHỎE REPO (GIT SANITY CHECKS)",
@@ -161,7 +165,9 @@ const sanityLoc: Record<TranslationTone, {
     doctorApplyRebase: "Triển ngay: Pull --rebase",
     doctorApplyRescue: "Triển ngay: Tạo phao cứu sinh",
     doctorApplySync: "Triển ngay: Đồng bộ nhánh base",
-    scanAnomaliesLoading: "Thầy bói đang xem mạch kho chứa..."
+    scanAnomaliesLoading: "Thầy bói đang xem mạch kho chứa...",
+    visualTimelineTitle: "RẠP CHIẾU HOẠT HÌNH GIT TRỰC QUAN (GIT MOVIE THEATER)",
+    squashCompletedTitle: "HỢP NHẤT XONG XUÔI (CÒN ĐÚNG 1 COMMIT DUY NHẤT)"
   },
   [TranslationTone.TOXIC]: {
     title: "BỆNH ÁN GIT (GIT SANITY CHECKS)",
@@ -201,7 +207,9 @@ const sanityLoc: Record<TranslationTone, {
     doctorApplyRebase: "Bấm đại: Pull --rebase",
     doctorApplyRescue: "Bấm đại: Tạo cứu thương",
     doctorApplySync: "Bấm đại: Đồng bộ nhánh base",
-    scanAnomaliesLoading: "Đang dọn rác bất thường..."
+    scanAnomaliesLoading: "Đang dọn rác bất thường...",
+    visualTimelineTitle: "SƠ ĐỒ COMMITS BẤT HỦ (VISUAL COMMIT TIMELINE GRAPH)",
+    squashCompletedTitle: "SQUASH SẠCH BÓNG (CÒN LẠI 1 TÊN COMMIT SỐNG SÓT)"
   },
   [TranslationTone.ENGLISH]: {
     title: "DIAGNOSTICS & GIT SANITY CHECKS",
@@ -241,7 +249,9 @@ const sanityLoc: Record<TranslationTone, {
     doctorApplyRebase: "Apply: Pull --rebase",
     doctorApplyRescue: "Apply: Create rescue branch",
     doctorApplySync: "Apply: Sync reference",
-    scanAnomaliesLoading: "Scanning repository anomalies..."
+    scanAnomaliesLoading: "Scanning repository anomalies...",
+    visualTimelineTitle: "VISUAL COMMIT TIMELINE GRAPH",
+    squashCompletedTitle: "SQUASH COMPLETED (1 COMMIT REMAINING)"
   }
 };
 
@@ -1537,7 +1547,7 @@ export default function App() {
             <div id="live-git-visualization" className="bg-[#0f172a] border border-slate-800 rounded-xl p-5 shadow-lg">
               <h3 className="text-xs font-bold text-slate-400 uppercase font-mono tracking-wider mb-4 flex items-center gap-1.5">
                 <History className="w-4 h-4 text-emerald-400" />
-                <span>TRỰC QUAN HÓA SƠ ĐỒ COMMITS (VISUAL COMMIT TIMELINE GRAPH)</span>
+                <span>{sloc.visualTimelineTitle}</span>
               </h3>
 
               {/* Graphical representation of the Rebase squash action */}
@@ -1594,7 +1604,7 @@ export default function App() {
                       <GitMerge className="w-5 h-5 animate-pulse" />
                     </div>
                     <div className="text-slate-200 text-xs text-left">
-                      <div className="text-[10px] text-emerald-400 font-mono font-bold uppercase tracking-wider mb-0.5">SQUASH COMPLETED (1 COMMIT REMAINING)</div>
+                      <div className="text-[10px] text-emerald-400 font-mono font-bold uppercase tracking-wider mb-0.5">{sloc.squashCompletedTitle}</div>
                       <div className="font-mono font-semibold text-slate-100">{wizard.finalMsg}</div>
                       <div className="text-[9px] text-slate-500 font-mono mt-1">Author: Nguyen Tran | Date: Just now</div>
                     </div>

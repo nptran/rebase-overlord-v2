@@ -58,6 +58,7 @@ interface ToneLocalizations {
   legendLabel: string;
   localBranchLegend: string;
   remoteBranchLegend: string;
+  explanationTitle: string;
   opLabels: Record<VisualActionType, string>;
   opShortSummaries: Record<VisualActionType, string>;
   opDescriptions: Record<VisualActionType, Record<number, string>>; // stepIndex -> string
@@ -84,6 +85,7 @@ const localizations: Record<TranslationTone, ToneLocalizations> = {
     legendLabel: "CHÚ THÍCH SƠ ĐỒ:",
     localBranchLegend: "💻 Local Branch / Commit (Viền đặc liền nét)",
     remoteBranchLegend: "☁️ origin/* (Remote-Tracking Branch - Viền nét đứt)",
+    explanationTitle: "GIẢI THÍCH CHI TIẾT BƯỚC {step}:",
     opLabels: {
       rebase: "git rebase",
       stash: "git stash",
@@ -169,7 +171,7 @@ const localizations: Record<TranslationTone, ToneLocalizations> = {
     }
   },
   [TranslationTone.JOKE]: {
-    title: "🎪 NẬM KHỦNG LONG CON XOAY GIT (GIT MOVIE THEATER)",
+    title: "🎪 RẠP CHIẾU HOẠT HÌNH GIT TRỰC QUAN (GIT MOVIE THEATER)",
     subtitle: "Rạp chiếu phim hoạt hình giải mã Git siêu dễ hiểu cho hội sếp lười đọc tài liệu",
     selectPrompt: "Chọn quẻ bói hoạt họa cần xem:",
     playBtn: "Quẩy phim ngay",
@@ -186,6 +188,7 @@ const localizations: Record<TranslationTone, ToneLocalizations> = {
     legendLabel: "GIẢI MÃ BẢN ĐỒ HUYỀN THUẬT:",
     localBranchLegend: "💻 Nhánh cỏ dưới máy sếp (Local Branch - Viền đặc)",
     remoteBranchLegend: "☁️ origin/* Đồ cổ trên mây (Remote-Tracking - Viền đứt/mây lơ lửng)",
+    explanationTitle: "GIẢI THÍCH CHI TIẾT BƯỚC {step}:",
     opLabels: {
       rebase: "git rebase (Nhổ rễ cắm nhờ)",
       stash: "git stash (Hòm giấu quỹ đen)",
@@ -288,6 +291,7 @@ const localizations: Record<TranslationTone, ToneLocalizations> = {
     legendLabel: "DỊCH CHỮ DƯỚI HÌNH (LEGEND):",
     localBranchLegend: "💻 Hàng bốc mùi của mày dưới local (Viền nét liền nét cứng)",
     remoteBranchLegend: "☁️ origin/* Nhánh xịn của người ta trên GitHub (Viền nét đứt)",
+    explanationTitle: "THÔNG NÃO SÁNG MẮT BƯỚC {step}:",
     opLabels: {
       rebase: "git rebase (Cưỡng ép tuyến tính)",
       stash: "git stash (Hốt rác giấu két)",
@@ -390,6 +394,7 @@ const localizations: Record<TranslationTone, ToneLocalizations> = {
     legendLabel: "DIAGRAM LEGEND:",
     localBranchLegend: "💻 Local Branch / commit (solid track & tag)",
     remoteBranchLegend: "☁️ origin/* (Remote-tracking branch - dashed track & tag)",
+    explanationTitle: "DETAILED STEP {step} EXPLANATION:",
     opLabels: {
       rebase: "git rebase",
       stash: "git stash",
@@ -1526,7 +1531,7 @@ export default function GitVisualizerPanel({
           <div className="flex flex-col gap-3">
             <h4 className="text-[10px] font-mono font-bold tracking-wider text-slate-450 uppercase flex items-center gap-1.5">
               <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
-              <span>GIẢI THÍCH CHỈ TIẾT BƯỚC {currentStep + 1}:</span>
+              <span>{loc.explanationTitle.replace('{step}', String(currentStep + 1))}</span>
             </h4>
 
             {/* Simulated Live narration with animation */}

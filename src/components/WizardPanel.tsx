@@ -238,7 +238,7 @@ const wizardLoc: Record<TranslationTone, any> = {
     ],
     step0: {
       title: "GÕ HOẶC CHỌN NHÁNH MẸ (BASE BRANCH):",
-      desc: "Gõ bừa một nhánh để so sánh đống rác của mày với code gốc coi mày sửa bậy bạ gì. Thường là develop hoặc main, master chứ đục đi đâu được.",
+      desc: "Gõ bừa một nhánh để so sánh đống rác của mày với code gốc coi mày sửa bậy bạ gì. Thường là develop hoặc main, master chứ lệch đi đâu được.",
       inputLabel: "GÕ CÁI TÊN NHÁNH GỐC VÀO:",
       techRecommend: "ĐÁM KỸ THUẬT PHÁN NHƯ THẦN:"
     },
