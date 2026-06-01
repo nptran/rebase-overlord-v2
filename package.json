@@ -3,7 +3,7 @@
   "private": true,
   "description": "Git Rebase Overlord visual aid tool for developers",
   "author": "NPTran",
-  "version": "1.5.0",
+  "version": "0.0.0",
   "type": "module",
   "main": "electron-main.js",
   "scripts": {
@@ -37,9 +37,7 @@
     "electron": "^42.3.0",
     "electron-builder": "^26.8.1",
     "esbuild": "^0.25.0",
-    "jimp": "^1.6.1",
     "semantic-release": "^25.0.3",
-    "sharp": "^0.34.5",
     "tailwindcss": "^4.1.14",
     "tsx": "^4.21.0",
     "typescript": "~5.8.2",
