@@ -2,11 +2,13 @@
 
 **Visual Git Assistant & Conflict Solver** — Trợ lý trực quan giúp quản lý nhánh tính năng, gộp commit và giải quyết xung đột Git một cách an toàn, dễ dàng cho tất cả mọi người.
 
+🇬🇧 **English**: English documentation is available at [README.md](README.md).
+
 ---
 
 ## 📖 Giới thiệu (Overview)
 
-**Rebase Overlord** là một ứng dụng giao diện trực quan trực quan giúp bạn làm việc với Git hiệu quả hơn. Thay vì phải ghi nhớ hàng loạt câu lệnh Terminal phức tạp dễ gây sai sót, ứng dụng cung cấp một bảng điều khiển (Dashboard) thông minh, giúp bạn kiểm soát hoàn toàn lịch sử và quy trình làm việc của dự án.
+**Rebase Overlord** là một ứng dụng giao diện trực quan giúp bạn làm việc với Git hiệu quả hơn. Thay vì phải ghi nhớ hàng loạt câu lệnh Terminal phức tạp dễ gây sai sót, ứng dụng cung cấp một bảng điều khiển (Dashboard) thông minh, giúp bạn kiểm soát hoàn toàn lịch sử và quy trình làm việc của dự án.
 
 Ứng dụng hướng tới trải nghiệm người dùng tối giản, an toàn và trực quan, hỗ trợ đắc lực cho cả những người mới bắt đầu lẫn các lập trình viên muốn tối ưu hóa thời gian quản lý mã nguồn.
 
@@ -17,7 +19,7 @@
 ### 🌿 Quản Lý Nhánh Tính Năng (Feature Branch Management)
 - **Tạo & Chuyển Nhánh**: Tạo nhanh nhánh tính năng mới từ nhánh chính và chuyển đổi qua lại giữa các nhánh chỉ với 1-click.
 - **Xóa Nhánh An Toàn**: Loại bỏ các nhánh cũ đã hoàn thành thao tác cả ở máy cục bộ và máy chủ từ xa một cách nhanh chóng.
-- **Theo Dõi Trạng Thái**: Hiển thị rõ ràng danh sách các nhánh cùng thông tin commit hiện tại của dự án.
+- **Theo Dõi Trạng Trạng**: Hiển thị rõ danh sách các nhánh cùng thông tin commit hiện tại của dự án.
 
 ### 🔄 Đồng Bộ Nhánh Thông Minh (Smart Branch Sync)
 - **Cập Nhật Nhanh**: Tự động lấy mã nguồn mới nhất từ nhánh chính (`main`/`develop`) và thực hiện rebase lên nhánh tính năng của bạn.
@@ -48,7 +50,7 @@
 - Hệ thống sẽ tự động quét, đọc trạng thái hiện tại và hiển thị bảng điều khiển.
 
 ### 3. Thực hiện Thao tác trực quan
-- Theo dõi các chỉ số sức khỏe của repository thông qua bảng hệ thống.
+- Theo dõi các chỉ số sức khỏe của bộ mã nguồn thông qua bảng hệ thống.
 - Sử dụng các tab chức năng trực quan: **Quản lý Nhánh**, **Đồng bộ mã**, **Gộp commit (Squash)**, hoặc **Giải quyết Xung đột** để thực hiện công việc của bạn.
 
 ---

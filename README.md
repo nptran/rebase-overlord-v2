@@ -1,65 +1,67 @@
 # 👑 Rebase Overlord
 
-**Visual Git Assistant & Conflict Solver** — Trợ lý trực quan giúp quản lý nhánh tính năng, gộp commit và giải quyết xung đột Git một cách an toàn, dễ dàng cho tất cả mọi người.
+**Visual Git Assistant & Conflict Solver** — A friendly desktop dashboard that simplifies feature branch management, commit squashing, and Git conflict resolution for everyone.
+
+🇻🇳 **Tiếng Việt**: Xem thiết lập và tài liệu tiếng Việt tại [README_VI.md](README_VI.md).
 
 ---
 
-## 📖 Giới thiệu (Overview)
+## 📖 Overview
 
-**Rebase Overlord** là một ứng dụng giao diện trực quan trực quan giúp bạn làm việc với Git hiệu quả hơn. Thay vì phải ghi nhớ hàng loạt câu lệnh Terminal phức tạp dễ gây sai sót, ứng dụng cung cấp một bảng điều khiển (Dashboard) thông minh, giúp bạn kiểm soát hoàn toàn lịch sử và quy trình làm việc của dự án.
+**Rebase Overlord** gives you a safe, intuitive, and beautiful interface to manage your daily Git workflow. Instead of typing complex, error-prone terminal commands, this interactive dashboard helps you monitor repository health and execute flawless branch synchronization and rebases with confidence.
 
-Ứng dụng hướng tới trải nghiệm người dùng tối giản, an toàn và trực quan, hỗ trợ đắc lực cho cả những người mới bắt đầu lẫn các lập trình viên muốn tối ưu hóa thời gian quản lý mã nguồn.
-
----
-
-## ✨ Các Tính Năng Nổi Bật (Key Features)
-
-### 🌿 Quản Lý Nhánh Tính Năng (Feature Branch Management)
-- **Tạo & Chuyển Nhánh**: Tạo nhanh nhánh tính năng mới từ nhánh chính và chuyển đổi qua lại giữa các nhánh chỉ với 1-click.
-- **Xóa Nhánh An Toàn**: Loại bỏ các nhánh cũ đã hoàn thành thao tác cả ở máy cục bộ và máy chủ từ xa một cách nhanh chóng.
-- **Theo Dõi Trạng Thái**: Hiển thị rõ ràng danh sách các nhánh cùng thông tin commit hiện tại của dự án.
-
-### 🔄 Đồng Bộ Nhánh Thông Minh (Smart Branch Sync)
-- **Cập Nhật Nhanh**: Tự động lấy mã nguồn mới nhất từ nhánh chính (`main`/`develop`) và thực hiện rebase lên nhánh tính năng của bạn.
-- **Tự Động Lưu Trữ (Stash)**: Tự động cất các thay đổi chưa commit vào bộ nhớ tạm trước khi đồng bộ và trả lại vị trí cũ khi hoàn tất, giảm thiểu rủi ro mất mát dữ liệu.
-
-### 🧹 Gộp Commit Sạch Sẽ (Commit Squashing)
-- **Lịch Sử Đẹp Mắt**: Gộp nhiều commit nhỏ lẻ, commit thử nghiệm hoặc commit sửa lỗi vặt thành một commit lớn duy nhất có thông điệp rõ ràng trước khi tạo Pull Request.
-- **Biên Tập Thông Điệp**: Giao diện trực quan trực tiếp hỗ trợ biên sửa lại nội dung mô tả commit một cách tiện lợi.
-
-### 🩺 Chẩn Đoán & Giải Xử Xung Đột (Conflict & Health Diagnosis)
-- **Phát Hiện Xung Đột**: Hệ thống tự động giám sát và cảnh báo thời gian thực khi trạng thái Git của bạn gặp lỗi hoặc có xung đột (merge conflicts) xảy ra.
-- **Trợ Lý Khắc Phục (Conflict Solver)**: Hướng dẫn bạn từng bước xử lý xung đột, chỉ ra các file lỗi, hỗ trợ nạp/bỏ qua các thay đổi và dễ dàng bấm nút tiếp tục quá trình rebase sau khi xong.
-
-### 🌐 Trải Nghiệm Thân Thiện & Đa Ngôn Ngữ
-- **Song Ngữ Toàn Diện**: Hỗ trợ chuyển đổi mượt mà giữa tiếng Việt và tiếng Anh.
-- **Chế Độ Biểu Cảm (Emoji Mode)**: Tùy chọn bật/tắt các biểu tượng cảm xúc sinh động giúp việc theo dõi các hoạt động Git bớt khô khan hơn.
+Designed for students, designers, and developers alike who want to save time and eliminate the anxiety of Git history manipulation.
 
 ---
 
-## 📥 Hướng Dẫn Sử Dụng (How to Use)
+## ✨ Key Features
 
-### 1. Khởi chạy Ứng dụng
-- Tải về tệp thực thi đóng gói sẵn phù hợp với hệ điều hành của bạn.
-- Nhấp đúp chuột để chạy ứng dụng trực tiếp, không cần đóng gói hay cấu hình phức tạp.
+### 🌿 Visual Branch Manager
+- **Easy Branching**: Create feature branches from your main/develop stream and switch between them in one click.
+- **Safe Cleanups**: Delete merged or obsolete branches locally and on the origin server simultaneously.
+- **Live Tree Status**: View current branches, commit history, and active tracking flows.
 
-### 2. Chọn Thư mục Dự án (Git Repository)
-- Tại giao diện chào mừng, nhấn chọn thư mục chứa dự án Git mà bạn đang làm việc.
-- Hệ thống sẽ tự động quét, đọc trạng thái hiện tại và hiển thị bảng điều khiển.
+### 🔄 Smart Sync & Rebase
+- **No-Stress Integration**: Smoothly sync your feature branch with the base stream using interactive, automated rebases.
+- **Auto-Stashing**: Safely shelves your unstaged modifications before syncing and pops them back afterward, preventing any loss of work.
 
-### 3. Thực hiện Thao tác trực quan
-- Theo dõi các chỉ số sức khỏe của repository thông qua bảng hệ thống.
-- Sử dụng các tab chức năng trực quan: **Quản lý Nhánh**, **Đồng bộ mã**, **Gộp commit (Squash)**, hoặc **Giải quyết Xung đột** để thực hiện công việc của bạn.
+### 🧹 Seamless Commit Squashing
+- **Prune Your History**: Combine multiple small commits, test runs, or hotfixes into a single polished milestone with a unified message before pushing or making Pull Requests.
+- **Interactive Messages**: Write clean summaries through a dedicated visual editor.
+
+### 🩺 Health Checks & Conflict Solver
+- **Proactive Scanner**: Real-time monitoring of worktree states, diverged paths, detached heads, or stale base streams.
+- **First-Aid Solver**: Walk through merge conflicts block by block. View conflicted files, discard or accept blocks, and resume rebases with a single click.
+
+### 🌐 Delightful Experience
+- **Dual Language Support**: Seamless English and Vietnamese locale switching on the fly.
+- **Expressive Mode**: Optional cute or helpful emoji reactions to make Git interactions interactive and friendly.
 
 ---
 
-## 🛠️ Yêu Cầu Hệ Thống (System Requirements)
+## 📥 How to Use
 
-- **Hệ điều hành**: Windows 10/11, macOS hoặc Linux.
-- **Git**: Đã cài đặt Git trong hệ thống của bạn (phiên bản 2.20 trở lên).
+### 1. Launch the App
+- Run the pre-packaged executable file for your operating system.
+- No environment setting or manual terminal builds are required.
+
+### 2. Open Your Git Repository
+- Upon launch, click on the **Browse Directory** button to select your local Git project folder.
+- The dashboard will automatically read your project's history and current status.
+
+### 3. Take Control Visually
+- Check the general repository health check status under the main hub.
+- Use simple visual panels under **Branches**, **Sync**, **Squash**, or **Conflicts** to perform actions safely without using the terminal.
 
 ---
 
-## ⚖️ Giấy Phép (License)
+## 🛠️ System Requirements
 
-Ứng dụng được phát hành dưới giấy phép mã nguồn mở MIT License.
+- **Operating System**: Windows 10/11, macOS, or Linux.
+- **Git**: Installed (v2.20 or newer recommended) and globally accessible on your machine.
+
+---
+
+## ⚖️ License
+
+This project is licensed under the MIT License.

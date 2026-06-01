@@ -1388,7 +1388,7 @@ export default function App() {
 
   return (
     <div id="rebase-overlord-app" className="min-h-screen bg-[#060814] text-slate-100 p-4 font-sans select-none antialiased">
-      <div className="max-w-7xl mx-auto flex flex-col gap-5">
+      <div className="max-w-[1800px] w-full mx-auto flex flex-col gap-5 px-1 sm:px-2 md:px-4">
         
         {/* Workspace Configurations & Tones Dashboard Header */}
         <RepoHeader
