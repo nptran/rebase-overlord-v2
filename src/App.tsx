@@ -302,7 +302,7 @@ export default function App() {
       const saved = localStorage.getItem('rebase_overlord_is_ai_enabled');
       if (saved !== null) return saved === 'true';
     } catch (e) {}
-    return true;
+    return false;
   });
 
   const [showLogPanel, setShowLogPanel] = React.useState<boolean>(() => {
