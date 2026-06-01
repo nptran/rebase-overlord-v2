@@ -2034,7 +2034,7 @@ export default function App() {
         <div className="bg-[#0b0f19]/40 border border-slate-900/60 rounded-xl p-4 text-center text-xs text-slate-500 font-mono flex flex-col md:flex-row justify-between items-center gap-2 mt-2">
           <span>Rebase Overlord — The Git Feature Flow Assistant</span>
           <span className="flex items-center gap-1 text-[10px]">
-            Created for <strong className="text-slate-400">boybibo98@gmail.com</strong> in AI Studio Build Environment
+            Created for <strong className="text-slate-400">boybibo98@gmail.com</strong>
           </span>
         </div>
 

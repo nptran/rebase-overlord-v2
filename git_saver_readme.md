@@ -1,369 +1,65 @@
-# 🚀 Rebase Overlord
+# 👑 Rebase Overlord
 
-**The Git Feature Flow Assistant** — A powerful CLI tool that simplifies Git feature branch workflows, interactive rebasing, and conflict resolution for developers.
-
----
-
-## 📋 Table of Contents
-
-- [Overview](#overview)
-- [Problem It Solves](#problem-it-solves)
-- [Features](#features)
-- [Installation](#installation)
-  - [Option 1: Download Pre-built Executable (Recommended)](#option-1-download-pre-built-executable-recommended)
-  - [Option 2: Build from Source](#option-2-build-from-source)
-  - [Option 3: Run with Python](#option-3-run-with-python)
-- [Quick Start](#quick-start)
-- [Requirements](#requirements)
-- [Development](#development)
-- [Release Notes](#release-notes)
-- [License](#license)
+**Visual Git Assistant & Conflict Solver** — Trợ lý trực quan giúp quản lý nhánh tính năng, gộp commit và giải quyết xung đột Git một cách an toàn, dễ dàng cho tất cả mọi người.
 
 ---
 
-## Overview
+## 📖 Giới thiệu (Overview)
 
-**Rebase Overlord** is an interactive terminal UI tool that guides developers through Git feature branch workflows with special focus on:
+**Rebase Overlord** là một ứng dụng giao diện trực quan trực quan giúp bạn làm việc với Git hiệu quả hơn. Thay vì phải ghi nhớ hàng loạt câu lệnh Terminal phức tạp dễ gây sai sót, ứng dụng cung cấp một bảng điều khiển (Dashboard) thông minh, giúp bạn kiểm soát hoàn toàn lịch sử và quy trình làm việc của dự án.
 
-- **Interactive Rebase Management** — Intelligent rebase conflict detection and recovery
-- **Feature Branch Operations** — Checkout, create, and sync feature branches with main
-- **Commit Optimization** — Squash, reorder, and clean up commit history
-- **GitHub Integration** — Direct interaction with GitHub via CLI (optional)
-- **Multi-language Support** — Full Vietnamese and English support with customizable emoji modes
-
-The tool provides a **menu-driven interface** that handles complex Git operations that would normally require multiple manual CLI commands.
+Ứng dụng hướng tới trải nghiệm người dùng tối giản, an toàn và trực quan, hỗ trợ đắc lực cho cả những người mới bắt đầu lẫn các lập trình viên muốn tối ưu hóa thời gian quản lý mã nguồn.
 
 ---
 
-## Problem It Solves
+## ✨ Các Tính Năng Nổi Bật (Key Features)
 
-### The Pain Points
+### 🌿 Quản Lý Nhánh Tính Năng (Feature Branch Management)
+- **Tạo & Chuyển Nhánh**: Tạo nhanh nhánh tính năng mới từ nhánh chính và chuyển đổi qua lại giữa các nhánh chỉ với 1-click.
+- **Xóa Nhánh An Toàn**: Loại bỏ các nhánh cũ đã hoàn thành thao tác cả ở máy cục bộ và máy chủ từ xa một cách nhanh chóng.
+- **Theo Dõi Trạng Thái**: Hiển thị rõ ràng danh sách các nhánh cùng thông tin commit hiện tại của dự án.
 
-Developers working with Git feature branch workflows frequently encounter:
+### 🔄 Đồng Bộ Nhánh Thông Minh (Smart Branch Sync)
+- **Cập Nhật Nhanh**: Tự động lấy mã nguồn mới nhất từ nhánh chính (`main`/`develop`) và thực hiện rebase lên nhánh tính năng của bạn.
+- **Tự Động Lưu Trữ (Stash)**: Tự động cất các thay đổi chưa commit vào bộ nhớ tạm trước khi đồng bộ và trả lại vị trí cũ khi hoàn tất, giảm thiểu rủi ro mất mát dữ liệu.
 
-1. **Manual Rebase Complexity** — Interactive rebase (`git rebase -i`) is powerful but requires memorizing commands and manual conflict resolution workflows
+### 🧹 Gộp Commit Sạch Sẽ (Commit Squashing)
+- **Lịch Sử Đẹp Mắt**: Gộp nhiều commit nhỏ lẻ, commit thử nghiệm hoặc commit sửa lỗi vặt thành một commit lớn duy nhất có thông điệp rõ ràng trước khi tạo Pull Request.
+- **Biên Tập Thông Điệp**: Giao diện trực quan trực tiếp hỗ trợ biên sửa lại nội dung mô tả commit một cách tiện lợi.
 
-2. **Conflict Recovery** — When rebase pauses due to conflicts, recovering the correct state requires understanding Git's internal rebase state machinery
+### 🩺 Chẩn Đoán & Giải Quyết Xung Đột (Conflict & Health Diagnosis)
+- **Phát Hiện Xung Đột**: Hệ thống tự động giám sát và cảnh báo thời gian thực khi trạng thái Git của bạn gặp lỗi hoặc có xung đột (merge conflicts) xảy ra.
+- **Trợ Lý Khắc Phục (Conflict Solver)**: Hướng dẫn bạn từng bước xử lý xung đột, chỉ ra các file lỗi, hỗ trợ nạp/bỏ qua các thay đổi và dễ dàng bấm nút tiếp tục quá trình rebase sau khi xong.
 
-3. **Repetitive Operations** — Checking out feature branches, pulling latest main, rebasing, and pushing is a multi-step process prone to mistakes
-
-4. **History Cleanup** — Squashing commits, reordering, and editing commit messages requires careful manual coordination
-
-### How Rebase Overlord Helps
-
-- **Automated Workflows** — Reduces 5+ Git commands to a single menu selection
-- **Intelligent Conflict Handling** — Automatically detects rebase state and provides recovery guidance
-- **No Manual Rebasing** — Interactive rebase is orchestrated automatically with conflict pause/resume
-- **GitHub-aware** — Optional GitHub CLI integration for pull request operations
-- **Cross-platform** — Works on Windows, macOS, and Linux
-
----
-
-## Features
-
-✅ **Feature Branch Management**
-- Create new feature branches from main
-- Checkout existing feature branches  
-- Delete feature branches locally and on remote
-- Sync feature branches with latest main (fetch + rebase)
-
-✅ **Interactive Rebase & History Squashing**
-- Automated interactive rebase with conflict detection
-- Pause/resume rebase on conflicts
-- Commit message editing
-- Automatic stash/unstash for uncommitted changes
-
-✅ **Conflict Resolution**
-- Real-time conflict detection
-- Staged file status tracking
-- Rebase recovery with state preservation
-- Clear recovery prompts
-
-✅ **GitHub Integration** (optional, requires `gh` CLI)
-- List pull requests
-- Create pull requests from feature branch
-- Create releases
-- View repository status
-
-✅ **Configuration**
-- No config file needed (works out of the box)
-- Language selection (Vietnamese/English)
-- Emoji mode toggle
-- Command logging for debugging
-
-✅ **Statistics & History**
-- Rebase operation tracking
-- Command history buffer
-- Session statistics
+### 🌐 Trải Nghiệm Thân Thiện & Đa Ngôn Ngữ
+- **Song Ngữ Toàn Diện**: Hỗ trợ chuyển đổi mượt mà giữa tiếng Việt và tiếng Anh.
+- **Chế Độ Biểu Cảm (Emoji Mode)**: Tùy chọn bật/tắt các biểu tượng cảm xúc sinh động giúp việc theo dõi các hoạt động Git bớt khô khan hơn.
 
 ---
 
-## Installation
+## 📥 Hướng Dẫn Sử Dụng (How to Use)
 
-### Option 1: Download Pre-built Executable (Recommended)
+### 1. Khởi chạy Ứng dụng
+- Tải về tệp thực thi đóng gói sẵn phù hợp với hệ điều hành của bạn.
+- Nhấp đúp chuột để chạy ứng dụng trực tiếp, không cần đóng gói hay cấu hình phức tạp.
 
-**The easiest way** — no Python installation needed.
+### 2. Chọn Thư mục Dự án (Git Repository)
+- Tại giao diện chào mừng, nhấn chọn thư mục chứa dự án Git mà bạn đang làm việc.
+- Hệ thống sẽ tự động quét, đọc trạng thái hiện tại và hiển thị bảng điều khiển.
 
-1. Go to [Releases](../../releases)
-2. Download the latest `rebase-overlord-X.Y.Z.exe` for your version
-3. Run the `.exe` file directly:
-   ```bash
-   rebase-overlord-0.3.5.exe
-   ```
-
-**Supported on:** Windows 10/11 (x64)
-
----
-
-### Option 2: Build from Source
-
-**Requirements:**
-- Python 3.11+
-- Git (installed and in PATH)
-- PyInstaller (for building)
-
-**Steps:**
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/the-git-saver.git
-cd the-git-saver
-
-# Install dependencies
-pip install -r requirements.txt
-pip install pyinstaller
-
-# Build executable (Windows)
-pyinstaller --onefile --clean --noconfirm \
-  --add-data "config;config" \
-  --name rebase-overlord \
-  git_feature_flow.py
-
-# The executable will be in dist/rebase-overlord.exe
-```
+### 3. Thực hiện Thao tác trực quan
+- Theo dõi các chỉ số sức khỏe của repository thông qua bảng hệ thống.
+- Sử dụng các tab chức năng trực quan: **Quản lý Nhánh**, **Đồng bộ mã**, **Gộp commit (Squash)**, hoặc **Giải quyết Xung đột** để thực hiện công việc của bạn.
 
 ---
 
-### Option 3: Run with Python
+## 🛠️ Yêu Cầu Hệ Thống (System Requirements)
 
-**Requirements:**
-- Python 3.11+
-- Git (installed and in PATH)
-
-**Steps:**
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/the-git-saver.git
-cd the-git-saver
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run directly with Python
-python git_feature_flow.py
-```
+- **Hệ điều hành**: Windows 10/11, macOS hoặc Linux.
+- **Git**: Đã cài đặt Git trong hệ thống của bạn (phiên bản 2.20 trở lên).
 
 ---
 
-## Quick Start
+## ⚖️ Giấy Phép (License)
 
-### First Run
-
-```bash
-# Launch the tool
-rebase-overlord
-
-# Or if running from source:
-python git_feature_flow.py
-```
-
-### Initial Setup
-
-1. **Select Language** — Choose between Vietnamese (vn_pro) or English
-2. **Select Repository** — Point to your Git repository (or use current directory)
-3. **Main Menu** — Browse available operations
-
-### Common Workflows
-
-**Create and work on a feature branch:**
-```
-1. Main Menu → Create Feature Branch
-2. Enter branch name: feature/new-feature
-3. Make changes and commit
-4. Main Menu → Rebase Feature on Main
-5. Main Menu → Push Feature Branch
-```
-
-**Squash commits before merging:**
-```
-1. Main Menu → Squash Commits
-2. Select commits to squash
-3. Edit combined commit message
-4. Main Menu → Push Feature Branch
-```
-
-**Recover from failed rebase:**
-```
-1. Tool detects rebase in progress
-2. Main Menu → Rebase Recovery
-3. Resolve conflicts (follow prompts)
-4. Tool automatically resumes rebase
-```
-
----
-
-## Requirements
-
-### Runtime Requirements
-
-**Minimum:**
-- Windows 10, macOS 10.14+, or Linux (x64)
-- Git 2.20+ installed and in PATH
-
-**Optional:**
-- GitHub CLI (`gh`) for GitHub integration
-  ```bash
-  # Install gh (if needed)
-  # Windows: https://github.com/cli/cli/releases
-  # macOS: brew install gh
-  # Linux: https://cli.github.com/
-  
-  # Then authenticate
-  gh auth login
-  ```
-
-### Development Requirements
-
-- Python 3.11+
-- pip
-- PyInstaller (for building executables)
-
----
-
-## Development
-
-### Setting Up Development Environment
-
-```bash
-# Clone repository
-git clone https://github.com/yourusername/the-git-saver.git
-cd the-git-saver
-
-# Create virtual environment (optional but recommended)
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Install development tools
-pip install pyinstaller flake8 pytest
-```
-
-### Project Structure
-
-```
-the-git-saver/
-├── git_feature_flow.py      # Main application (single file)
-├── config/
-│   ├── emoji_map.json       # Emoji configuration
-│   └── languages.json       # i18n translations (VN + EN)
-├── requirements.txt         # Python dependencies
-├── pyproject.toml          # Build & release config
-├── README.md               # This file
-└── .github/workflows/
-    ├── release.yml         # Automated release pipeline
-    └── pr-check.yml        # PR validation
-```
-
-### Running Tests
-
-```bash
-# Run linting
-flake8 . --select=E9,F63,F7,F82
-
-# Run unit tests
-pytest tests/
-```
-
-### Building Executable Locally
-
-```bash
-# Windows
-build_local.bat
-
-# Or manually:
-pyinstaller --onefile --clean --noconfirm \
-  --add-data "config;config" \
-  --name rebase-overlord \
-  git_feature_flow.py
-```
-
-### Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/your-feature`
-3. Make changes following PEP 8 style
-4. Commit with conventional format: `feat:` or `fix:`
-5. Push and open a Pull Request
-
----
-
-## Release Notes
-
-### Latest Version: [0.3.5](../../releases/tag/ver0.3.5)
-
-See [CHANGELOG.md](CHANGELOG.md) for full release history and upgrade notes.
-
-### Version History
-
-| Version | Release Date | Notes |
-|---------|-------------|-------|
-| 0.3.5   | 2026-05-23 | Bug fixes, improved conflict recovery |
-| 0.3.4   | 2026-05-23 | Release pipeline optimization |
-| 0.3.0+  | 2026-05  | Initial feature-complete releases |
-
----
-
-## Troubleshooting
-
-### "Git not found"
-Ensure Git is installed and accessible from PATH:
-```bash
-git --version
-```
-
-### "GitHub CLI not available"
-The tool works without GitHub CLI, but some features will be disabled. To enable GitHub integration:
-```bash
-gh auth login
-```
-
-### Rebase conflicts
-The tool will pause and prompt you to resolve conflicts. Edit conflicting files in your editor, stage them, then select "Resume Rebase" from the menu.
-
-### Command history buffer
-Use the history feature to review all Git commands executed in the current session for debugging.
-
----
-
-## License
-
-MIT License — See [LICENSE](LICENSE) file for details.
-
----
-
-## Support
-
-- 📖 **Documentation** — See inline help in the tool menu
-- 🐛 **Bug Reports** — [Issues](../../issues)
-- 💬 **Questions** — Open a [Discussion](../../discussions)
-
----
-
-## Author
-
-**Rebase Overlord** — Making Git feature workflows less painful since 2026.
-
-Built with ❤️ for developers who work with Git daily.
+Ứng dụng được phát hành dưới giấy phép mã nguồn mở MIT License.
