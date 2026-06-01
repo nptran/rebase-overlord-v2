@@ -31,7 +31,12 @@ const termLoc: Record<string, Record<string, string>> = {
     hiddenLogs: "Thông báo bảng lệnh đang tạm ẩn",
     showLogs: "Hiển thị gõ lệnh & Logs",
     noHistoryLine1: "// Chưa có bản ghi lệnh nào trong phiên làm việc.",
-    noHistoryLine2: "// Bạn có thể tự gõ lệnh Git của mình hoặc bấm vào các nút điều hướng để bắt đầu."
+    noHistoryLine2: "// Bạn có thể tự gõ lệnh Git của mình hoặc bấm vào các nút điều hướng để bắt đầu.",
+    gitPrefixError: "Chỉ hỗ trợ phân tích và chạy các câu lệnh Git bắt đầu bằng từ khóa \"git\"!",
+    gitOnlyError: "Vui lòng chỉ định thêm hành động hoặc tùy chọn sau từ khóa \"git\" (ví dụ: git status, git checkout)!",
+    cannotAnalyze: "Không thể phân tích: ",
+    unknownError: "Lỗi không xác định",
+    connectionError: "Lỗi kết nối phân tích: "
   },
   [TranslationTone.JOKE]: {
     suggestionHeader: "Sửa sai nhanh kẻo sếp chửi:",
@@ -53,7 +58,12 @@ const termLoc: Record<string, Record<string, string>> = {
     hiddenLogs: "Nhật ký đang che chắn rồi sếp",
     showLogs: "Khai sáng nhật ký & Cửa sổ lệnh",
     noHistoryLine1: "// Chưa có vụ án nào được lưu lại trong phiên.",
-    noHistoryLine2: "// Gõ bừa một câu Git hoặc bấm mấy nút bự bự để quẩy xem sao nha."
+    noHistoryLine2: "// Gõ bừa một câu Git hoặc bấm mấy nút bự bự để quẩy xem sao nha.",
+    gitPrefixError: "Gõ nghiêm túc giùm sếp ơi! Phải bắt đầu bằng từ khóa thần thánh \"git\" nhé!",
+    gitOnlyError: "Gõ mỗi chữ \"git\" thì AI cũng chịu chết sếp ơi! Cho nó thêm cái đuôi đằng sau đi (ví dụ: git status, git checkout)!",
+    cannotAnalyze: "Xem bói thất bại: ",
+    unknownError: "Quẻ lỗi không rõ nữa sếp",
+    connectionError: "Phát sóng AI nghẹt mũi: "
   },
   [TranslationTone.TOXIC]: {
     suggestionHeader: "Sửa giùm cái tay hư:",
@@ -75,7 +85,12 @@ const termLoc: Record<string, Record<string, string>> = {
     hiddenLogs: "Logs giấu kín như mèo giấu cứt",
     showLogs: "Mở mắt ra mà nhìn Logs",
     noHistoryLine1: "// Đéo có vết tích lịch sử nào cả, quá sạch sẽ đáng ngờ.",
-    noHistoryLine2: "// Tính lười đến bao giờ? Gõ lệnh rồi bấm chạy đi con lợn gợi cảm!"
+    noHistoryLine2: "// Tính lười đến bao giờ? Gõ lệnh rồi bấm chạy đi con lợn gợi cảm!",
+    gitPrefixError: "Mắt mũi để đâu hả cụ? Chỉ hỗ trợ phân tích lệnh Git bắt đầu bằng \"git\" thôi!",
+    gitOnlyError: "Gõ mỗi chữ \"git\" rồi bắt bà già AI đoán mò à? Thêm subcommand (như 'git status', 'git log') vào hộ cái!",
+    cannotAnalyze: "Éo phân tích nổi: ",
+    unknownError: "Rác gì tự đoán đi cưng",
+    connectionError: "Đứt cáp quang phân tích rồi: "
   },
   [TranslationTone.ENGLISH]: {
     suggestionHeader: "Suggested fixes / matches:",
@@ -97,7 +112,12 @@ const termLoc: Record<string, Record<string, string>> = {
     hiddenLogs: "Console output is hidden",
     showLogs: "Show Terminal & Logs",
     noHistoryLine1: "// No command records in this session yet.",
-    noHistoryLine2: "// Try typing a Git command or click navigation buttons to get started."
+    noHistoryLine2: "// Try typing a Git command or click navigation buttons to get started.",
+    gitPrefixError: "Only analysis and execution of Git commands starting with \"git\" are supported!",
+    gitOnlyError: "Please specify a subcommand or action after \"git\" (e.g., git status, git log)!",
+    cannotAnalyze: "Could not analyze: ",
+    unknownError: "Unknown error",
+    connectionError: "Analysis connection error: "
   }
 };
 
@@ -721,6 +741,12 @@ export default function TerminalPanel({
     const cleanCmd = cmdValue.trim();
     if (!cleanCmd) return;
 
+    if (cleanCmd.toLowerCase() === 'git') {
+      setExplanation(null);
+      setChecking(false);
+      return;
+    }
+
     setChecking(true);
 
     const cacheKey = `${cleanCmd}_${tone}`;
@@ -835,10 +861,10 @@ export default function TerminalPanel({
         }
       } else {
         const errData = await res.json();
-        setInlineError(`Không thể phân tích: ${errData.error || 'Lỗi không xác định'}`);
+        setInlineError(`${loc.cannotAnalyze}${errData.error || loc.unknownError}`);
       }
     } catch (err: any) {
-      setInlineError(`Lỗi kết nối phân tích: ${err.message}`);
+      setInlineError(`${loc.connectionError}${err.message}`);
     } finally {
       setChecking(false);
     }
@@ -854,7 +880,12 @@ export default function TerminalPanel({
     if (!cleanCmd) return;
 
     if (!cleanCmd.toLowerCase().startsWith('git')) {
-      setInlineError('Chỉ hỗ trợ phân tích và chạy các câu lệnh Git bắt đầu bằng từ khóa "git"!');
+      setInlineError(loc.gitPrefixError);
+      return;
+    }
+
+    if (cleanCmd.toLowerCase() === 'git') {
+      setInlineError(loc.gitOnlyError);
       return;
     }
 
@@ -872,6 +903,14 @@ export default function TerminalPanel({
 
     // If input is empty, clear the explanation instantly
     if (!cleanCmd) {
+      setExplanation(null);
+      setSuggestedChips(['git status', 'git log --oneline -n 5', 'git branch -a', 'git stash list', 'git remote -v']);
+      setChipsSource('default');
+      return;
+    }
+
+    // Only auto-explain if it is a Git command starting with 'git', but not when it is exactly 'git'
+    if (cleanCmd.toLowerCase() === 'git') {
       setExplanation(null);
       setSuggestedChips(['git status', 'git log --oneline -n 5', 'git branch -a', 'git stash list', 'git remote -v']);
       setChipsSource('default');
