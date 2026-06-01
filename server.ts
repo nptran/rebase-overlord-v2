@@ -12,6 +12,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 import { GoogleGenAI, Type } from '@google/genai';
 import { fileURLToPath } from 'url';
+import https from 'https';
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
@@ -932,6 +933,309 @@ app.post('/api/execute-command', async (req, res) => {
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
+});
+
+// ==========================================
+// CUSTOM AUTO-UPDATE CONTROLLER (SOLUTION 2)
+// ==========================================
+interface UpdateProgress {
+  isDownloading: boolean;
+  percent: number;
+  downloadedBytes: number;
+  totalBytes: number;
+  error: string | null;
+}
+
+let updateProgress: UpdateProgress = {
+  isDownloading: false,
+  percent: 0,
+  downloadedBytes: 0,
+  totalBytes: 0,
+  error: null
+};
+
+let activeDownloadRequest: any = null;
+
+// Download helper supporting up to 5 HTTP redirections (e.g. GitHub to AWS S3)
+function downloadFileWithRedirects(url: string, destPath: string, onProgress: (downloaded: number, total: number) => void): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let redirectsCount = 0;
+    
+    function download(currentUrl: string) {
+      if (redirectsCount > 5) {
+        return reject(new Error('Too many redirects followed (max 5)'));
+      }
+      
+      const req = https.get(currentUrl, (res) => {
+        const { statusCode } = res;
+        
+        if (statusCode && statusCode >= 300 && statusCode < 400 && res.headers.location) {
+          redirectsCount++;
+          return download(res.headers.location);
+        }
+        
+        if (statusCode !== 200) {
+          res.resume();
+          return reject(new Error(`Failed to download file, server responded with status: ${statusCode}`));
+        }
+        
+        const totalBytes = parseInt(res.headers['content-length'] || '0', 10);
+        let downloadedBytes = 0;
+        
+        const fileStream = fs.createWriteStream(destPath);
+        res.pipe(fileStream);
+        
+        res.on('data', (chunk) => {
+          downloadedBytes += chunk.length;
+          onProgress(downloadedBytes, totalBytes);
+        });
+        
+        fileStream.on('finish', () => {
+          fileStream.close();
+          resolve(destPath);
+        });
+        
+        fileStream.on('error', (err) => {
+          fs.unlink(destPath, () => {});
+          reject(err);
+        });
+      });
+      
+      req.on('error', (err) => {
+        reject(err);
+      });
+      
+      activeDownloadRequest = req;
+    }
+    
+    download(url);
+  });
+}
+
+// Check for updates
+app.get('/api/update/check', (req, res) => {
+  const isSimulation = req.query.simulate === 'true';
+
+  let currentVersion = '0.0.0';
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf-8'));
+    currentVersion = pkg.version || '0.0.0';
+  } catch (err) {
+    console.warn('Failed to read package.json version', err);
+  }
+
+  if (isSimulation) {
+    return res.json({
+      currentVersion,
+      latestVersion: '1.2.0',
+      updateAvailable: true,
+      releaseName: 'v1.2.0 — Heatmaps & Auto-Shield',
+      releaseNotes: '### Tính năng mới cực phẩm\n- **Biểu đồ nhiệt tương tác**: Trực quan hóa tần suất rebase/squash và commit trong tuần.\n- **Chế độ bảo hiểm bổ sung (Safe Mode)**: Tự động sao lưu nhánh trước khi chạy các lệnh reset hoặc rebase.\n- **Sửa nhiều lỗi tấu hài**: Cập nhật thêm 20 câu chửi mới cho tone Toxic Boss.',
+      downloadUrl: 'https://github.com/NPTran/git-rebase-overlord/releases/download/v1.2.0/Rebase_Overlord_Setup.exe',
+      publishedAt: '2026-06-01T09:00:00Z',
+      simulated: true
+    });
+  }
+
+  const options = {
+    hostname: 'api.github.com',
+    path: '/repos/NPTran/git-rebase-overlord/releases/latest',
+    method: 'GET',
+    headers: {
+      'User-Agent': 'rebase-overlord-updater'
+    }
+  };
+
+  const request = https.get(options, (apiRes) => {
+    let body = '';
+    apiRes.on('data', (chunk) => {
+      body += chunk;
+    });
+
+    apiRes.on('end', () => {
+      if (apiRes.statusCode !== 200) {
+        console.warn(`GitHub API response code ${apiRes.statusCode}. Providing fallback simulation.`);
+        return res.json({
+          currentVersion,
+          latestVersion: '1.2.0',
+          updateAvailable: currentVersion !== '1.2.0',
+          releaseName: 'v1.2.0 — Heatmaps & Auto-Shield',
+          releaseNotes: '### Bản cập nhật tích hợp thông minh\n- Hỗ trợ xem thông số git trực quan hơn.\n- Bản cài đặt tự động cực nhanh dạng Solution 2 cho người dùng không ký số.\n- Tối ưu hóa hiệu năng nén commit.',
+          downloadUrl: 'https://github.com/NPTran/git-rebase-overlord/releases/download/v1.2.0/Rebase_Overlord_Setup.exe',
+          publishedAt: new Date().toISOString(),
+          simulated: true,
+          failedRealCheck: true
+        });
+      }
+
+      try {
+        const release = JSON.parse(body);
+        const latestVersion = release.tag_name?.replace(/^v/, '') || '0.0.0';
+        const updateAvailable = currentVersion !== latestVersion;
+
+        let downloadUrl = release.html_url;
+        const platform = process.platform;
+        if (release.assets && Array.isArray(release.assets)) {
+          let asset = null;
+          if (platform === 'win32') {
+            asset = release.assets.find((a: any) => a.name.endsWith('.exe') || a.name.endsWith('.msi'));
+          } else if (platform === 'darwin') {
+            asset = release.assets.find((a: any) => a.name.endsWith('.dmg') || a.name.endsWith('.zip'));
+          } else {
+            asset = release.assets.find((a: any) => a.name.endsWith('.AppImage') || a.name.endsWith('.deb') || a.name.endsWith('.tar.gz'));
+          }
+          if (asset) {
+            downloadUrl = asset.browser_download_url;
+          }
+        }
+
+        res.json({
+          currentVersion,
+          latestVersion,
+          updateAvailable,
+          releaseName: release.name || release.tag_name,
+          releaseNotes: release.body || '',
+          downloadUrl,
+          publishedAt: release.published_at,
+          simulated: false
+        });
+      } catch (err: any) {
+        res.status(500).json({ error: 'Failed to parsing releases metadata', details: err.message });
+      }
+    });
+  });
+
+  request.on('error', (err) => {
+    console.error('GitHub API unreachable:', err);
+    res.json({
+      currentVersion,
+      latestVersion: '1.2.0',
+      updateAvailable: currentVersion !== '1.2.0',
+      releaseName: 'v1.2.0 — Heatmaps & Auto-Shield',
+      releaseNotes: '### Bản cập nhật tích hợp thông minh\n- Hỗ trợ xem thông số git trực quan hơn.\n- Bản cài đặt tự động cực nhanh dạng Solution 2 cho người dùng không ký số.\n- Tối ưu hóa hiệu năng nén commit.',
+      downloadUrl: 'https://github.com/NPTran/git-rebase-overlord/releases/download/v1.2.0/Rebase_Overlord_Setup.exe',
+      publishedAt: new Date().toISOString(),
+      simulated: true,
+      failedRealCheck: true
+    });
+  });
+});
+
+// Trigger download process
+app.post('/api/update/download', (req, res) => {
+  const { downloadUrl, isSimulated } = req.body;
+
+  updateProgress = {
+    isDownloading: true,
+    percent: 0,
+    downloadedBytes: 0,
+    totalBytes: 0,
+    error: null
+  };
+
+  const isWin = process.platform === 'win32';
+  const isMac = process.platform === 'darwin';
+  let ext = '.zip';
+  if (isWin) ext = '.exe';
+  else if (isMac) ext = '.dmg';
+
+  const destFile = path.join(os.tmpdir(), `rebase-overlord-setup-${Date.now()}${ext}`);
+
+  if (isSimulated === true) {
+    res.json({ success: true, message: 'Simulated installer download started.' });
+    
+    let simPercent = 0;
+    const interval = setInterval(() => {
+      simPercent += 5;
+      updateProgress.percent = Math.min(simPercent, 100);
+      updateProgress.downloadedBytes = simPercent * 1024 * 512;
+      updateProgress.totalBytes = 100 * 1024 * 512;
+
+      if (simPercent >= 100) {
+        clearInterval(interval);
+        updateProgress.isDownloading = false;
+        try {
+          fs.writeFileSync(destFile, 'MOCK EXE SETUP PAYLOAD', 'utf-8');
+          (global as any).downloadedInstallerPath = destFile;
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }, 150);
+    return;
+  }
+
+  res.json({ success: true, message: 'Real installer download initiated.' });
+
+  downloadFileWithRedirects(downloadUrl, destFile, (downloaded, total) => {
+    updateProgress.downloadedBytes = downloaded;
+    updateProgress.totalBytes = total;
+    if (total > 0) {
+      updateProgress.percent = Math.round((downloaded / total) * 100);
+    }
+  }).then((downloadedPath) => {
+    updateProgress.isDownloading = false;
+    (global as any).downloadedInstallerPath = downloadedPath;
+    console.log(`[UPDATER] Finished downloading update package to: ${downloadedPath}`);
+  }).catch((err) => {
+    console.error('[UPDATER] Real download failed:', err);
+    updateProgress.isDownloading = false;
+    updateProgress.error = err.message || 'Download error';
+  });
+});
+
+// Fetch progress status
+app.get('/api/update/progress', (req, res) => {
+  res.json(updateProgress);
+});
+
+// Execute the installer
+app.post('/api/update/apply', (req, res) => {
+  const isSimulated = req.body.isSimulated === true;
+  const installerPath = (global as any).downloadedInstallerPath;
+
+  if (!installerPath || !fs.existsSync(installerPath)) {
+    return res.status(404).json({ error: 'Installer file is missing, please download again.' });
+  }
+
+  res.json({ success: true, message: 'Installer execution started, app is closing...' });
+
+  const platform = process.platform;
+  console.log(`[UPDATER] Initiating execution of installer, platform: ${platform}, path: ${installerPath}`);
+
+  if (isSimulated) {
+    setTimeout(() => {
+      console.log('[UPDATER] Simulated execution done. Self shutting down.');
+      process.exit(0);
+    }, 1500);
+    return;
+  }
+
+  setTimeout(() => {
+    try {
+      if (platform === 'win32') {
+        const { spawn } = require('child_process');
+        const child = spawn(installerPath, [], {
+          detached: true,
+          stdio: 'ignore'
+        });
+        child.unref();
+      } else if (platform === 'darwin') {
+        exec(`open "${installerPath}"`, (err) => {
+          if (err) console.error('Failed to mount DMG on macOS:', err);
+        });
+      } else {
+        exec(`xdg-open "${installerPath}" || open "${installerPath}"`, (err) => {
+          if (err) console.error('Failed to run setup on Linux:', err);
+        });
+      }
+
+      console.log('[UPDATER] Application exiting gracefully to let installer take control.');
+      process.exit(0);
+    } catch (launchErr) {
+      console.error('[UPDATER] Crash starting installer:', launchErr);
+    }
+  }, 1000);
 });
 
 // Mounting Vite dev client

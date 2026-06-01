@@ -1099,5 +1099,71 @@
             "Huy chương vàng 'Bàn tay vàng trong làng hốt rác' lần thứ {count} trao cho mày. Tự hào vcl chưa?"
         ],
         "en_pro": "Success Milestone: This is your {count}(th) successful rebase. Keep up the clean history!"
+    },
+    "update_check_btn": {
+        "vn_pro": "Kiểm tra cập nhật",
+        "vn_joke": "Check hàng mới 🔄",
+        "vn_toxic": "Hóng update",
+        "en_pro": "Check for updates"
+    },
+    "update_checking": {
+        "vn_pro": "Đang kiểm tra...",
+        "vn_joke": "Đang ngửi xem có gì mới...",
+        "vn_toxic": "Đợi tí tao đang check...",
+        "en_pro": "Checking..."
+    },
+    "update_no_new": {
+        "vn_pro": "Bạn đang chạy phiên bản mới nhất! ({version})",
+        "vn_joke": "Ngon lành! Sếp đang sở hữu bản xịn nhất đỉnh chóp rồi! (Phiên bản {version})",
+        "vn_toxic": "Lại hóng à? Bản {version} mới nhất cụ nó rồi, lo gõ code đi thằng lười!",
+        "en_pro": "You are running the latest version! ({version})"
+    },
+    "update_found_title": {
+        "vn_pro": "🚀 Đã tìm thấy bản cập nhật mới!",
+        "vn_joke": "🎉 Phết hột vịt lộn! Có hàng mới nóng hổi đây sếp ơi!",
+        "vn_toxic": "👀 Ôi quả đầu óc đỉnh cao có bản mới rồi kìa thằng ngốc!",
+        "en_pro": "🚀 New version discovered!"
+    },
+    "update_found_desc": {
+        "vn_pro": "Đã phát hiện Rebase Overlord phiên bản {version} (Bản hiện tại: {current}). Bạn có muốn cập nhật ngay không?",
+        "vn_joke": "Nhà thông thái NPTran vừa ra lò bản {version} siêu cấp vip pro (Ní đang ở bản {current}). Lên đời ngay cho nóng sếp ơi!",
+        "vn_toxic": "Bản {version} xịn đét ra lò rồi, còn ôm cái bản {current} rách nát này làm gì hả thằng ngáo? Lên sàn nâng cấp ngay và luôn!",
+        "en_pro": "Discovered Rebase Overlord {version} (Current: {current}). Do you want to download and install this update?"
+    },
+    "update_download_btn": {
+        "vn_pro": "Tải & Nâng cấp ngay",
+        "vn_joke": "Lên đời luôn sếp!",
+        "vn_toxic": "Bấm nâng cấp hộ cái!",
+        "en_pro": "Download & Install"
+    },
+    "update_later_btn": {
+        "vn_pro": "Để sau",
+        "vn_joke": "Để sau đi ní",
+        "vn_toxic": "Lười, mai làm",
+        "en_pro": "Later"
+    },
+    "update_modal_title": {
+        "vn_pro": "Cập nhật ứng dụng Rebase Overlord",
+        "vn_joke": "Lên đời Rebase Overlord cực phẩm",
+        "vn_toxic": "Nâng cấp não cho Rebase Overlord",
+        "en_pro": "Upgrade Rebase Overlord"
+    },
+    "update_downloading": {
+        "vn_pro": "Đang tải xuống bản cài đặt... ({percent}%)",
+        "vn_joke": "Đang hốt phiên bản mới về... ({percent}%) 📦",
+        "vn_toxic": "Đang kéo bản mới về, loát chậm thế... ({percent}%)",
+        "en_pro": "Downloading installer package... ({percent}%)"
+    },
+    "update_applying": {
+        "vn_pro": "Đang kích hoạt quy trình cài đặt. Ứng dụng sẽ tự đóng...",
+        "vn_joke": "Nổ máy khởi động bản cài đặt mới! Em chuồn đây sếp ơi...",
+        "vn_toxic": "Đang chạy bộ cài đặt mới. Biến lẹ cho tao nâng cấp...",
+        "en_pro": "Launching installer build. The application will close..."
+    },
+    "update_failed": {
+        "vn_pro": "Cập nhật thất bại: {error}",
+        "vn_joke": "Toang rồi sếp! Lỗi mọe rồi: {error}",
+        "vn_toxic": "Ngu người! Nâng cấp lỗi lòi mắt: {error}",
+        "en_pro": "Update failed: {error}"
     }
 }

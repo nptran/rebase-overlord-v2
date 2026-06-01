@@ -186,6 +186,119 @@ export default function RepoHeader({
   const [isSelectingDirLocally, setIsSelectingDirLocally] = React.useState(false);
   const loc = headerLoc[tone] || headerLoc[TranslationTone.PROFESSIONAL];
 
+  // Custom check/download states for non-signed custom update installer (Solution 2)
+  interface UpdateData {
+    currentVersion: string;
+    latestVersion: string;
+    updateAvailable: boolean;
+    releaseName: string;
+    releaseNotes: string;
+    downloadUrl: string;
+    publishedAt: string;
+    simulated: boolean;
+  }
+
+  const [checkingUpdate, setCheckingUpdate] = React.useState(false);
+  const [updateInfo, setUpdateInfo] = React.useState<UpdateData | null>(null);
+  const [showUpdateModal, setShowUpdateModal] = React.useState(false);
+  const [downloadingUpdate, setDownloadingUpdate] = React.useState(false);
+  const [downloadProgressValue, setDownloadProgressValue] = React.useState(0);
+  const [applyingUpdate, setApplyingUpdate] = React.useState(false);
+  const [updateError, setUpdateError] = React.useState<string | null>(null);
+  const [successCheckMsg, setSuccessCheckMsg] = React.useState<string | null>(null);
+
+  const handleCheckUpdates = async (forceSimulate = false) => {
+    setCheckingUpdate(true);
+    setUpdateError(null);
+    setSuccessCheckMsg(null);
+    try {
+      const url = resolveApiUrl(`/api/update/check${forceSimulate ? '?simulate=true' : ''}`);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Could not contact update server.');
+      const data = await res.json();
+      setUpdateInfo(data);
+      if (data.updateAvailable) {
+        setShowUpdateModal(true);
+      } else {
+        const msg = translate('update_no_new', tone, { version: data.currentVersion }, useEmoji);
+        setSuccessCheckMsg(msg);
+        setTimeout(() => setSuccessCheckMsg(null), 4000);
+      }
+    } catch (err: any) {
+      setUpdateError(err.message || 'Check update query failed.');
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
+
+  const handleStartDownload = async () => {
+    if (!updateInfo) return;
+    setDownloadingUpdate(true);
+    setUpdateError(null);
+    setDownloadProgressValue(0);
+
+    try {
+      const url = resolveApiUrl('/api/update/download');
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          downloadUrl: updateInfo.downloadUrl,
+          isSimulated: updateInfo.simulated
+        })
+      });
+      if (!res.ok) throw new Error('Download request rejected by server.');
+
+      const interval = setInterval(async () => {
+        try {
+          const progressRes = await fetch(resolveApiUrl('/api/update/progress'));
+          if (progressRes.ok) {
+            const progressData = await progressRes.json();
+            setDownloadProgressValue(progressData.percent);
+            if (progressData.error) {
+              setUpdateError(progressData.error);
+              clearInterval(interval);
+              setDownloadingUpdate(false);
+            }
+            if (progressData.percent >= 100 && !progressData.isDownloading) {
+              clearInterval(interval);
+              handleApplyUpdate();
+            }
+          }
+        } catch (pollErr) {
+          console.error('Error polling download progress:', pollErr);
+        }
+      }, 300);
+
+    } catch (err: any) {
+      setUpdateError(err.message || 'Download failed.');
+      setDownloadingUpdate(false);
+    }
+  };
+
+  const handleApplyUpdate = async () => {
+    setApplyingUpdate(true);
+    try {
+      const url = resolveApiUrl('/api/update/apply');
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isSimulated: updateInfo?.simulated
+        })
+      });
+      if (!res.ok) throw new Error('Failed to run update installer.');
+      
+      setTimeout(() => {
+        window.close();
+      }, 1500);
+
+    } catch (err: any) {
+      setUpdateError(err.message || 'Launching installer failed.');
+      setApplyingUpdate(false);
+    }
+  };
+
   React.useEffect(() => {
     setEditingPath(repoState.repoPath);
   }, [repoState.repoPath]);
@@ -340,6 +453,44 @@ export default function RepoHeader({
                 : (tone === TranslationTone.ENGLISH ? 'Gemini AI: Cost Saved' : tone === TranslationTone.TOXIC ? 'Gemini AI: NÍN (Tiết kiệm)' : tone === TranslationTone.JOKE ? 'Gemini AI: HẾT SÈNG' : 'Gemini AI: TẮT')}
             </span>
           </button>
+
+          {/* Check Updates Button */}
+          <div className="flex items-center bg-slate-950/40 border border-slate-850 rounded-lg p-0.5 gap-0.5">
+            <button
+              id="check-updates-btn"
+              onClick={() => handleCheckUpdates(false)}
+              disabled={checkingUpdate}
+              className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-md transition-all cursor-pointer font-medium ${
+                checkingUpdate
+                  ? 'bg-slate-900 border-slate-800 text-slate-500'
+                  : 'text-emerald-400 hover:bg-emerald-500/10'
+              }`}
+              title={translate('update_check_btn', tone, undefined, useEmoji)}
+            >
+              <RefreshCw className={`w-3 h-3 ${checkingUpdate ? 'animate-spin' : ''}`} />
+              <span>
+                {checkingUpdate
+                  ? translate('update_checking', tone, undefined, useEmoji)
+                  : translate('update_check_btn', tone, undefined, useEmoji)}
+              </span>
+            </button>
+            <button
+              id="test-sim-update-btn"
+              onClick={() => handleCheckUpdates(true)}
+              className="text-[9px] px-1.5 py-1 text-slate-500 hover:text-emerald-405 hover:bg-slate-900 rounded-md transition-all font-mono"
+              title="Chạy mô phỏng tải & cài đặt installer"
+            >
+              SIM 🧪
+            </button>
+          </div>
+
+          {/* Success Latest Version Dialog Toast */}
+          {successCheckMsg && (
+            <div id="update-toast-banner" className="absolute top-4 right-4 bg-emerald-950 text-emerald-300 text-[11px] px-3.5 py-2.5 rounded-lg shadow-xl font-medium tracking-wide flex items-center gap-1.5 z-55 border border-emerald-500/30 animate-fade-in animate-duration-300">
+              <span>🛡️</span>
+              <span>{successCheckMsg}</span>
+            </div>
+          )}
 
           {/* Core Simulator / Real Workspace toggle */}
           <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-1 text-xs">
@@ -617,6 +768,106 @@ export default function RepoHeader({
           onUpdateRepoPath(selectedPath);
         }}
       />
+
+      {/* Dynamic Custom Update Modal (Solution 2) */}
+      {showUpdateModal && updateInfo && (
+        <div id="update-modal-backdrop" className="fixed inset-0 bg-[#02040d]/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in animate-duration-200">
+          <div id="update-modal-container" className="bg-[#0b0f19] border border-slate-800 rounded-xl p-6 shadow-2xl max-w-md w-full relative overflow-hidden">
+            
+            {/* Ambient subtle glow */}
+            <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-emerald-500/10 to-indigo-500/10 rounded-full blur-2xl" />
+
+            {/* Modal Title */}
+            <h3 className="text-sm font-semibold text-slate-300 font-mono tracking-wider uppercase border-b border-slate-850 pb-3 flex items-center gap-2">
+              <span>🚀</span> {translate('update_modal_title', tone, undefined, useEmoji)}
+            </h3>
+
+            {/* Release Version Header */}
+            <div className="mt-4 flex items-center justify-between bg-slate-950/60 rounded-lg p-3 border border-slate-900">
+              <div className="text-xs">
+                <span className="text-slate-500 font-mono">Current:</span>{' '}
+                <span className="text-slate-400 font-bold font-mono">{updateInfo.currentVersion}</span>
+              </div>
+              <div className="text-xs">
+                <span className="text-emerald-500 font-mono font-bold">Latest:</span>{' '}
+                <span className="text-emerald-400 font-bold font-mono text-sm">{updateInfo.latestVersion}</span>
+              </div>
+            </div>
+
+            {/* Release Changelog Title */}
+            <div className="mt-4 text-xs font-semibold text-slate-400 font-mono uppercase">
+              {translate('update_found_title', tone, undefined, useEmoji)}
+            </div>
+
+            {/* Changelog text notes */}
+            <div className="mt-2 bg-slate-950 border border-slate-900/80 rounded-lg p-3 text-xs max-h-36 overflow-y-auto block-custom no-scrollbar text-slate-300 font-sans leading-relaxed">
+              <p className="font-semibold text-slate-200 mb-1 leading-snug">
+                {updateInfo.releaseName}
+              </p>
+              <div className="text-slate-400 whitespace-pre-line border-t border-slate-900/60 pt-2 mt-2 font-sans text-[11px]">
+                {updateInfo.releaseNotes}
+              </div>
+            </div>
+
+            {/* Download Progress Bar */}
+            {downloadingUpdate && (
+              <div className="mt-5 bg-slate-950 border border-slate-900 p-3.5 rounded-lg">
+                <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 mb-2">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    {applyingUpdate 
+                      ? translate('update_applying', tone, undefined, useEmoji)
+                      : translate('update_downloading', tone, { percent: downloadProgressValue }, useEmoji)}
+                  </span>
+                  <span>{downloadProgressValue}%</span>
+                </div>
+                <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-850/50">
+                  <div 
+                    className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full transition-all duration-300 shadow-[0_0_10px_rgba(16,185,129,0.3)]" 
+                    style={{ width: `${downloadProgressValue}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Inline update errors */}
+            {updateError && (
+              <div className="mt-4 bg-rose-950/30 border border-rose-500/20 text-rose-400 text-xs px-3 py-2 rounded-lg font-sans">
+                {translate('update_failed', tone, { error: updateError }, useEmoji)}
+              </div>
+            )}
+
+            {/* Modal Controls */}
+            <div className="mt-6 flex items-center justify-end gap-2 border-t border-slate-850 pt-4">
+              {!downloadingUpdate && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowUpdateModal(false)}
+                    className="px-4 py-2 bg-slate-900 hover:bg-slate-850 text-slate-300 text-xs font-medium rounded-lg border border-slate-800 transition-colors cursor-pointer animate-duration-150 active:scale-95"
+                  >
+                    {translate('update_later_btn', tone, undefined, useEmoji)}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleStartDownload}
+                    className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-semibold rounded-lg shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>📥</span>
+                    {translate('update_download_btn', tone, undefined, useEmoji)}
+                  </button>
+                </>
+              )}
+              {downloadingUpdate && (
+                <div className="text-[11px] text-slate-500 font-mono uppercase tracking-wider animate-pulse py-2">
+                  {applyingUpdate ? 'FINISHING INSTALLATION...' : 'FETCHING PAYLOAD...'}
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }
