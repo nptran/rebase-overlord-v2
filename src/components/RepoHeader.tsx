@@ -195,7 +195,6 @@ export default function RepoHeader({
     releaseNotes: string;
     downloadUrl: string;
     publishedAt: string;
-    simulated: boolean;
   }
 
   const [checkingUpdate, setCheckingUpdate] = React.useState(false);
@@ -207,12 +206,12 @@ export default function RepoHeader({
   const [updateError, setUpdateError] = React.useState<string | null>(null);
   const [successCheckMsg, setSuccessCheckMsg] = React.useState<string | null>(null);
 
-  const handleCheckUpdates = async (forceSimulate = false) => {
+  const handleCheckUpdates = async () => {
     setCheckingUpdate(true);
     setUpdateError(null);
     setSuccessCheckMsg(null);
     try {
-      const url = resolveApiUrl(`/api/update/check${forceSimulate ? '?simulate=true' : ''}`);
+      const url = resolveApiUrl('/api/update/check');
       const res = await fetch(url);
       if (!res.ok) throw new Error('Could not contact update server.');
       const data = await res.json();
@@ -243,8 +242,7 @@ export default function RepoHeader({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          downloadUrl: updateInfo.downloadUrl,
-          isSimulated: updateInfo.simulated
+          downloadUrl: updateInfo.downloadUrl
         })
       });
       if (!res.ok) throw new Error('Download request rejected by server.');
@@ -282,10 +280,7 @@ export default function RepoHeader({
       const url = resolveApiUrl('/api/update/apply');
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          isSimulated: updateInfo?.simulated
-        })
+        headers: { 'Content-Type': 'application/json' }
       });
       if (!res.ok) throw new Error('Failed to run update installer.');
       
@@ -455,34 +450,24 @@ export default function RepoHeader({
           </button>
 
           {/* Check Updates Button */}
-          <div className="flex items-center bg-slate-950/40 border border-slate-850 rounded-lg p-0.5 gap-0.5">
-            <button
-              id="check-updates-btn"
-              onClick={() => handleCheckUpdates(false)}
-              disabled={checkingUpdate}
-              className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-md transition-all cursor-pointer font-medium ${
-                checkingUpdate
-                  ? 'bg-slate-900 border-slate-800 text-slate-500'
-                  : 'text-emerald-400 hover:bg-emerald-500/10'
-              }`}
-              title={translate('update_check_btn', tone, undefined, useEmoji)}
-            >
-              <RefreshCw className={`w-3 h-3 ${checkingUpdate ? 'animate-spin' : ''}`} />
-              <span>
-                {checkingUpdate
-                  ? translate('update_checking', tone, undefined, useEmoji)
-                  : translate('update_check_btn', tone, undefined, useEmoji)}
-              </span>
-            </button>
-            <button
-              id="test-sim-update-btn"
-              onClick={() => handleCheckUpdates(true)}
-              className="text-[9px] px-1.5 py-1 text-slate-500 hover:text-emerald-405 hover:bg-slate-900 rounded-md transition-all font-mono"
-              title="Chạy mô phỏng tải & cài đặt installer"
-            >
-              SIM 🧪
-            </button>
-          </div>
+          <button
+            id="check-updates-btn"
+            onClick={handleCheckUpdates}
+            disabled={checkingUpdate}
+            className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border transition-all cursor-pointer font-medium ${
+              checkingUpdate
+                ? 'bg-slate-900 border-slate-800 text-slate-500'
+                : 'bg-slate-950 border-slate-850 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/5'
+            }`}
+            title={translate('update_check_btn', tone, undefined, useEmoji)}
+          >
+            <RefreshCw className={`w-3 h-3 ${checkingUpdate ? 'animate-spin' : ''}`} />
+            <span>
+              {checkingUpdate
+                ? translate('update_checking', tone, undefined, useEmoji)
+                : translate('update_check_btn', tone, undefined, useEmoji)}
+            </span>
+          </button>
 
           {/* Success Latest Version Dialog Toast */}
           {successCheckMsg && (

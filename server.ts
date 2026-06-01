@@ -1014,8 +1014,6 @@ function downloadFileWithRedirects(url: string, destPath: string, onProgress: (d
 
 // Check for updates
 app.get('/api/update/check', (req, res) => {
-  const isSimulation = req.query.simulate === 'true';
-
   let currentVersion = '0.0.0';
   try {
     const pkg = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'package.json'), 'utf-8'));
@@ -1024,26 +1022,25 @@ app.get('/api/update/check', (req, res) => {
     console.warn('Failed to read package.json version', err);
   }
 
-  if (isSimulation) {
-    return res.json({
-      currentVersion,
-      latestVersion: '1.2.0',
-      updateAvailable: true,
-      releaseName: 'v1.2.0 — Heatmaps & Auto-Shield',
-      releaseNotes: '### Tính năng mới cực phẩm\n- **Biểu đồ nhiệt tương tác**: Trực quan hóa tần suất rebase/squash và commit trong tuần.\n- **Chế độ bảo hiểm bổ sung (Safe Mode)**: Tự động sao lưu nhánh trước khi chạy các lệnh reset hoặc rebase.\n- **Sửa nhiều lỗi tấu hài**: Cập nhật thêm 20 câu chửi mới cho tone Toxic Boss.',
-      downloadUrl: 'https://github.com/NPTran/git-rebase-overlord/releases/download/v1.2.0/Rebase_Overlord_Setup.exe',
-      publishedAt: '2026-06-01T09:00:00Z',
-      simulated: true
-    });
-  }
-
   const options = {
     hostname: 'api.github.com',
-    path: '/repos/NPTran/git-rebase-overlord/releases/latest',
+    path: '/repos/nptran/rebase-overlord-v2/releases/latest',
     method: 'GET',
     headers: {
-      'User-Agent': 'rebase-overlord-updater'
+      'User-Agent': 'rebase-overlord-api-client'
     }
+  };
+
+  const semverCompare = (v1: string, v2: string) => {
+    const p1 = v1.replace(/^v/, '').split('.').map(v => parseInt(v, 10) || 0);
+    const p2 = v2.replace(/^v/, '').split('.').map(v => parseInt(v, 10) || 0);
+    for (let i = 0; i < Math.max(p1.length, p2.length); i++) {
+      const n1 = p1[i] || 0;
+      const n2 = p2[i] || 0;
+      if (n1 > n2) return 1;
+      if (n2 > n1) return -1;
+    }
+    return 0;
   };
 
   const request = https.get(options, (apiRes) => {
@@ -1054,24 +1051,16 @@ app.get('/api/update/check', (req, res) => {
 
     apiRes.on('end', () => {
       if (apiRes.statusCode !== 200) {
-        console.warn(`GitHub API response code ${apiRes.statusCode}. Providing fallback simulation.`);
-        return res.json({
-          currentVersion,
-          latestVersion: '1.2.0',
-          updateAvailable: currentVersion !== '1.2.0',
-          releaseName: 'v1.2.0 — Heatmaps & Auto-Shield',
-          releaseNotes: '### Bản cập nhật tích hợp thông minh\n- Hỗ trợ xem thông số git trực quan hơn.\n- Bản cài đặt tự động cực nhanh dạng Solution 2 cho người dùng không ký số.\n- Tối ưu hóa hiệu năng nén commit.',
-          downloadUrl: 'https://github.com/NPTran/git-rebase-overlord/releases/download/v1.2.0/Rebase_Overlord_Setup.exe',
-          publishedAt: new Date().toISOString(),
-          simulated: true,
-          failedRealCheck: true
+        console.warn(`GitHub API response code ${apiRes.statusCode}`);
+        return res.status(apiRes.statusCode || 500).json({ 
+          error: `Could not fetch latest release. GitHub API responded with status ${apiRes.statusCode}.`
         });
       }
 
       try {
         const release = JSON.parse(body);
         const latestVersion = release.tag_name?.replace(/^v/, '') || '0.0.0';
-        const updateAvailable = currentVersion !== latestVersion;
+        const updateAvailable = semverCompare(latestVersion, currentVersion) > 0;
 
         let downloadUrl = release.html_url;
         const platform = process.platform;
@@ -1100,30 +1089,20 @@ app.get('/api/update/check', (req, res) => {
           simulated: false
         });
       } catch (err: any) {
-        res.status(500).json({ error: 'Failed to parsing releases metadata', details: err.message });
+        res.status(500).json({ error: 'Failed parsing releases metadata', details: err.message });
       }
     });
   });
 
   request.on('error', (err) => {
     console.error('GitHub API unreachable:', err);
-    res.json({
-      currentVersion,
-      latestVersion: '1.2.0',
-      updateAvailable: currentVersion !== '1.2.0',
-      releaseName: 'v1.2.0 — Heatmaps & Auto-Shield',
-      releaseNotes: '### Bản cập nhật tích hợp thông minh\n- Hỗ trợ xem thông số git trực quan hơn.\n- Bản cài đặt tự động cực nhanh dạng Solution 2 cho người dùng không ký số.\n- Tối ưu hóa hiệu năng nén commit.',
-      downloadUrl: 'https://github.com/NPTran/git-rebase-overlord/releases/download/v1.2.0/Rebase_Overlord_Setup.exe',
-      publishedAt: new Date().toISOString(),
-      simulated: true,
-      failedRealCheck: true
-    });
+    res.status(500).json({ error: 'GitHub API unreachable', details: err.message });
   });
 });
 
 // Trigger download process
 app.post('/api/update/download', (req, res) => {
-  const { downloadUrl, isSimulated } = req.body;
+  const { downloadUrl } = req.body;
 
   updateProgress = {
     isDownloading: true,
@@ -1140,30 +1119,6 @@ app.post('/api/update/download', (req, res) => {
   else if (isMac) ext = '.dmg';
 
   const destFile = path.join(os.tmpdir(), `rebase-overlord-setup-${Date.now()}${ext}`);
-
-  if (isSimulated === true) {
-    res.json({ success: true, message: 'Simulated installer download started.' });
-    
-    let simPercent = 0;
-    const interval = setInterval(() => {
-      simPercent += 5;
-      updateProgress.percent = Math.min(simPercent, 100);
-      updateProgress.downloadedBytes = simPercent * 1024 * 512;
-      updateProgress.totalBytes = 100 * 1024 * 512;
-
-      if (simPercent >= 100) {
-        clearInterval(interval);
-        updateProgress.isDownloading = false;
-        try {
-          fs.writeFileSync(destFile, 'MOCK EXE SETUP PAYLOAD', 'utf-8');
-          (global as any).downloadedInstallerPath = destFile;
-        } catch (e) {
-          console.error(e);
-        }
-      }
-    }, 150);
-    return;
-  }
 
   res.json({ success: true, message: 'Real installer download initiated.' });
 
@@ -1191,7 +1146,6 @@ app.get('/api/update/progress', (req, res) => {
 
 // Execute the installer
 app.post('/api/update/apply', (req, res) => {
-  const isSimulated = req.body.isSimulated === true;
   const installerPath = (global as any).downloadedInstallerPath;
 
   if (!installerPath || !fs.existsSync(installerPath)) {
@@ -1202,14 +1156,6 @@ app.post('/api/update/apply', (req, res) => {
 
   const platform = process.platform;
   console.log(`[UPDATER] Initiating execution of installer, platform: ${platform}, path: ${installerPath}`);
-
-  if (isSimulated) {
-    setTimeout(() => {
-      console.log('[UPDATER] Simulated execution done. Self shutting down.');
-      process.exit(0);
-    }, 1500);
-    return;
-  }
 
   setTimeout(() => {
     try {
