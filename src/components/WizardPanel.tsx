@@ -1139,6 +1139,20 @@ export default function WizardPanel({
               </div>
             )}
 
+            {commits.length >= 20 && (
+              <div className="bg-red-500/10 hover:bg-red-500/15 border border-red-500/20 text-red-250 p-3.5 rounded-xl text-[11px] leading-relaxed flex gap-2.5 transition-all duration-300 shadow-md">
+                <span className="text-xl animate-bounce shrink-0 mt-0.5 select-none text-[32px] md:text-[40px] leading-none mb-1">🔥</span>
+                <div className="font-sans flex flex-col justify-center">
+                  <span className="text-red-400 font-bold uppercase tracking-wider font-mono text-[10px] mb-1 block">
+                    {tone === TranslationTone.ENGLISH ? "🔥 EPIC COMMIT FLOOD DETECTED (EASTER EGG)" : "🔥 BÃO COMMITS QUÁ TẢI (EASTER EGG)"}
+                  </span>
+                  <p className="font-medium text-red-200">
+                    {translate('ee_spam_commit', tone, { count: commits.length })}
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Split Screen Drag-and-Drop dual panel system */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               

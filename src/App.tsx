@@ -305,6 +305,30 @@ export default function App() {
 
   const [isCloning, setIsCloning] = React.useState<boolean>(false);
 
+  // Easter Eggs Toast system
+  interface ActiveToast {
+    id: string;
+    type: 'info' | 'success' | 'warn' | 'error' | 'milestone' | 'owl' | 'rage' | 'spam';
+    title: string;
+    message: string;
+    emoji?: string;
+  }
+  const [toasts, setToasts] = React.useState<ActiveToast[]>([]);
+  const triggerToast = (type: ActiveToast['type'], title: string, message: string, emoji?: string) => {
+    const id = Date.now().toString() + Math.random().toString();
+    setToasts(prev => [...prev, { id, type, title, message, emoji }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 8000);
+  };
+
+  // Night Owl state
+  const [isNightOwl, setIsNightOwl] = React.useState<boolean>(() => {
+    const hr = new Date().getHours();
+    return hr >= 23 || hr <= 4;
+  });
+  const [showNightOwlBanner, setShowNightOwlBanner] = React.useState<boolean>(true);
+
   // Custom API configuration for serverless deployment fallback (Vercel, GitHub Pages, etc.)
   const [backendStatus, setBackendStatus] = React.useState<'checking' | 'connected' | 'unreachable'>('checking');
   const [customBackendUrl, setCustomBackendUrl] = React.useState<string>(() => {
@@ -594,12 +618,53 @@ export default function App() {
       const res = await fetch(resolveApiUrl('/api/stats'));
       if (res.ok) {
         const data = await res.json();
-        setStats(data);
+        setStats({
+          rebaseCount: data.rebase_count !== undefined ? data.rebase_count : (data.rebaseCount ?? 0),
+          firstRun: data.first_run !== undefined ? data.first_run : (data.firstRun ?? ''),
+          lastRun: data.last_run !== undefined ? data.last_run : data.lastRun
+        });
       }
     } catch {
       // Fallback
     }
   };
+
+  // Trigger ee_night_owl Easter Egg on load if late
+  React.useEffect(() => {
+    const hr = new Date().getHours();
+    if (hr >= 23 || hr <= 4) {
+      const msg = translate('ee_night_owl', tone);
+      const title = tone === TranslationTone.ENGLISH ? "🌙 Night Owl Active" : "🌙 Chế độ Cú Đêm";
+      const timer = setTimeout(() => {
+        triggerToast('owl', title, msg, '🦉');
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [tone]);
+
+  // Watch stats.rebaseCount for milestones
+  const prevRebaseCountRef = React.useRef<number | null>(null);
+  React.useEffect(() => {
+    const count = stats.rebaseCount ?? 0;
+    if (prevRebaseCountRef.current !== null && count > prevRebaseCountRef.current) {
+      if (count === 1 || count % 5 === 0) {
+        let eeKey = "ee_rebase_milestone";
+        if (tone === TranslationTone.TOXIC) {
+          if (count >= 30) {
+            eeKey = "vn_toxic_level_3";
+          } else if (count >= 15) {
+            eeKey = "vn_toxic_level_2";
+          } else {
+            eeKey = "vn_toxic_level_1";
+          }
+        }
+        const titleLine = tone === TranslationTone.ENGLISH ? "🏆 REBASE MILESTONE!" : "🏆 CỘT MỐC SQUASH CHIẾN THẦN!";
+        const translatedMsg = translate(eeKey, tone, { count });
+        triggerToast('milestone', titleLine, translatedMsg, '🏆');
+      }
+    }
+    prevRebaseCountRef.current = count;
+  }, [stats.rebaseCount, tone]);
 
   React.useEffect(() => {
     handleRefresh();
@@ -801,7 +866,11 @@ export default function App() {
         const incrementRes = await fetch(resolveApiUrl('/api/stats/increment'), { method: 'POST' });
         if (incrementRes.ok) {
           const d = await incrementRes.json();
-          setStats(d);
+          setStats({
+            rebaseCount: d.rebase_count !== undefined ? d.rebase_count : (d.rebaseCount ?? 0),
+            firstRun: d.first_run !== undefined ? d.first_run : (d.firstRun ?? ''),
+            lastRun: d.last_run !== undefined ? d.last_run : d.lastRun
+          });
         }
       } catch {
         setStats(prev => ({ ...prev, rebaseCount: prev.rebaseCount + 1 }));
@@ -834,7 +903,11 @@ export default function App() {
               const incrementRes = await fetch(resolveApiUrl('/api/stats/increment'), { method: 'POST' });
               if (incrementRes.ok) {
                 const d = await incrementRes.json();
-                setStats(d);
+                setStats({
+                  rebaseCount: d.rebase_count !== undefined ? d.rebase_count : (d.rebaseCount ?? 0),
+                  firstRun: d.first_run !== undefined ? d.first_run : (d.firstRun ?? ''),
+                  lastRun: d.last_run !== undefined ? d.last_run : d.lastRun
+                });
               }
             } catch {
               // Ignore stats increments issues
@@ -849,6 +922,13 @@ export default function App() {
 
   // Reset/Abort wizard flow
   const handleResetWizard = async () => {
+    // Trigger ee_rage_quit Easter Egg if they are already far into the flow
+    if (wizard.step >= 3) {
+      const rageQuitMsg = translate('ee_rage_quit', tone);
+      const title = tone === TranslationTone.ENGLISH ? "🛑 Flow Aborted" : "🛑 Hủy ngang xương (Rage Quit)";
+      triggerToast('rage', title, rageQuitMsg, '😡');
+    }
+
     if (isSimulation) {
       addLog(`$ git rebase --abort`);
       addLog(`🔙 Wizard reset. Rebase process aborted cleanly.`);
@@ -1341,6 +1421,39 @@ export default function App() {
           onCloneRepo={handleCloneRepo}
           onRefresh={handleRefresh}
         />
+
+        {/* Night Owl Persistent Banner */}
+        {isNightOwl && showNightOwlBanner && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-indigo-950/20 border border-indigo-500/20 rounded-xl p-4 shadow-xl flex items-center justify-between gap-4 backdrop-blur-md"
+          >
+            <div className="flex gap-3 items-center">
+              <div className="bg-indigo-505/10 text-indigo-400 p-2 rounded-lg border border-indigo-500/20 shrink-0 text-xl animate-pulse">
+                🦉
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-indigo-300 font-mono tracking-wider uppercase mb-0.5">
+                  {tone === TranslationTone.ENGLISH ? "🌙 NIGHT OWL MISSION DETECTED (EASTER EGG)" : "🌙 PHÁT HIỆN CHẾ ĐỘ CỦ ĐÊM (EASTER EGG)"}
+                </h4>
+                <p className="text-xs text-indigo-200/80 leading-relaxed font-sans font-medium">
+                  {translate('ee_night_owl', tone)}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowNightOwlBanner(false)}
+              className="text-indigo-400 hover:text-indigo-200 rounded-lg p-1.5 hover:bg-indigo-500/10 cursor-pointer transition-all shrink-0"
+              title="Close"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </motion.div>
+        )}
 
         {/* Serverless / Vercel Host Warn & Config Banner */}
         {backendStatus === 'unreachable' && (
@@ -1923,6 +2036,65 @@ export default function App() {
           <span className="flex items-center gap-1 text-[10px]">
             Created for <strong className="text-slate-400">boybibo98@gmail.com</strong> in AI Studio Build Environment
           </span>
+        </div>
+
+        {/* Floating Toast Notification Containers for Achievements and Easter Eggs */}
+        <div id="rebase-overlord-toast-container" className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-3.5 max-w-[420px] w-full p-4 pointer-events-none">
+          <AnimatePresence>
+            {toasts.map((toast) => (
+              <motion.div
+                key={toast.id}
+                id={`toast-${toast.id}`}
+                layout
+                initial={{ opacity: 0, y: 30, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                transition={{ duration: 0.3, ease: 'easeOut' }}
+                className={`pointer-events-auto bg-[#070913]/95 text-slate-100 p-4 rounded-xl border shadow-2xl flex gap-3.5 relative backdrop-blur-md ${
+                  toast.type === 'milestone'
+                    ? 'border-amber-500/30 shadow-amber-500/5 bg-gradient-to-r from-amber-950/20 to-[#070913]/95'
+                    : toast.type === 'owl'
+                    ? 'border-indigo-500/30 shadow-indigo-505/5 bg-gradient-to-r from-indigo-950/20 to-[#070913]/95'
+                    : toast.type === 'rage'
+                    ? 'border-rose-500/30 shadow-rose-505/5 bg-gradient-to-r from-rose-950/20 to-[#070913]/95'
+                    : 'border-slate-800 shadow-black'
+                }`}
+              >
+                {/* Accent line on left */}
+                <div className={`absolute top-0 bottom-0 left-0 w-1 rounded-l-xl ${
+                  toast.type === 'milestone' ? 'bg-amber-500' : toast.type === 'owl' ? 'bg-indigo-500' : toast.type === 'rage' ? 'bg-rose-500' : 'bg-slate-700'
+                }`} />
+
+                {toast.emoji && (
+                  <div className={`text-2xl select-none shrink-0 ${toast.type === 'rage' ? 'animate-bounce' : 'animate-pulse'}`}>
+                    {toast.emoji}
+                  </div>
+                )}
+
+                <div className="flex-1 font-sans pr-4">
+                  <h5 className={`text-xs font-bold font-mono tracking-wider uppercase mb-1 ${
+                    toast.type === 'milestone' ? 'text-amber-400' : toast.type === 'owl' ? 'text-indigo-400' : toast.type === 'rage' ? 'text-rose-400' : 'text-slate-300'
+                  }`}>
+                    {toast.title}
+                  </h5>
+                  <p className="text-[11px] text-slate-300 leading-relaxed font-sans font-medium whitespace-pre-line">
+                    {toast.message}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
+                  className="text-slate-500 hover:text-slate-300 cursor-pointer absolute top-3 right-3 p-1 rounded-lg transition-all"
+                  title="Dismiss alert"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
 
       </div>
