@@ -42,6 +42,6 @@ jobs:
 
       - name: Perform Semantic Release and Desktop Build
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEPLOYMENT_TOKEN: ${{ secrets.DEPLOYMENT_TOKEN }}
         run: npx semantic-release
         shell: bash

@@ -68,7 +68,7 @@ interface ToneLocalizations {
 
 const localizations: Record<TranslationTone, ToneLocalizations> = {
   [TranslationTone.PROFESSIONAL]: {
-    title: "SA CẦU GIT ĐA TƯƠNG TÁC (INTERACTIVE GIT FLOW VISUALIZER)",
+    title: "SA BÀN GIT ĐA TƯƠNG TÁC (INTERACTIVE GIT FLOW VISUALIZER)",
     subtitle: "Minh họa hoạt ảnh từng bước cách Git vận hành ở hậu trường",
     selectPrompt: "Chọn một tác vụ cần giải phẫu:",
     playBtn: "Phát trực quan",
@@ -377,7 +377,7 @@ const localizations: Record<TranslationTone, ToneLocalizations> = {
     }
   },
   [TranslationTone.ENGLISH]: {
-    title: "⚡ DYNAMIC ACTIVE GIT OPERATIONAL SAU (GIT FLOW VISUALIZER)",
+    title: "⚡ DYNAMIC ACTIVE GIT OPERATIONAL SANDBOX (GIT FLOW VISUALIZER)",
     subtitle: "Animated step-by-step masterclass showing what Git accomplishes under the hood",
     selectPrompt: "Select a Git action to dissect:",
     playBtn: "Play Simulation",
