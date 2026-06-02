@@ -19,7 +19,9 @@ import {
   Link,
   Key,
   FolderOpen,
-  Bot
+  Bot,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { TranslationTone, GitRepoState, SessionStats } from '../types';
 import { translate } from '../i18n';
@@ -34,10 +36,12 @@ interface RepoHeaderProps {
   isSimulation: boolean;
   isCloning: boolean;
   isAiEnabled: boolean;
+  theme: 'light' | 'dark';
   onSetTone: (t: TranslationTone) => void;
   onToggleEmoji: () => void;
   onToggleSimulation: (val: boolean) => void;
   onToggleAi: () => void;
+  onToggleTheme: () => void;
   onUpdateRepoPath: (path: string) => void;
   onCloneRepo: (repoUrl: string, token: string) => Promise<boolean>;
   onRefresh: () => void;
@@ -170,10 +174,12 @@ export default function RepoHeader({
   isSimulation,
   isCloning,
   isAiEnabled,
+  theme,
   onSetTone,
   onToggleEmoji,
   onToggleSimulation,
   onToggleAi,
+  onToggleTheme,
   onUpdateRepoPath,
   onCloneRepo,
   onRefresh
@@ -324,11 +330,11 @@ export default function RepoHeader({
   };
 
   return (
-    <div id="repo-header-container" className="bg-[#0f172a] border border-slate-800 rounded-xl p-5 shadow-2xl relative overflow-hidden">
+    <div id="repo-header-container" className={`border rounded-xl p-5 shadow-2xl relative overflow-hidden transition-all duration-200 ${theme === 'light' ? 'bg-white border-slate-200' : 'bg-[#0f172a] border-slate-800'}`}>
       
       {/* Background loading spinner overlay for Cloning or Folder selecting */}
       {(isCloning || isSelectingDirLocally) && (
-        <div className="absolute inset-0 bg-[#060814]/90 backdrop-blur-sm flex flex-col items-center justify-center z-55 animate-fade-in gap-3">
+        <div className={`absolute inset-0 backdrop-blur-sm flex flex-col items-center justify-center z-55 animate-fade-in gap-3 ${theme === 'light' ? 'bg-slate-50/90' : 'bg-[#060814]/90'}`}>
           <div className="relative">
             <div className="w-12 h-12 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin" />
             <span className="absolute inset-0 flex items-center justify-center text-xs">
@@ -336,10 +342,10 @@ export default function RepoHeader({
             </span>
           </div>
           <div className="text-center px-4">
-            <p className="text-sm font-semibold text-white font-mono uppercase tracking-wider">
+            <p className={`text-sm font-semibold font-mono uppercase tracking-wider ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
               {isCloning ? loc.cloningTitle : loc.systemDialogTitle}
             </p>
-            <p className="text-[11px] text-slate-400 mt-1 font-sans">
+            <p className={`text-[11px] mt-1 font-sans ${theme === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
               {isCloning ? loc.cloningTip : loc.fileDialogTip}
             </p>
             {!isCloning && isSelectingDirLocally && (
@@ -358,19 +364,19 @@ export default function RepoHeader({
         </div>
       )}
 
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b border-slate-800 pb-4 mb-4">
+      <div className={`flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 border-b pb-4 mb-4 transition-colors ${theme === 'light' ? 'border-slate-150' : 'border-slate-800'}`}>
         {/* Main Title & Brand */}
         <div>
           <div className="flex items-center gap-2">
             <span className="text-2xl">🚀</span>
-            <h1 id="app-main-heading" className="text-2xl font-black tracking-tight text-white font-mono flex items-center gap-2">
+            <h1 id="app-main-heading" className={`text-2xl font-black tracking-tight font-mono flex items-center gap-2 ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
               REBASE OVERLORD
               <span className="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20 font-sans tracking-normal font-medium animate-pulse">
                 v0.4.0 - Web Native
               </span>
             </h1>
           </div>
-          <p className="text-xs text-slate-400 mt-1 font-sans">
+          <p className={`text-xs mt-1 font-sans ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
             {loc.subtitle}
           </p>
         </div>
@@ -378,14 +384,14 @@ export default function RepoHeader({
         {/* Global Controls */}
         <div className="flex flex-wrap items-center gap-2">
           {/* Tone selector */}
-          <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-1 text-xs">
+          <div className={`flex items-center gap-1 border rounded-lg p-1 text-xs transition-colors ${theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-900 border-slate-800'}`}>
             <span className="text-slate-500 px-2 flex items-center gap-1">
               <Languages className="w-3.5 h-3.5" /> Tone:
             </span>
             <button
               id="tone-pro-btn"
               onClick={() => onSetTone(TranslationTone.PROFESSIONAL)}
-              className={`px-2 py-1 rounded transition-colors ${tone === TranslationTone.PROFESSIONAL ? 'bg-emerald-500 text-white font-medium' : 'text-slate-400 hover:text-white'}`}
+              className={`px-2 py-1 rounded transition-colors ${tone === TranslationTone.PROFESSIONAL ? 'bg-emerald-500 text-white font-medium' : theme === 'light' ? 'text-slate-550 hover:text-slate-800 hover:bg-slate-200/50' : 'text-slate-400 hover:text-white'}`}
               title="Professional Vietnamese"
             >
               💼 Pro
@@ -393,7 +399,7 @@ export default function RepoHeader({
             <button
               id="tone-joke-btn"
               onClick={() => onSetTone(TranslationTone.JOKE)}
-              className={`px-2 py-1 rounded transition-colors ${tone === TranslationTone.JOKE ? 'bg-sky-500 text-white font-medium' : 'text-slate-400 hover:text-white'}`}
+              className={`px-2 py-1 rounded transition-colors ${tone === TranslationTone.JOKE ? 'bg-sky-500 text-white font-medium' : theme === 'light' ? 'text-slate-550 hover:text-slate-800 hover:bg-slate-200/50' : 'text-slate-400 hover:text-white'}`}
               title="Vietnamese Joke"
             >
               🤪 Joke
@@ -401,7 +407,7 @@ export default function RepoHeader({
             <button
               id="tone-toxic-btn"
               onClick={() => onSetTone(TranslationTone.TOXIC)}
-              className={`px-2 py-1 rounded transition-colors ${tone === TranslationTone.TOXIC ? 'bg-rose-500 text-white font-medium' : 'text-slate-400 hover:text-white'}`}
+              className={`px-2 py-1 rounded transition-colors ${tone === TranslationTone.TOXIC ? 'bg-rose-500 text-white font-medium' : theme === 'light' ? 'text-slate-550 hover:text-slate-800 hover:bg-slate-200/50' : 'text-slate-400 hover:text-white'}`}
               title="Toxic Vietnamese Slang"
             >
               🔥 Toxic
@@ -409,12 +415,35 @@ export default function RepoHeader({
             <button
               id="tone-en-btn"
               onClick={() => onSetTone(TranslationTone.ENGLISH)}
-              className={`px-2 py-1 rounded transition-colors ${tone === TranslationTone.ENGLISH ? 'bg-amber-500 text-white font-medium' : 'text-slate-400 hover:text-white'}`}
+              className={`px-2 py-1 rounded transition-colors ${tone === TranslationTone.ENGLISH ? 'bg-amber-500 text-white font-medium' : theme === 'light' ? 'text-slate-550 hover:text-slate-800 hover:bg-slate-200/50' : 'text-slate-400 hover:text-white'}`}
               title="English Standard"
             >
               🇬🇧 EN
             </button>
           </div>
+
+          {/* Light/Dark mode toggle */}
+          <button
+            id="toggle-theme-btn"
+            onClick={onToggleTheme}
+            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
+              theme === 'light'
+                ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 font-medium hover:bg-amber-500/20 shadow-sm'
+                : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-300'
+            }`}
+            title={theme === 'light' ? translate('theme_mode_dark', tone, undefined, useEmoji) : translate('theme_mode_light', tone, undefined, useEmoji)}
+          >
+            {theme === 'light' ? (
+              <Sun className="w-3.5 h-3.5 text-amber-500" />
+            ) : (
+              <Moon className="w-3.5 h-3.5 text-indigo-400" />
+            )}
+            <span>
+              {theme === 'light'
+                ? translate('theme_mode_light', tone, undefined, useEmoji)
+                : translate('theme_mode_dark', tone, undefined, useEmoji)}
+            </span>
+          </button>
 
           {/* Emoji mode */}
           <button
@@ -422,7 +451,9 @@ export default function RepoHeader({
             onClick={onToggleEmoji}
             className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
               useEmoji 
-                ? 'bg-[#1e293b] border-amber-500/30 text-amber-400 font-medium' 
+                ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 font-medium' 
+                : theme === 'light'
+                ? 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
                 : 'bg-slate-950 border-slate-800 text-slate-500'
             }`}
           >
@@ -436,7 +467,9 @@ export default function RepoHeader({
             onClick={onToggleAi}
             className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
               isAiEnabled
-                ? 'bg-indigo-950/45 border-violet-500/35 text-violet-300 font-medium hover:bg-indigo-950/60'
+                ? 'bg-indigo-50 border-violet-200 text-violet-700 font-medium hover:bg-indigo-100 dark:bg-indigo-950/45 dark:border-violet-500/35 dark:text-violet-300'
+                : theme === 'light'
+                ? 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
                 : 'bg-slate-950 border-slate-850 text-slate-500 hover:text-slate-400'
             }`}
             title={tone === TranslationTone.ENGLISH ? "Enable/Disable Gemini AI model processing to save API costs" : "Bật/tắt xử lý API Gemini để tiết kiệm chi phí dịch vụ"}
@@ -456,8 +489,10 @@ export default function RepoHeader({
             disabled={checkingUpdate}
             className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border transition-all cursor-pointer font-medium ${
               checkingUpdate
-                ? 'bg-slate-900 border-slate-800 text-slate-500'
-                : 'bg-slate-950 border-slate-850 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/5'
+                ? (theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-slate-900 border-slate-800 text-slate-500')
+                : (theme === 'light' 
+                    ? 'bg-slate-50 border-slate-200 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50' 
+                    : 'bg-slate-950 border-slate-850 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-50/5')
             }`}
             title={translate('update_check_btn', tone, undefined, useEmoji)}
           >
@@ -478,14 +513,14 @@ export default function RepoHeader({
           )}
 
           {/* Core Simulator / Real Workspace toggle */}
-          <div className="flex items-center gap-1 bg-slate-900 border border-slate-800 rounded-lg p-1 text-xs">
+          <div className={`flex items-center gap-1 border rounded-lg p-1 text-xs ${theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-900 border-slate-800'}`}>
             <button
               id="toggle-sim-btn"
               onClick={() => onToggleSimulation(true)}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded transition-all ${
+              className={`flex items-center gap-1 px-3 py-1.5 rounded transition-all cursor-pointer ${
                 isSimulation 
                   ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-medium shadow-md' 
-                  : 'text-slate-400 hover:text-white'
+                  : theme === 'light' ? 'text-slate-500 hover:text-slate-800' : 'text-slate-400 hover:text-white'
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
@@ -494,10 +529,10 @@ export default function RepoHeader({
             <button
               id="toggle-real-btn"
               onClick={() => onToggleSimulation(false)}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded transition-all ${
+              className={`flex items-center gap-1 px-3 py-1.5 rounded transition-all cursor-pointer ${
                 !isSimulation 
                   ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium shadow-md' 
-                  : 'text-slate-400 hover:text-white'
+                  : theme === 'light' ? 'text-slate-500 hover:text-slate-800' : 'text-slate-400 hover:text-white'
               }`}
             >
               <Database className="w-3.5 h-3.5" />
@@ -515,12 +550,12 @@ export default function RepoHeader({
           
           {isSimulation ? (
             /* SIMULATION MODE ACTIVE BANNER */
-            <div className="p-3 bg-teal-500/10 border border-teal-500/20 rounded-lg text-xs font-mono text-teal-300 flex items-center justify-between">
+            <div className={`p-3 border rounded-lg text-xs font-mono flex items-center justify-between ${theme === 'light' ? 'bg-teal-500/10 border-teal-200 text-teal-700 shadow-sm' : 'bg-teal-500/10 border-teal-500/20 text-teal-300'}`}>
               <div className="flex items-center gap-2">
                 <span className="animate-bounce">🤖</span>
                 <div>
                   <strong>{loc.playgroundActive}</strong>
-                  <p className="text-[10px] text-slate-400 mt-0.5">{loc.playgroundDesc}</p>
+                  <p className={`text-[10px] mt-0.5 ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>{loc.playgroundDesc}</p>
                 </div>
               </div>
               <button
@@ -534,7 +569,7 @@ export default function RepoHeader({
             /* REAL GIT CONNECTION CONTROLS */
             <div className="flex flex-col gap-3">
               {/* Connection Type Tabs */}
-              <div className="flex border-b border-slate-800 pb-1.5 gap-4">
+              <div className={`flex border-b pb-1.5 gap-4 ${theme === 'light' ? 'border-slate-150' : 'border-slate-800'}`}>
                 <button
                   type="button"
                   onClick={() => setConnectionType('https')}
@@ -726,16 +761,32 @@ export default function RepoHeader({
         </div>
 
         {/* Real-time Session Analytics Stats */}
-        <div className="lg:col-span-4 flex items-center gap-3 bg-slate-950/50 border border-slate-900 rounded-lg p-3">
-          <div className="bg-emerald-500/10 p-2 rounded-lg border border-emerald-500/20 text-emerald-400 shrink-0">
+        <div className={`lg:col-span-4 flex items-center gap-3 rounded-lg p-3 border transition-colors ${
+          theme === 'light'
+            ? 'bg-indigo-50/50 border-indigo-150 text-slate-800'
+            : 'bg-slate-950/50 border border-slate-900 text-slate-200'
+        }`}>
+          <div className={`p-2 rounded-lg border shrink-0 ${
+            theme === 'light'
+              ? 'bg-indigo-100 border-indigo-200 text-indigo-700 font-bold'
+              : 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
+          }`}>
             <TrendingUp className="w-5 h-5 animate-pulse" />
           </div>
           <div className="text-xs font-mono">
-            <div className="text-slate-500 text-[10px] uppercase font-bold tracking-wider">{loc.sessionStats}</div>
-            <div className="text-slate-200 mt-0.5">
-              {loc.rebaseCountLabel} <span className="text-emerald-400 font-semibold">{stats.rebaseCount} {loc.times}</span>
+            <div className={`text-[10px] uppercase font-bold tracking-wider ${
+              theme === 'light' ? 'text-indigo-900' : 'text-slate-550'
+            }`}>{loc.sessionStats}</div>
+            <div className={`mt-0.5 ${
+              theme === 'light' ? 'text-slate-800 font-semibold' : 'text-slate-200'
+            }`}>
+              {loc.rebaseCountLabel} <span className={`${
+                theme === 'light' ? 'text-emerald-800 font-bold' : 'text-emerald-400 font-bold'
+              }`}>{stats.rebaseCount} {loc.times}</span>
             </div>
-            <div className="text-slate-500 text-[10px] mt-0.5">
+            <div className={`text-[10px] mt-0.5 ${
+              theme === 'light' ? 'text-slate-500 font-medium' : 'text-slate-500'
+            }`}>
               {loc.sessionStarted} {stats.firstRun} {stats.lastRun ? `(${loc.lastRun}: ${stats.lastRun})` : ''}
             </div>
           </div>

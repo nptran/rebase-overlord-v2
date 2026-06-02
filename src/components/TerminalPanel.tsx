@@ -36,7 +36,13 @@ const termLoc: Record<string, Record<string, string>> = {
     gitOnlyError: "Vui lòng chỉ định thêm hành động hoặc tùy chọn sau từ khóa \"git\" (ví dụ: git status, git checkout)!",
     cannotAnalyze: "Không thể phân tích: ",
     unknownError: "Lỗi không xác định",
-    connectionError: "Lỗi kết nối phân tích: "
+    connectionError: "Lỗi kết nối phân tích: ",
+    autoCorrectedMsg: "💡 [Tự động sửa lỗi] Hệ thống đã tự sửa lỗi viết hoa \"{original}\" thành \"{normalized}\" để lệnh chạy chính xác.",
+    consoleTitle: "BẢNG ĐIỀU KHIỂN & LỆNH GIT TRỰC QUAN",
+    copyLabel: "Sao chép",
+    copiedLabel: "Đã chép!",
+    clearLabel: "Xoá",
+    hideLabel: "Ẩn"
   },
   [TranslationTone.JOKE]: {
     suggestionHeader: "Sửa sai nhanh kẻo sếp chửi:",
@@ -63,7 +69,13 @@ const termLoc: Record<string, Record<string, string>> = {
     gitOnlyError: "Gõ mỗi chữ \"git\" thì AI cũng chịu chết sếp ơi! Cho nó thêm cái đuôi đằng sau đi (ví dụ: git status, git checkout)!",
     cannotAnalyze: "Xem bói thất bại: ",
     unknownError: "Quẻ lỗi không rõ nữa sếp",
-    connectionError: "Phát sóng AI nghẹt mũi: "
+    connectionError: "Phát sóng AI nghẹt mũi: ",
+    autoCorrectedMsg: "💡 [Phép thuật biến hình] Úm ba la xì bùa... Tự sửa viết hoa \"{original}\" thành viết thường \"{normalized}\" cho sếp chạy mượt mà nhé.",
+    consoleTitle: "CỬA SỔ CONSOLE & ĐÀI GÕ GIT PHIÊU LƯU 💻",
+    copyLabel: "Chép",
+    copiedLabel: "Đã chép nè!",
+    clearLabel: "Dọn dẹp",
+    hideLabel: "Giấu"
   },
   [TranslationTone.TOXIC]: {
     suggestionHeader: "Sửa giùm cái tay hư:",
@@ -90,7 +102,13 @@ const termLoc: Record<string, Record<string, string>> = {
     gitOnlyError: "Gõ mỗi chữ \"git\" rồi bắt bà già AI đoán mò à? Thêm subcommand (như 'git status', 'git log') vào hộ cái!",
     cannotAnalyze: "Éo phân tích nổi: ",
     unknownError: "Rác gì tự đoán đi cưng",
-    connectionError: "Đứt cáp quang phân tích rồi: "
+    connectionError: "Đứt cáp quang phân tích rồi: ",
+    autoCorrectedMsg: "💡 [Sửa tay hư] Tay cụ bị run hay sao gõ hoa lung tung thế? Trẫm tự sửa \"{original}\" thành \"{normalized}\" rồi đấy nhé.",
+    consoleTitle: "CÁI HỐ ĐEN LOGS & ĐÈ LỆNH GIT",
+    copyLabel: "Nhái",
+    copiedLabel: "Chép rồi sướng chưa!",
+    clearLabel: "Xoá rác",
+    hideLabel: "Biến"
   },
   [TranslationTone.ENGLISH]: {
     suggestionHeader: "Suggested fixes / matches:",
@@ -117,7 +135,13 @@ const termLoc: Record<string, Record<string, string>> = {
     gitOnlyError: "Please specify a subcommand or action after \"git\" (e.g., git status, git log)!",
     cannotAnalyze: "Could not analyze: ",
     unknownError: "Unknown error",
-    connectionError: "Analysis connection error: "
+    connectionError: "Analysis connection error: ",
+    autoCorrectedMsg: "💡 [Auto-Correction] Case mismatch detected. Automatically corrected \"{original}\" to \"{normalized}\" for proper execution.",
+    consoleTitle: "CONSOLE SHELL & INTERACTIVE GIT PROMPT",
+    copyLabel: "Copy",
+    copiedLabel: "Copied!",
+    clearLabel: "Clear",
+    hideLabel: "Hide"
   }
 };
 
@@ -132,6 +156,7 @@ interface TerminalPanelProps {
   addLog: (line: string) => void;
   resolveApiUrl: (path: string) => string;
   isAiEnabled?: boolean;
+  theme?: 'light' | 'dark';
 }
 
 export default function TerminalPanel({
@@ -144,8 +169,10 @@ export default function TerminalPanel({
   onCommandExecuted,
   addLog,
   resolveApiUrl,
-  isAiEnabled = true
+  isAiEnabled = true,
+  theme = 'dark'
 }: TerminalPanelProps) {
+  const isLight = theme === 'light';
   const [copied, setCopied] = React.useState(false);
   const loc = termLoc[tone] || termLoc[TranslationTone.PROFESSIONAL];
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -870,6 +897,42 @@ export default function TerminalPanel({
     }
   };
 
+
+  const normalizeCommandCasing = (cmd: string): { normalized: string; isCorrected: boolean; original: string } => {
+    const trimmed = cmd.trim();
+    if (!trimmed) return { normalized: cmd, isCorrected: false, original: cmd };
+    const tokens = trimmed.split(/\s+/);
+    if (tokens.length === 0) return { normalized: cmd, isCorrected: false, original: cmd };
+
+    let isCorrected = false;
+    const newTokens = [...tokens];
+
+    // Normalize standard case variations of 'git' e.g. 'Git' / 'GIT' / etc.
+    if (newTokens[0] && newTokens[0].toLowerCase() === 'git' && newTokens[0] !== 'git') {
+      newTokens[0] = 'git';
+      isCorrected = true;
+    }
+
+    // Normalize valid subcommands to lowercase (e.g. 'Log' -> 'log')
+    if (newTokens[1]) {
+      const lowerSub = newTokens[1].toLowerCase();
+      const validSubcmds = ['status', 'log', 'branch', 'checkout', 'add', 'commit', 'push', 'pull', 'fetch', 'stash', 'reset', 'rebase', 'revert', 'diff', 'merge', 'init', 'clone'];
+      if (validSubcmds.includes(lowerSub) && newTokens[1] !== lowerSub) {
+        newTokens[1] = lowerSub;
+        isCorrected = true;
+      }
+    }
+
+    if (isCorrected) {
+      return {
+        normalized: newTokens.join(' '),
+        isCorrected: true,
+        original: trimmed
+      };
+    }
+    return { normalized: cmd, isCorrected: false, original: cmd };
+  };
+
   const handleAnalyzeCommand = async (e: React.FormEvent) => {
     e.preventDefault();
     if (typingTimeoutRef.current) {
@@ -879,18 +942,25 @@ export default function TerminalPanel({
     const cleanCmd = commandInput.trim();
     if (!cleanCmd) return;
 
-    if (!cleanCmd.toLowerCase().startsWith('git')) {
+    // Check casing correction on analysis submit
+    const { normalized, isCorrected } = normalizeCommandCasing(cleanCmd);
+    const activeCmd = isCorrected ? normalized : cleanCmd;
+    if (isCorrected) {
+      setCommandInput(normalized);
+    }
+
+    if (!activeCmd.toLowerCase().startsWith('git')) {
       setInlineError(loc.gitPrefixError);
       return;
     }
 
-    if (cleanCmd.toLowerCase() === 'git') {
+    if (activeCmd.toLowerCase() === 'git') {
       setInlineError(loc.gitOnlyError);
       return;
     }
 
     setExplanation(null);
-    await performAnalysis(cleanCmd, false);
+    await performAnalysis(activeCmd, false);
   };
 
   // Effect to automatically analyze command on typing (debounced at 1000ms)
@@ -946,24 +1016,40 @@ export default function TerminalPanel({
     const cleanCmd = commandInput.trim();
     if (!cleanCmd) return;
 
+    // Normalize command casing immediately for error-proof execution
+    const { normalized, isCorrected } = normalizeCommandCasing(cleanCmd);
+    const finalCmd = isCorrected ? normalized : cleanCmd;
+
+    if (isCorrected) {
+      setCommandInput(finalCmd);
+    }
+
     setExecuting(true);
     setExplanation(null);
 
     // Prevent hazardous simple OS injections
-    const upperCmd = cleanCmd.toUpperCase();
+    const upperCmd = finalCmd.toUpperCase();
     if (upperCmd.includes('RM ') || upperCmd.includes('DEL ') || upperCmd.includes(':(')) {
       addLog(`! Lỗi thực thi: Phát hiện lệnh nhạy cảm có ý đồ phá hoại hệ thống.`);
       setExecuting(false);
       return;
     }
 
-    addLog(`$ ${cleanCmd}`);
+    if (isCorrected) {
+      addLog(`$ ${cleanCmd}`);
+      const correctionLog = loc.autoCorrectedMsg
+        ?.replace('{original}', cleanCmd)
+        ?.replace('{normalized}', finalCmd) || `💡 Auto-corrected casing: "${cleanCmd}" -> "${finalCmd}"`;
+      addLog(correctionLog);
+    } else {
+      addLog(`$ ${finalCmd}`);
+    }
 
     if (isSimulation) {
       // Simulate Git command behavior
       setTimeout(() => {
-        addLog(`// [Playground Giả lập] Đang thực thi: ${cleanCmd}`);
-        const tokens = cleanCmd.split(/\s+/);
+        addLog(`// [Playground Giả lập] Đang thực thi: ${finalCmd}`);
+        const tokens = finalCmd.split(/\s+/);
         const binaryName = tokens[0];
 
         // Terminal check: Git binary is lowercase 'git'
@@ -1037,7 +1123,7 @@ export default function TerminalPanel({
             const commitHash = tokens[2];
             addLog(`[feature/payment-v2 b7c8a12] Revert "${commitHash}"`);
             addLog(` 2 files changed, 10 insertions(+), 3 deletions(-)`);
-            addLog(`✓ Lệnh simulated "${cleanCmd}" đã thực hiện thành công trên Playground.`);
+            addLog(`✓ Lệnh simulated "${finalCmd}" đã thực hiện thành công trên Playground.`);
           }
         } else if (subcmd === 'add') {
           if (tokens.length < 3) {
@@ -1046,7 +1132,7 @@ export default function TerminalPanel({
             addLog(`❌ Lệnh hoàn thành với mã trả về 1`);
           } else {
             addLog(`add '${tokens.slice(2).join(' ')}'`);
-            addLog(`✓ Lệnh simulated "${cleanCmd}" đã thực hiện thành công trên Playground.`);
+            addLog(`✓ Lệnh simulated "${finalCmd}" đã thực hiện thành công trên Playground.`);
           }
         } else if (subcmd === 'commit') {
           const hasMessageFlag = tokens.includes('-m') || tokens.includes('--message');
@@ -1056,10 +1142,10 @@ export default function TerminalPanel({
           } else {
             addLog(`[feature/payment-v2 d92a11b] Simulated commit via Playground`);
             addLog(` 1 file changed, 1 insertion(+)`);
-            addLog(`✓ Lệnh simulated "${cleanCmd}" đã thực hiện thành công trên Playground.`);
+            addLog(`✓ Lệnh simulated "${finalCmd}" đã thực hiện thành công trên Playground.`);
           }
         } else {
-          addLog(`✓ Lệnh simulated "${cleanCmd}" đã thực hiện thành công trên Playground.`);
+          addLog(`✓ Lệnh simulated "${finalCmd}" đã thực hiện thành công trên Playground.`);
         }
         setExecuting(false);
         setCommandInput('');
@@ -1102,14 +1188,20 @@ export default function TerminalPanel({
 
   if (!showLogPanel) {
     return (
-      <div id="terminal-collapsed-panel" className="bg-[#020617] border border-slate-900 rounded-xl p-3 flex justify-between items-center">
+      <div id="terminal-collapsed-panel" className={`border rounded-xl p-3 flex justify-between items-center ${
+        isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#020617] border-slate-900 text-slate-300'
+      }`}>
         <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
           <Terminal className="w-4 h-4 text-slate-500" />
           <span>{loc.hiddenLogs}</span>
         </div>
         <button
           onClick={onToggleLogPanel}
-          className="text-xs text-indigo-400 hover:text-indigo-300 font-mono flex items-center gap-1 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 rounded cursor-pointer"
+          className={`text-xs font-mono flex items-center gap-1 px-2.5 py-1 rounded cursor-pointer border ${
+            isLight
+              ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+              : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400 hover:text-indigo-300'
+          }`}
         >
           <Eye className="w-3.5 h-3.5" /> {loc.showLogs}
         </button>
@@ -1118,54 +1210,74 @@ export default function TerminalPanel({
   }
 
   return (
-    <div id="terminal-panel-container" className="bg-[#020617] border border-slate-900 rounded-xl overflow-hidden shadow-xl flex flex-col">
+    <div id="terminal-panel-container" className={`border rounded-xl overflow-hidden shadow-xl flex flex-col ${
+      isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#020617] border-slate-900 text-slate-305'
+    }`}>
       {/* Header */}
-      <div className="bg-[#0b0f19] border-b border-slate-900 px-4 py-2.5 flex justify-between items-center shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="flex gap-1.5">
-            <span className="w-3 h-3 rounded-full bg-rose-500/80 animate-pulse"></span>
-            <span className="w-3 h-3 rounded-full bg-amber-500/80"></span>
-            <span className="w-3 h-3 rounded-full bg-emerald-500/80"></span>
+      <div className={`border-b px-2.5 py-1.5 sm:px-4 sm:py-2.5 flex justify-between items-center shrink-0 min-w-0 gap-2 ${
+        isLight ? 'bg-slate-50 border-slate-200 text-slate-850 font-bold' : 'bg-[#0b0f19] border-b border-slate-900 text-slate-400'
+      }`}>
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+          <div className="flex gap-1 sm:gap-1.5 shrink-0">
+            <span className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-rose-500/80 animate-pulse"></span>
+            <span className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-amber-500/80"></span>
+            <span className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-emerald-500/80"></span>
           </div>
-          <span className="text-xs text-slate-400 font-bold font-mono tracking-wide ml-2 flex items-center gap-1.5">
-            <Terminal className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
-            CONSOLE SHELL & INTERACTIVE GIT PROMPT
+          <span className={`text-[11px] sm:text-xs font-bold font-mono tracking-wide ml-1 sm:ml-2 flex items-center gap-1 sm:gap-1.5 min-w-0 ${
+            isLight ? 'text-slate-800' : 'text-slate-200'
+          }`}>
+            <Terminal className="w-3.5 h-3.5 text-indigo-500 animate-pulse shrink-0" />
+            <span className="whitespace-normal sm:whitespace-nowrap leading-tight" title={loc.consoleTitle}>{loc.consoleTitle}</span>
           </span>
         </div>
 
         {/* Console control options */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           <button
             onClick={handleCopy}
-            className="text-slate-500 hover:text-slate-300 p-1.5 rounded bg-slate-950 border border-slate-900 transition-all text-xs flex items-center gap-1 font-mono cursor-pointer"
-            title="Copy logs"
+            className={`p-1.5 rounded transition-all text-xs flex items-center gap-1 font-mono cursor-pointer border shrink-0 ${
+              isLight 
+                ? 'bg-slate-100 border-slate-250 text-slate-650 hover:bg-slate-200 hover:text-slate-900' 
+                : 'bg-slate-950 border border-slate-900 text-slate-500 hover:text-slate-305'
+            }`}
+            title={loc.copyLabel}
           >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copied ? 'Copied!' : 'Copy'}</span>
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-555 shrink-0" /> : <Copy className="w-3.5 h-3.5 shrink-0" />}
+            <span className="hidden sm:inline">{copied ? loc.copiedLabel : loc.copyLabel}</span>
           </button>
           <button
             onClick={onClearLogs}
-            className="text-slate-500 hover:text-rose-400 p-1.5 rounded bg-slate-950 border border-slate-900 transition-all text-xs flex items-center gap-1 font-mono cursor-pointer"
-            title="Clear console"
+            className={`p-1.5 rounded transition-all text-xs flex items-center gap-1 font-mono cursor-pointer border shrink-0 ${
+              isLight 
+                ? 'bg-slate-100 border-slate-250 text-slate-650 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200' 
+                : 'bg-slate-950 border border-slate-900 text-slate-500 hover:text-rose-455'
+            }`}
+            title={loc.clearLabel}
           >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>Clear</span>
+            <Trash2 className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden sm:inline">{loc.clearLabel}</span>
           </button>
           <button
             onClick={onToggleLogPanel}
-            className="text-slate-500 hover:text-slate-300 p-1.5 rounded bg-slate-950 border border-slate-900 transition-all text-xs flex items-center gap-1 font-mono cursor-pointer"
-            title="Hide logs"
+            className={`p-1.5 rounded transition-all text-xs flex items-center gap-1 font-mono cursor-pointer border shrink-0 ${
+              isLight 
+                ? 'bg-slate-100 border-slate-250 text-slate-650 hover:bg-slate-200 hover:text-slate-900' 
+                : 'bg-slate-950 border border-slate-900 text-slate-500 hover:text-slate-305'
+            }`}
+            title={loc.hideLabel}
           >
-            <EyeOff className="w-3.5 h-3.5" />
-            <span>Hide</span>
+            <EyeOff className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden sm:inline">{loc.hideLabel}</span>
           </button>
         </div>
       </div>
 
       {/* Console lines screen */}
-      <div ref={containerRef} className="p-4 overflow-y-auto h-52 max-h-52 font-mono text-xs leading-relaxed text-slate-300 select-text flex flex-col gap-1 scrollbar-thin scrollbar-thumb-slate-800">
+      <div ref={containerRef} className={`p-4 overflow-y-auto h-52 max-h-52 font-mono text-xs leading-relaxed select-text flex flex-col gap-1 scrollbar-thin ${
+        isLight ? 'text-slate-700 bg-white scrollbar-thumb-slate-200' : 'text-slate-300 bg-[#020617] scrollbar-thumb-slate-800'
+      }`}>
         {logs.length === 0 ? (
-          <div className="text-slate-600 italic text-[11px] p-2 flex flex-col gap-1">
+          <div className="text-slate-650 italic text-[11px] p-2 flex flex-col gap-1">
             <span>{loc.noHistoryLine1}</span>
             <span>{loc.noHistoryLine2}</span>
           </div>
@@ -1176,21 +1288,23 @@ export default function TerminalPanel({
             const isSuccess = log.includes('success') || log.includes('Done') || log.includes('Đã xác nhận') || log.includes('Hoàn tất') || log.includes('thành công') || log.startsWith('✓');
             const isComment = log.trim().startsWith('//') || log.trim().startsWith('#');
             
-            let colorClass = 'text-slate-300';
+            let colorClass = isLight ? 'text-slate-700' : 'text-slate-300';
             if (isCommand) {
-              colorClass = 'text-sky-400 font-semibold';
+              colorClass = isLight ? 'text-sky-700 font-bold' : 'text-sky-400 font-semibold';
             } else if (isError) {
-              colorClass = 'text-rose-400 font-medium bg-rose-500/5 px-1 rounded border border-rose-500/10';
+              colorClass = isLight ? 'text-rose-700 font-medium bg-rose-50/50 px-1 rounded border border-rose-200' : 'text-rose-400 font-medium bg-rose-500/5 px-1 rounded border border-rose-500/10';
             } else if (isSuccess) {
-              colorClass = 'text-emerald-400 font-medium';
+              colorClass = isLight ? 'text-emerald-700 font-medium' : 'text-emerald-400 font-medium';
             } else if (isComment) {
-              colorClass = 'text-slate-500 italic';
+              colorClass = 'text-slate-400 italic';
             }
 
             return (
               <div 
                 key={index} 
-                className={`py-0.5 border-l-2 pl-2 transition-all shrink-0 hover:bg-slate-950 ${colorClass} ${
+                className={`py-0.5 border-l-2 pl-2 transition-all shrink-0 ${
+                  isLight ? 'hover:bg-slate-100' : 'hover:bg-slate-950'
+                } ${colorClass} ${
                   isCommand ? 'border-sky-500/50' : isError ? 'border-rose-500/50' : isSuccess ? 'border-emerald-500/50' : 'border-transparent'
                 }`}
               >
@@ -1202,7 +1316,9 @@ export default function TerminalPanel({
       </div>
 
       {/* Interactive Command Prompt Section */}
-      <div className="border-t border-slate-900 bg-[#070b14] p-3 shrink-0">
+      <div className={`border-t p-3 shrink-0 ${
+        isLight ? 'border-slate-200 bg-slate-50' : 'border-slate-900 bg-[#070b14]'
+      }`}>
         {/* Inline validation errors */}
         {inlineError && (
           <div className="mb-2 bg-rose-500/15 border border-rose-500/30 text-rose-300 text-[11px] px-3 py-1.5 rounded-lg flex justify-between items-center font-sans animate-in fade-in duration-150">
@@ -1221,8 +1337,8 @@ export default function TerminalPanel({
           <span className="text-[10px] text-slate-500 font-mono self-center mr-1 select-none flex items-center gap-1">
             {chipsSource === 'ai' ? (
               <>
-                <Sparkles className="w-3 h-3 text-pink-400 animate-pulse animate-bounce" />
-                <span className="text-pink-400 font-bold">{loc.suggestionHeader}</span>
+                <Sparkles className="w-3 h-3 text-pink-500 animate-pulse animate-bounce" />
+                <span className="text-pink-500 font-bold">{loc.suggestionHeader}</span>
               </>
             ) : (
               <span>{loc.quickSugHeader}</span>
@@ -1243,8 +1359,12 @@ export default function TerminalPanel({
               }}
               className={`text-[10px] font-mono px-2 py-0.5 rounded transition-all cursor-pointer border ${
                 chipsSource === 'ai'
-                  ? 'bg-pink-950/20 text-pink-300 border-pink-700/40 hover:bg-pink-900/40 hover:text-white hover:scale-105'
-                  : 'bg-slate-900 border-slate-800/80 text-slate-400 hover:bg-indigo-950/40 hover:text-indigo-300'
+                  ? isLight
+                    ? 'bg-pink-100 text-pink-700 border-pink-200 hover:bg-pink-200 hover:scale-105'
+                    : 'bg-pink-950/20 text-pink-300 border-pink-700/40 hover:bg-pink-900/40 hover:text-white hover:scale-105'
+                  : isLight
+                    ? 'bg-white border-slate-200 text-slate-650 hover:bg-slate-100 hover:text-indigo-650'
+                    : 'bg-slate-900 border-slate-800/80 text-slate-400 hover:bg-indigo-950/40 hover:text-indigo-300'
               }`}
             >
               {cmd}
@@ -1257,7 +1377,7 @@ export default function TerminalPanel({
                 setSuggestedChips(['git status', 'git log --oneline -n 5', 'git branch -a', 'git stash list', 'git remote -v']);
                 setChipsSource('default');
               }}
-              className="text-[9px] text-slate-500 hover:text-slate-300 underline font-mono ml-auto cursor-pointer"
+              className="text-[9px] text-slate-500 hover:text-slate-350 underline font-mono ml-auto cursor-pointer"
             >
               {loc.restoreDefault}
             </button>
@@ -1275,7 +1395,11 @@ export default function TerminalPanel({
                 if (inlineError) setInlineError(null);
               }}
               placeholder={loc.placeholder}
-              className="w-full bg-[#02050c] text-sky-400 font-mono placeholder-slate-650 border border-slate-800 rounded-lg py-2 pl-7 pr-3 text-xs outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 transition-all"
+              className={`w-full font-mono py-2 pl-7 pr-3 text-xs outline-none rounded-lg transition-all border ${
+                isLight
+                  ? 'bg-white text-sky-700 placeholder-slate-400 border-slate-200 focus:border-indigo-505 focus:ring-2 focus:ring-indigo-505/10'
+                  : 'bg-[#02050c] text-sky-400 placeholder-slate-650 border-slate-800 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20'
+              }`}
             />
           </div>
           <button
@@ -1283,23 +1407,31 @@ export default function TerminalPanel({
             disabled={checking || executing || !commandInput.trim()}
             className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:hover:bg-indigo-600 text-white font-medium text-xs px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer font-sans shrink-0 border border-indigo-500/35"
           >
-            <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
+            <Sparkles className="w-3.5 h-3.5 text-indigo-150" />
             <span>{checking ? loc.analyzing : loc.explainSuggest}</span>
           </button>
         </form>
 
         {/* Explanation Display Panel */}
         {explanation && (
-          <div className="mt-3 bg-slate-950/90 border border-slate-850 rounded-lg p-3.5 relative overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className={`mt-3 rounded-lg p-3.5 relative overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 border ${
+            isLight
+              ? 'bg-[#f0f4f8] border-[#e1e2ec] text-slate-800'
+              : 'bg-slate-950/90 border-slate-850 text-slate-200'
+          }`}>
             <div className="flex justify-between items-start mb-2">
-              <h4 className="text-xs font-bold text-slate-200 flex items-center gap-1.5 font-sans tracking-wide">
+              <h4 className={`text-xs font-bold flex items-center gap-1.5 font-sans tracking-wide ${
+                isLight ? 'text-indigo-950' : 'text-slate-200'
+              }`}>
                 <Brain className="w-4 h-4 text-pink-400 animate-pulse" />
                 <span>{isAiEnabled ? loc.aiTitle : loc.offlineTitle}</span>
               </h4>
               <button
                 type="button"
                 onClick={handleCancel}
-                className="text-slate-500 hover:text-slate-350 p-1 rounded hover:bg-slate-900 transition-colors cursor-pointer"
+                className={`p-1 rounded transition-colors cursor-pointer ${
+                  isLight ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/60' : 'text-slate-500 hover:text-slate-350 hover:bg-slate-900'
+                }`}
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -1350,24 +1482,32 @@ export default function TerminalPanel({
               const btnText = btnTexts[currentTone] || btnTexts[TranslationTone.PROFESSIONAL];
 
               return (
-                <div id="spelling-correction-banner" className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3.5 mb-3 flex items-start gap-2.5 animate-in fade-in slide-in-from-top-1 duration-200">
-                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5 animate-pulse" />
+                <div id="spelling-correction-banner" className={`border rounded-lg p-3.5 mb-3 flex items-start gap-2.5 animate-in fade-in slide-in-from-top-1 duration-200 ${
+                  isLight ? 'bg-amber-100/60 border-amber-200' : 'bg-amber-500/10 border border-amber-500/30'
+                }`}>
+                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 animate-pulse" />
                   <div className="text-xs font-sans">
-                    <h5 className="font-bold text-amber-400 mb-1 flex items-center gap-1.5">
+                    <h5 className={`font-bold mb-1 flex items-center gap-1.5 ${
+                      isLight ? 'text-amber-850' : 'text-amber-400'
+                    }`}>
                       {title}
                     </h5>
-                    <p className="text-slate-300 leading-relaxed">
+                    <p className={isLight ? 'text-slate-800 font-medium' : 'text-slate-300 leading-relaxed'}>
                       {prefix}
-                      <span className="font-mono text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded text-[11px] font-semibold border border-rose-500/15">
+                      <span className={`font-mono px-1.5 py-0.5 rounded text-[11px] font-semibold border ${
+                        isLight ? 'text-rose-800 bg-rose-50 border-rose-200' : 'text-rose-400 bg-rose-500/10 border-rose-500/15'
+                      }`}>
                         {explanation.originalCommand}
                       </span>
                       {mid}
-                      <span className="font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded text-[11px] font-semibold border border-emerald-500/15">
+                      <span className={`font-mono px-1.5 py-0.5 rounded text-[11px] font-semibold border ${
+                        isLight ? 'text-emerald-800 bg-emerald-50 border-emerald-250' : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/15'
+                      }`}>
                         {explanation.correctedCommand}
                       </span>.
                     </p>
                     <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                      <span className="text-slate-400 text-[10px]">{recommend}</span>
+                      <span className={isLight ? 'text-slate-500 font-medium text-[10px]' : 'text-slate-400 text-[10px]'}>{recommend}</span>
                       <button
                         type="button"
                         onClick={() => {
@@ -1381,7 +1521,9 @@ export default function TerminalPanel({
                             performAnalysis(targetCmd, false);
                           }
                         }}
-                        className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-[10px] px-2 py-0.5 rounded border border-amber-500/40 transition-all cursor-pointer font-sans font-medium animate-pulse"
+                        className={`text-[10px] px-2 py-0.5 rounded transition-all cursor-pointer font-sans font-medium animate-pulse border ${
+                          isLight ? 'bg-amber-150 hover:bg-amber-200 text-amber-800 border-amber-300 shadow-sm' : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border-amber-500/40'
+                        }`}
                       >
                         {btnText}
                       </button>
@@ -1391,16 +1533,22 @@ export default function TerminalPanel({
               );
             })()}
 
-            <p className="text-xs text-slate-300 leading-relaxed font-sans mb-3 pr-2 whitespace-pre-line bg-indigo-950/10 p-2.5 rounded border border-indigo-900/10">
+            <p className={`text-xs leading-relaxed font-sans mb-3 pr-2 whitespace-pre-line p-2.5 rounded border ${
+              isLight
+                ? 'bg-white border-[#e1e2ec] text-slate-800 font-medium shadow-inner'
+                : 'bg-indigo-950/10 border border-indigo-900/10 text-slate-300'
+            }`}>
               {explanation.explanation}
             </p>
 
             {explanation.isDestructive && (
-              <div className="bg-rose-950/20 border border-rose-900/40 rounded-lg p-3 my-3 flex items-start gap-2.5">
-                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              <div className={`rounded-lg p-3 my-3 flex items-start gap-2.5 border ${
+                isLight ? 'bg-rose-50 border-rose-200 text-rose-800 font-medium' : 'bg-rose-950/20 border border-rose-900/40'
+              }`}>
+                <AlertTriangle className={`w-4 h-4 shrink-0 mt-0.5 ${isLight ? 'text-rose-600' : 'text-rose-400'}`} />
                 <div>
-                  <h5 className="text-[11px] font-bold text-rose-400 uppercase tracking-wider mb-0.5">{loc.dangerousTitle}</h5>
-                  <p className="text-[11px] text-rose-300/90 leading-relaxed font-sans">
+                  <h5 className={`text-[11px] font-bold uppercase tracking-wider mb-0.5 ${isLight ? 'text-rose-800' : 'text-rose-400'}`}>{loc.dangerousTitle}</h5>
+                  <p className={`text-[11px] leading-relaxed font-sans ${isLight ? 'text-rose-700 font-semibold' : 'text-rose-300/90'}`}>
                     {explanation.warningMessage || loc.dangerousWarning}
                   </p>
                 </div>
@@ -1408,11 +1556,13 @@ export default function TerminalPanel({
             )}
 
             {explanation.suggestion && (
-              <div className="bg-emerald-950/10 border border-emerald-900/30 rounded-lg p-3 mb-3 flex items-start gap-2.5">
-                <Info className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+              <div className={`rounded-lg p-3 mb-3 flex items-start gap-2.5 border ${
+                isLight ? 'bg-emerald-50 border-emerald-200' : 'bg-emerald-950/10 border border-emerald-950/30'
+              }`}>
+                <Info className={`w-4 h-4 shrink-0 mt-0.5 ${isLight ? 'text-emerald-700 font-bold' : 'text-emerald-400'}`} />
                 <div>
-                  <h5 className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider mb-0.5">{loc.betterSolution}</h5>
-                  <p className="text-[11px] text-emerald-300/90 leading-relaxed font-sans">
+                  <h5 className={`text-[11px] font-bold uppercase tracking-wider mb-0.5 ${isLight ? 'text-emerald-800' : 'text-emerald-450'}`}>{loc.betterSolution}</h5>
+                  <p className={`text-[11px] leading-relaxed font-sans ${isLight ? 'text-emerald-800 font-bold' : 'text-emerald-300/90'}`}>
                     {explanation.suggestion}
                   </p>
                 </div>
@@ -1420,11 +1570,13 @@ export default function TerminalPanel({
             )}
 
             {/* Confirmation triggers */}
-            <div className="flex gap-2 justify-end mt-3 border-t border-slate-900/80 pt-3">
+            <div className={`flex gap-2 justify-end mt-3 border-t pt-3 ${isLight ? 'border-zinc-200' : 'border-slate-900/80'}`}>
               <button
                 type="button"
                 onClick={handleCancel}
-                className="bg-slate-900 hover:bg-slate-850 text-slate-400 border border-slate-800 font-sans text-[11px] px-3.5 py-1.5 rounded-md transition-colors cursor-pointer"
+                className={`font-sans text-[11px] px-3.5 py-1.5 rounded-md transition-colors cursor-pointer border ${
+                  isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-250 shadow-sm' : 'bg-slate-950 hover:bg-slate-850 text-slate-400 border border-slate-800'
+                }`}
               >
                 {loc.cancel}
               </button>

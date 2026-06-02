@@ -1165,5 +1165,17 @@
         "vn_joke": "Toang rồi sếp! Lỗi mọe rồi: {error}",
         "vn_toxic": "Ngu người! Nâng cấp lỗi lòi mắt: {error}",
         "en_pro": "Update failed: {error}"
+    },
+    "theme_mode_dark": {
+        "vn_pro": "Giao diện: Tối",
+        "vn_joke": "Chế độ: Buổi Đêm 🌙",
+        "vn_toxic": "Đỡ Mù Mắt (Tối) 🕶️",
+        "en_pro": "Theme: Dark"
+    },
+    "theme_mode_light": {
+        "vn_pro": "Giao diện: Sáng",
+        "vn_joke": "Chế độ: Bật Đèn ☀️",
+        "vn_toxic": "Mù Mắt Dev (Sáng) ⚡",
+        "en_pro": "Theme: Light"
     }
 }

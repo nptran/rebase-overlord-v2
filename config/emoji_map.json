@@ -36,5 +36,7 @@
     "rollback_in_progress": "⏳",
     "rollback_success": "✅",
     "rollback_abort": "🛑",
-    "smart_git_fail": "💥"
+    "smart_git_fail": "💥",
+    "theme_mode_dark": "🌙",
+    "theme_mode_light": "☀️"
 }

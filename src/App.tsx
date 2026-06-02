@@ -281,6 +281,14 @@ export default function App() {
     return TranslationTone.PROFESSIONAL;
   });
 
+  const [theme, setTheme] = React.useState<'light' | 'dark'>(() => {
+    try {
+      const saved = localStorage.getItem('rebase_overlord_theme');
+      if (saved === 'light' || saved === 'dark') return saved;
+    } catch (e) {}
+    return 'dark';
+  });
+
   const [useEmoji, setUseEmoji] = React.useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('rebase_overlord_use_emoji');
@@ -465,6 +473,25 @@ export default function App() {
       localStorage.setItem('rebase_overlord_sim_stale', String(isStaleBaseSimulated));
     } catch (e) {}
   }, [isStaleBaseSimulated]);
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('rebase_overlord_theme', theme);
+    } catch (e) {}
+    const root = document.documentElement;
+    const body = document.body;
+    if (theme === 'light') {
+      root.classList.add('light');
+      root.classList.remove('dark');
+      body.classList.add('light');
+      body.classList.remove('dark');
+    } else {
+      root.classList.add('dark');
+      root.classList.remove('light');
+      body.classList.add('dark');
+      body.classList.remove('light');
+    }
+  }, [theme]);
 
   // Side effects to seamlessly persist states inside localStorage on changes
   React.useEffect(() => {
@@ -1397,7 +1424,7 @@ export default function App() {
   const activeCommitsForSquash = repoState.commits.filter(c => c.selected);
 
   return (
-    <div id="rebase-overlord-app" className="min-h-screen bg-[#060814] text-slate-100 p-4 font-sans select-none antialiased">
+    <div id="rebase-overlord-app" className={`min-h-screen transition-colors duration-205 p-4 font-sans select-none antialiased ${theme === 'light' ? 'bg-slate-50 text-slate-900' : 'bg-[#060814] text-slate-100'}`}>
       <div className="max-w-[1800px] w-full mx-auto flex flex-col gap-5 px-1 sm:px-2 md:px-4">
         
         {/* Workspace Configurations & Tones Dashboard Header */}
@@ -1409,6 +1436,7 @@ export default function App() {
           isSimulation={isSimulation}
           isCloning={isCloning}
           isAiEnabled={isAiEnabled}
+          theme={theme}
           onSetTone={(t) => {
             setTone(t);
             addLog(`🗣️ Updated translation personality tone to: ${t}`);
@@ -1426,6 +1454,11 @@ export default function App() {
             const newVal = !isAiEnabled;
             setIsAiEnabled(newVal);
             addLog(newVal ? '🤖 Gemini API Enabled (Full AI Features activated)' : '🤖 Gemini API Disabled (Cost saved - falling back to offline mode)');
+          }}
+          onToggleTheme={() => {
+            const nextTheme = theme === 'light' ? 'dark' : 'light';
+            setTheme(nextTheme);
+            addLog(nextTheme === 'light' ? '🔆 Theme set to Light Mode.' : '🌙 Theme set to Dark Mode.');
           }}
           onUpdateRepoPath={handleUpdateRepoPath}
           onCloneRepo={handleCloneRepo}
@@ -1470,26 +1503,26 @@ export default function App() {
           <motion.div 
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-slate-900 border border-slate-850 rounded-xl p-5 shadow-xl flex flex-col md:flex-row gap-5 items-start justify-between"
+            className={`border rounded-xl p-5 shadow-xl flex flex-col md:flex-row gap-5 items-start justify-between ${theme === 'light' ? 'bg-white border-slate-200 text-slate-850 shadow-sm' : 'bg-slate-900 border-slate-850 text-slate-100'}`}
           >
             <div className="flex gap-3.5 items-start">
               <div className="bg-amber-500/10 text-amber-500 p-2.5 rounded-lg border border-amber-500/20 shrink-0">
                 <AlertTriangle className="w-5 h-5" />
               </div>
               <div className="space-y-1.5">
-                <h4 className="text-sm font-semibold text-slate-100 font-mono tracking-wide uppercase flex items-center gap-2">
+                <h4 className={`text-sm font-semibold font-mono tracking-wide uppercase flex items-center gap-2 ${theme === 'light' ? 'text-slate-950' : 'text-slate-100'}`}>
                   ⚠️ Phát Hiện Máy Chủ Tĩnh (Vercel / GitHub Pages Hosting detected)
                 </h4>
-                <p className="text-xs text-slate-400 leading-relaxed font-sans max-w-3xl">
-                  Để thực hiện các thao tác Git thực tế (như <code className="text-amber-400 bg-slate-950 px-1 py-0.5 rounded font-mono border border-slate-900 text-[10px]">git clone</code>, chọn thư mục ổ đĩa của bạn), hệ thống cần một máy chủ liên tục (stateful Node Express backend). Do Vercel là nền tảng Serverless tĩnh, hệ thống đã <strong className="text-emerald-400 font-semibold">Tự Thừa Kế & Tự Động Kích Hoạt chế độ Giả Lập (Simulation Playground)</strong> để bạn có thể trải nghiệm toàn vẹn dòng chảy logic Rebase mượt mà.
+                <p className={`text-xs leading-relaxed font-sans max-w-3xl ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+                  Để thực hiện các thao tác Git thực tế (như <code className={`px-1 py-0.5 rounded font-mono border text-[10px] ${theme === 'light' ? 'text-amber-800 bg-amber-50/50 border-amber-200' : 'text-amber-400 bg-slate-950 border-slate-900'}`}>git clone</code>, chọn thư mục ổ đĩa của bạn), hệ thống cần một máy chủ liên tục (stateful Node Express backend). Do Vercel là nền tảng Serverless tĩnh, hệ thống đã <strong className="text-emerald-400 font-semibold">Tự Thừa Kế & Tự Động Kích Hoạt chế độ Giả Lập (Simulation Playground)</strong> để bạn có thể trải nghiệm toàn vẹn dòng chảy logic Rebase mượt mà.
                 </p>
                 <p className="text-[11px] text-indigo-400 leading-relaxed font-mono">
-                  💡 Bạn muốn lấy repo thật từ Windows/MacOS của mình? Hãy chạy lệnh <code className="text-slate-300 bg-slate-950 px-1 rounded">npm start</code> cục bộ trên máy và dán địa chỉ localhost ở khung cấu hình bên phải!
+                  💡 Bạn muốn lấy repo thật từ Windows/MacOS của mình? Hãy chạy lệnh <code className={`px-1 rounded ${theme === 'light' ? 'text-slate-800 bg-slate-100' : 'text-slate-300 bg-slate-950'}`}>npm start</code> cục bộ trên máy và dán địa chỉ localhost ở khung cấu hình bên phải!
                 </p>
               </div>
             </div>
 
-            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 w-full md:w-[320px] shrink-0 self-stretch flex flex-col justify-between gap-3 text-xs">
+            <div className={`border rounded-xl p-4 w-full md:w-[320px] shrink-0 self-stretch flex flex-col justify-between gap-3 text-xs ${theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-800'}`}>
               <div className="space-y-1.5">
                 <span className="font-mono text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Cầu Nối API Cục Bộ (Hybrid Live Switcher)</span>
                 <input
@@ -1497,7 +1530,7 @@ export default function App() {
                   placeholder="Ví dụ: http://localhost:3000"
                   value={customBackendUrl}
                   onChange={(e) => setCustomBackendUrl(e.target.value)}
-                  className="w-full bg-[#060814] border border-slate-800 rounded px-2.5 py-1.5 font-mono text-[11px] text-slate-300 focus:outline-none focus:border-indigo-500"
+                  className={`w-full rounded px-2.5 py-1.5 font-mono text-[11px] focus:outline-none focus:border-indigo-500 border ${theme === 'light' ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#060814] border-slate-800 text-slate-300'}`}
                 />
               </div>
               <div className="flex gap-2">
@@ -1544,21 +1577,21 @@ export default function App() {
           <div className="lg:col-span-8 flex flex-col gap-5">
             
             {/* Real-time Visual Commit Squashing Timeline Graph */}
-            <div id="live-git-visualization" className="bg-[#0f172a] border border-slate-800 rounded-xl p-5 shadow-lg">
-              <h3 className="text-xs font-bold text-slate-400 uppercase font-mono tracking-wider mb-4 flex items-center gap-1.5">
+            <div id="live-git-visualization" className={`border rounded-xl p-5 shadow-lg transition-all duration-200 ${theme === 'light' ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0f172a] border-slate-800 text-slate-100'}`}>
+              <h3 className={`text-xs font-bold uppercase font-mono tracking-wider mb-4 flex items-center gap-1.5 ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
                 <History className="w-4 h-4 text-emerald-400" />
                 <span>{sloc.visualTimelineTitle}</span>
               </h3>
 
               {/* Graphical representation of the Rebase squash action */}
-              <div className="flex flex-col md:flex-row items-center justify-center gap-2 p-4 bg-slate-950/80 rounded-xl border border-slate-900/60 overflow-x-auto min-h-36">
+              <div className={`flex flex-col md:flex-row items-center justify-center gap-2 p-4 rounded-xl border overflow-x-auto min-h-36 ${theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/80 border-slate-900/60'}`}>
                 
                 {/* Develop Head represent */}
                 <div className="flex flex-col items-center gap-1.5 px-3 min-w-fit select-none">
                   <div className="w-9 h-9 rounded-full bg-emerald-500/20 border-2 border-emerald-400 shadow-md flex items-center justify-center text-xs font-mono font-bold text-emerald-300">
                     dev
                   </div>
-                  <div className="text-[10px] text-slate-400 font-mono">develop head</div>
+                  <div className={`text-[10px] font-mono ${theme === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>develop head</div>
                 </div>
 
                 <div className="text-slate-700 text-lg hidden md:block">══════▶</div>
@@ -1576,20 +1609,26 @@ export default function App() {
                         const isSelect = wizard.selectedCommits.includes(c.sha) || wizard.selectedCommits.length === 0;
                         return (
                           <React.Fragment key={c.sha}>
-                            <div className="flex flex-col items-center gap-1 px-2.5 py-1.5 min-w-[120px] max-w-[140px] text-center border border-slate-900 bg-slate-900/40 rounded-lg">
+                            <div className={`flex flex-col items-center gap-1 px-2.5 py-1.5 min-w-[120px] max-w-[140px] text-center border rounded-lg ${
+                              theme === 'light' 
+                                ? 'bg-white border-slate-200 shadow-sm' 
+                                : 'bg-slate-900/40 border-slate-900'
+                            }`}>
                               <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-bold ${
-                                isSelect ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' : 'bg-slate-950 text-slate-600 border border-slate-900'
+                                isSelect 
+                                  ? 'bg-indigo-505/10 text-indigo-500 border border-indigo-200/50 dark:bg-indigo-500/20 dark:text-indigo-400 dark:border-indigo-500/30' 
+                                  : 'bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-950 dark:text-slate-600 dark:border-slate-900'
                               }`}>
                                 {c.sha}
                               </span>
-                              <span className={`text-[10px] truncate w-full font-medium ${isSelect ? 'text-slate-300' : 'text-slate-600'}`}>
+                              <span className={`text-[10px] truncate w-full font-medium ${isSelect ? (theme === 'light' ? 'text-slate-800' : 'text-slate-300') : 'text-slate-400 line-through'}`} title={c.message}>
                                 {c.message}
                               </span>
                             </div>
                             {i < activeCommitsForSquash.length - 1 && (
                               <>
-                                <div className="text-slate-800 text-sm hidden md:block">➜</div>
-                                <div className="text-slate-800 text-sm md:hidden">▼</div>
+                                <div className="text-slate-400/50 text-sm hidden md:block">➜</div>
+                                <div className="text-slate-400/50 text-sm md:hidden">▼</div>
                               </>
                             )}
                           </React.Fragment>
@@ -1599,13 +1638,13 @@ export default function App() {
                   </>
                 ) : (
                   /* Commits squashed visual state showing a single clean unified block head */
-                  <div className="flex items-center gap-3 bg-indigo-505/10 border border-indigo-500/30 p-4 rounded-xl animate-fade-in text-center max-w-md w-full">
-                    <div className="bg-indigo-500/20 text-indigo-400 p-2.5 rounded-lg border border-indigo-500/30 shrink-0">
+                  <div className={`flex items-center gap-3 border p-4 rounded-xl animate-fade-in text-center max-w-md w-full ${theme === 'light' ? 'bg-indigo-50/50 border-indigo-200' : 'bg-indigo-505/10 border-indigo-500/30'}`}>
+                    <div className="bg-indigo-500/20 text-indigo-500 dark:text-indigo-400 p-2.5 rounded-lg border border-indigo-500/30 shrink-0">
                       <GitMerge className="w-5 h-5 animate-pulse" />
                     </div>
-                    <div className="text-slate-200 text-xs text-left">
-                      <div className="text-[10px] text-emerald-400 font-mono font-bold uppercase tracking-wider mb-0.5">{sloc.squashCompletedTitle}</div>
-                      <div className="font-mono font-semibold text-slate-100">{wizard.finalMsg}</div>
+                    <div className="text-xs text-left">
+                      <div className="text-[10px] text-emerald-500 font-mono font-bold uppercase tracking-wider mb-0.5">{sloc.squashCompletedTitle}</div>
+                      <div className={`font-mono font-semibold ${theme === 'light' ? 'text-slate-800' : 'text-slate-100'}`}>{wizard.finalMsg}</div>
                       <div className="text-[9px] text-slate-500 font-mono mt-1">Author: Nguyen Tran | Date: Just now</div>
                     </div>
                   </div>
@@ -1614,7 +1653,7 @@ export default function App() {
             </div>
 
             {/* Dynamic Active Git Operational Visualizer */}
-            <GitVisualizerPanel tone={tone} wizard={wizard} />
+            <GitVisualizerPanel tone={tone} wizard={wizard} theme={theme} />
 
             {/* Core Wizard state dashboard */}
             <WizardPanel
@@ -1622,6 +1661,7 @@ export default function App() {
               wizard={wizard}
               tone={tone}
               useEmoji={useEmoji}
+              theme={theme}
               onUpdateWizard={handleUpdateWizard}
               onExecuteWizardRebase={handleExecuteWizardRebase}
               onResetWizard={handleResetWizard}
@@ -1635,6 +1675,7 @@ export default function App() {
                 currentBranch={repoState.currentBranch || 'feature-branch'}
                 baseBranch={wizard.baseBranch || repoState.baseBranch || 'develop'}
                 isAiEnabled={isAiEnabled}
+                theme={theme}
                 onResolveFile={handleResolveFile}
                 onCompleteRecovery={handleCompleteRecovery}
               />
@@ -1650,15 +1691,16 @@ export default function App() {
               currentBranch={repoState.currentBranch}
               tone={tone}
               useEmoji={useEmoji}
+              theme={theme}
               onCheckout={handleCheckoutBranch}
               onCreateBranch={handleCreateBranch}
               onDeleteBranch={handleDeleteBranch}
             />
 
             {/* Simulated Live Diagnostic Warnings Panel with AI Git Doctor Integration */}
-            <div id="git-warnings-board" className="bg-[#0f172a] border border-slate-850 rounded-xl p-5 shadow-lg flex flex-col gap-4">
-              <div className="flex items-center justify-between border-b border-slate-805/60 pb-3">
-                <h3 className="text-xs font-bold text-slate-400 uppercase font-mono tracking-wider flex items-center gap-1.5">
+            <div id="git-warnings-board" className={`border rounded-xl p-5 shadow-lg flex flex-col gap-4 transition-all duration-200 ${theme === 'light' ? 'bg-white border-slate-200 text-slate-800 shadow-sm' : 'bg-[#0f172a] border-slate-850 text-slate-100 shadow-2xl'}`}>
+              <div className={`flex items-center justify-between border-b pb-3 ${theme === 'light' ? 'border-slate-150' : 'border-slate-805/60'}`}>
+                <h3 className={`text-xs font-bold uppercase font-mono tracking-wider flex items-center gap-1.5 ${theme === 'light' ? 'text-slate-700' : 'text-slate-400'}`}>
                   <Settings className="w-4 h-4 text-violet-400 animate-spin-slow" />
                   <span>{sloc.title}</span>
                 </h3>
@@ -1669,20 +1711,20 @@ export default function App() {
                 )}
               </div>
 
-              <div className="flex flex-col gap-2.5 text-xs font-mono border-b border-slate-800/60 pb-3">
+              <div className={`flex flex-col gap-2.5 text-xs font-mono border-b pb-3 ${theme === 'light' ? 'border-slate-150' : 'border-slate-800/60'}`}>
                 {/* 1. Git Installation Health */}
-                <div className="flex justify-between items-center p-2 rounded bg-slate-950 border border-slate-900">
+                <div className={`flex justify-between items-center p-2 rounded border ${theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-900'}`}>
                   <span className="text-slate-500">{sloc.gitEnv}</span>
-                  <span className="text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 text-[10px]">
+                  <span className="text-emerald-450 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 text-[10px]">
                     ✓ STABLE (v2.41)
                   </span>
                 </div>
 
                 {/* 2. GitHub auth check */}
-                <div className="flex justify-between items-center p-2 rounded bg-slate-950 border border-slate-900">
+                <div className={`flex justify-between items-center p-2 rounded border ${theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-900'}`}>
                   <span className="text-slate-500">{sloc.githubCli}</span>
                   {repoState.ghAvailable ? (
-                    <span className="text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 text-[10px] flex items-center gap-1">
+                    <span className="text-emerald-450 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 text-[10px] flex items-center gap-1">
                       <Github className="w-3 h-3" /> ✓ AUTHORIZED
                     </span>
                   ) : (
@@ -1693,10 +1735,10 @@ export default function App() {
                 </div>
 
                 {/* 3. Rebase health check indicator */}
-                <div className="flex justify-between items-center p-2 rounded bg-slate-950 border border-slate-900">
+                <div className={`flex justify-between items-center p-2 rounded border ${theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-900'}`}>
                   <span className="text-slate-500">{sloc.rebaseStatus}</span>
                   {repoState.rebaseInProgress ? (
-                    <span className="text-amber-400 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 text-[10px] animate-pulse">
+                    <span className="text-amber-500 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 text-[10px] animate-pulse">
                       🚧 PAUSED_CONFL (PAUSE)
                     </span>
                   ) : (
@@ -1709,7 +1751,7 @@ export default function App() {
 
               {/* SIMULATION ANOMALY TOGGLERS FOR TESTING/EXPERIMENTATION */}
               {isSimulation && (
-                <div className="bg-[#0b0f19]/80 border border-slate-850/50 rounded-lg p-2.5 flex flex-col gap-1.5">
+                <div className={`rounded-lg p-2.5 flex flex-col gap-1.5 border transition-all duration-200 ${theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-[#0b0f19]/80 border-slate-850/50'}`}>
                   <span className="text-[9px] font-mono text-slate-500 uppercase tracking-wider block font-bold">
                     {sloc.simulateAnomaliesHeading}
                   </span>
@@ -1723,6 +1765,8 @@ export default function App() {
                       className={`px-2 py-0.5 text-[9px] rounded border transition-all cursor-pointer ${
                         isDivergedSimulated 
                           ? 'bg-amber-550/15 border-amber-500/30 text-amber-300' 
+                          : theme === 'light'
+                          ? 'bg-white border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-350'
                           : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-400'
                       }`}
                     >
@@ -1738,6 +1782,8 @@ export default function App() {
                       className={`px-2 py-0.5 text-[9px] rounded border transition-all cursor-pointer ${
                         isDetachedHeadSimulated 
                           ? 'bg-rose-550/15 border-rose-500/30 text-rose-300' 
+                          : theme === 'light'
+                          ? 'bg-white border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-350'
                           : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-400'
                       }`}
                     >
@@ -1753,6 +1799,8 @@ export default function App() {
                       className={`px-2 py-0.5 text-[9px] rounded border transition-all cursor-pointer ${
                         isStaleBaseSimulated 
                           ? 'bg-amber-550/15 border-amber-500/30 text-amber-300' 
+                          : theme === 'light'
+                          ? 'bg-white border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-350'
                           : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-400'
                       }`}
                     >
@@ -1771,13 +1819,13 @@ export default function App() {
                 <div className="flex flex-col gap-2">
                   {/* Issue A: Uncommitted Changes */}
                   {repoState.isDirty && (
-                    <div className="border border-amber-500/20 bg-amber-500/5 p-3 rounded-xl flex flex-col gap-2">
+                    <div className={`border p-3 rounded-xl flex flex-col gap-2 ${theme === 'light' ? 'border-amber-200 bg-amber-500/5' : 'border-amber-500/20 bg-amber-500/5'}`}>
                       <div className="flex justify-between items-start gap-1">
                         <div className="text-[11px] font-mono leading-tight">
-                          <span className="font-bold text-amber-300 block">
+                          <span className={`font-bold block ${theme === 'light' ? 'text-amber-800' : 'text-amber-300'}`}>
                             {sloc.uncommittedChangesTitle}
                           </span>
-                          <span className="text-[10px] text-slate-400 block mt-0.5">
+                          <span className={`text-[10px] block mt-0.5 ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
                             {sloc.uncommittedChangesDesc.replace("{0}", String(repoState.dirtyFiles?.length || 0))}
                           </span>
                         </div>
@@ -1789,11 +1837,15 @@ export default function App() {
                         </button>
                       </div>
 
-                      <div className="flex gap-2 text-[10px] items-center border-t border-amber-500/10 pt-1.5 font-mono">
+                      <div className={`flex gap-2 text-[10px] items-center border-t pt-1.5 font-mono ${theme === 'light' ? 'border-slate-200' : 'border-amber-500/10'}`}>
                         <span className="text-slate-500">{sloc.firstAidHeader}</span>
                         <button 
                           onClick={() => handleTriggerDoctorAction('dirty_working_tree', 'stash')}
-                          className="px-1.5 py-0.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded text-slate-300 cursor-pointer"
+                          className={`px-1.5 py-0.5 border rounded cursor-pointer transition-colors ${
+                            theme === 'light'
+                              ? 'bg-slate-105 hover:bg-slate-200 border-slate-300 text-slate-700 font-medium'
+                              : 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300'
+                          }`}
                         >
                           stash
                         </button>
@@ -1802,7 +1854,11 @@ export default function App() {
                             const confirmVal = window.confirm(sloc.discardConfirm);
                             if (confirmVal) handleTriggerDoctorAction('dirty_working_tree', 'discard');
                           }}
-                          className="px-1.5 py-0.5 bg-rose-950/20 text-rose-400 border border-rose-500/20 rounded cursor-pointer"
+                          className={`px-1.5 py-0.5 border rounded cursor-pointer transition-colors ${
+                            theme === 'light'
+                              ? 'bg-rose-50 hover:bg-rose-100 text-rose-600 border-rose-200 font-medium'
+                              : 'bg-rose-950/20 hover:bg-rose-950/40 text-rose-400 border-rose-500/20'
+                          }`}
                         >
                           discard
                         </button>
@@ -1812,13 +1868,13 @@ export default function App() {
 
                   {/* Issue B: Diverged Branch */}
                   {(isSimulation ? isDivergedSimulated : false) && (
-                    <div className="border border-amber-500/20 bg-amber-500/5 p-3 rounded-xl flex flex-col gap-2">
+                    <div className={`border p-3 rounded-xl flex flex-col gap-2 ${theme === 'light' ? 'border-amber-200 bg-amber-500/5' : 'border-amber-500/20 bg-amber-500/5'}`}>
                       <div className="flex justify-between items-start gap-1">
                         <div className="text-[11px] font-mono leading-tight">
-                          <span className="font-bold text-amber-300 block">
+                          <span className={`font-bold block ${theme === 'light' ? 'text-amber-800' : 'text-amber-300'}`}>
                             {sloc.divergedTitle}
                           </span>
-                          <span className="text-[10px] text-slate-400 block mt-0.5">
+                          <span className={`text-[10px] block mt-0.5 ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
                             {sloc.divergedDesc}
                           </span>
                         </div>
@@ -1830,11 +1886,15 @@ export default function App() {
                         </button>
                       </div>
 
-                      <div className="flex gap-2 text-[10px] items-center border-t border-amber-500/10 pt-1.5 font-mono">
+                      <div className={`flex gap-2 text-[10px] items-center border-t pt-1.5 font-mono ${theme === 'light' ? 'border-slate-200' : 'border-amber-500/10'}`}>
                         <span className="text-slate-500">{sloc.firstAidHeader}</span>
                         <button 
                           onClick={() => handleTriggerDoctorAction('diverged_branch', 'rebase_pull')}
-                          className="px-1.5 py-0.5 bg-slate-900 hover:bg-slate-800 text-amber-300 border border-slate-850 rounded cursor-pointer"
+                          className={`px-1.5 py-0.5 border rounded cursor-pointer transition-colors ${
+                            theme === 'light'
+                              ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200 font-medium'
+                              : 'bg-slate-900 hover:bg-slate-800 text-amber-300 border-slate-850'
+                          }`}
                         >
                           pull --rebase
                         </button>
@@ -1843,7 +1903,11 @@ export default function App() {
                             const confirmVal = window.confirm(sloc.forcePushConfirm);
                             if (confirmVal) handleTriggerDoctorAction('diverged_branch', 'force_push');
                           }}
-                          className="px-1.5 py-0.5 bg-rose-950/20 text-rose-400 border border-rose-500/20 rounded cursor-pointer"
+                          className={`px-1.5 py-0.5 border rounded cursor-pointer transition-colors ${
+                            theme === 'light'
+                              ? 'bg-rose-50 hover:bg-rose-100 text-rose-600 border-rose-200'
+                              : 'bg-rose-950/20 hover:bg-rose-950/40 text-rose-400 border-rose-500/20'
+                          }`}
                         >
                           force push
                         </button>
@@ -1853,13 +1917,13 @@ export default function App() {
 
                   {/* Issue C: Detached HEAD */}
                   {(isSimulation ? isDetachedHeadSimulated : false) && (
-                    <div className="border border-rose-500/20 bg-rose-500/5 p-3 rounded-xl flex flex-col gap-2">
+                    <div className={`border p-3 rounded-xl flex flex-col gap-2 ${theme === 'light' ? 'border-rose-200 bg-rose-500/5' : 'border-rose-500/20 bg-rose-500/5'}`}>
                       <div className="flex justify-between items-start gap-1">
                         <div className="text-[11px] font-mono leading-tight">
-                          <span className="font-bold text-rose-300 block">
+                          <span className={`font-bold block ${theme === 'light' ? 'text-rose-700' : 'text-rose-300'}`}>
                             {sloc.detachedTitle}
                           </span>
-                          <span className="text-[10px] text-slate-400 block mt-0.5">
+                          <span className={`text-[10px] block mt-0.5 ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
                             {sloc.detachedDesc}
                           </span>
                         </div>
@@ -1871,7 +1935,7 @@ export default function App() {
                         </button>
                       </div>
 
-                      <div className="flex gap-2 text-[10px] items-center border-t border-rose-500/10 pt-1.5 font-mono">
+                      <div className={`flex gap-2 text-[10px] items-center border-t pt-1.5 font-mono ${theme === 'light' ? 'border-slate-200' : 'border-rose-500/10'}`}>
                         <span className="text-slate-500">{sloc.firstAidHeader}</span>
                         <button 
                           onClick={() => handleTriggerDoctorAction('detached_head', 'recover')}
@@ -1885,13 +1949,13 @@ export default function App() {
 
                   {/* Issue D: Stale Base Branch */}
                   {(isSimulation ? isStaleBaseSimulated : false) && (
-                    <div className="border border-amber-500/20 bg-amber-500/5 p-3 rounded-xl flex flex-col gap-2">
+                    <div className={`border p-3 rounded-xl flex flex-col gap-2 ${theme === 'light' ? 'border-amber-200 bg-amber-500/5' : 'border-amber-500/20 bg-amber-500/5'}`}>
                       <div className="flex justify-between items-start gap-1">
                         <div className="text-[11px] font-mono leading-tight">
-                          <span className="font-bold text-amber-300 block">
+                          <span className={`font-bold block ${theme === 'light' ? 'text-amber-800' : 'text-amber-300'}`}>
                             {sloc.staleBaseTitle}
                           </span>
-                          <span className="text-[10px] text-slate-400 block mt-0.5">
+                          <span className={`text-[10px] block mt-0.5 ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
                             {sloc.staleBaseDesc.replace("{0}", wizard.baseBranch || 'develop')}
                           </span>
                         </div>
@@ -1903,11 +1967,15 @@ export default function App() {
                         </button>
                       </div>
 
-                      <div className="flex gap-2 text-[10px] items-center border-t border-amber-500/10 pt-1.5 font-mono">
+                      <div className={`flex gap-2 text-[10px] items-center border-t pt-1.5 font-mono ${theme === 'light' ? 'border-slate-200' : 'border-amber-500/10'}`}>
                         <span className="text-slate-500">{sloc.firstAidHeader}</span>
                         <button 
                           onClick={() => handleTriggerDoctorAction('stale_base_branch', 'sync_base')}
-                          className="px-1.5 py-0.5 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 rounded cursor-pointer"
+                          className={`px-1.5 py-0.5 border rounded cursor-pointer transition-colors ${
+                            theme === 'light'
+                              ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                              : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-800'
+                          }`}
                         >
                           fetch & pull sync
                         </button>
@@ -2034,6 +2102,7 @@ export default function App() {
               onCommandExecuted={() => handleRefresh(true)}
               addLog={addLog}
               resolveApiUrl={resolveApiUrl}
+              theme={theme}
             />
 
           </div>
@@ -2041,10 +2110,10 @@ export default function App() {
         </div>
 
         {/* Dashboard Footer credits and hints */}
-        <div className="bg-[#0b0f19]/40 border border-slate-900/60 rounded-xl p-4 text-center text-xs text-slate-500 font-mono flex flex-col md:flex-row justify-between items-center gap-2 mt-2">
+        <div className={`rounded-xl p-4 text-center text-xs text-slate-500 font-mono flex flex-col md:flex-row justify-between items-center gap-2 mt-2 border transition-colors duration-200 ${theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-[#0b0f19]/40 border-slate-900/60'}`}>
           <span>Rebase Overlord — The Git Feature Flow Assistant</span>
           <span className="flex items-center gap-1 text-[10px]">
-            Created for <strong className="text-slate-400">boybibo98@gmail.com</strong>
+            Created for <strong className={`${theme === 'light' ? 'text-slate-700' : 'text-slate-400'}`}>boybibo98@gmail.com</strong>
           </span>
         </div>
 

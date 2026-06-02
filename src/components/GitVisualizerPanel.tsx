@@ -497,11 +497,14 @@ const mapWizardStepToConcept = (step: number): VisualActionType => {
 
 export default function GitVisualizerPanel({ 
   tone, 
-  wizard 
+  wizard,
+  theme = 'dark'
 }: { 
   tone: TranslationTone; 
   wizard?: WizardState; 
+  theme?: 'light' | 'dark';
 }) {
+  const isLight = theme === 'light';
   const [activeAction, setActiveAction] = useState<VisualActionType>('rebase');
   const [currentStep, setCurrentStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -1069,13 +1072,13 @@ export default function GitVisualizerPanel({
             <g className="transition-all duration-500 animate-zoomIn">
               <circle cx="340" cy="45" r="16" className="stroke-emerald-400 fill-emerald-950/20 stroke-2 shadow" />
               <text x="340" y="48.5" textAnchor="middle" className="fill-emerald-300 font-bold text-[8.5px]">C3</text>
-              <text x="340" y="78" textAnchor="middle" className="fill-emerald-400 font-bold text-[7.5px] uppercase tracking-wide">New Commit Block</text>
-
               {currentStep === 3 && (
-                <g transform="translate(340, 14)" className="opacity-90 transition-all duration-500">
-                  <rect x="-34" y="-5" width="68" height="11" rx="2.5" className="fill-emerald-500/20 stroke stroke-emerald-400" />
-                  <text x="0" y="3.5" textAnchor="middle" className="fill-emerald-300 text-[7px] font-bold">💻 main (local)</text>
-                  <line x1="0" y1="6" x2="0" y2="10" className="stroke-emerald-400" />
+                <g>
+                   {/* Local branch pointer tag moves to C3 */}
+                   <g transform="translate(340, 14)">
+                     <rect x="-24" y="-5" width="48" height="11" rx="2.5" className="fill-emerald-500/15 stroke stroke-emerald-400" />
+                     <text x="0" y="3.5" textAnchor="middle" className="fill-emerald-300 font-bold text-[7px]">💻 main</text>
+                   </g>
                 </g>
               )}
             </g>
@@ -1087,104 +1090,150 @@ export default function GitVisualizerPanel({
 
   // PUSH
   const renderPushVisual = (w: number, h: number) => {
-    // Left Box: Local (commits C1, C2, C3)
-    // Right Box: Remote (C1, C2)
-    // Step 0: C3 only exists on Left. Remote is behind.
-    // Step 1: Delta packaging (C3 flashes index, calculating diff)
-    // Step 2: C3 moves along wire to Remote side with rocket or arrow anim
-    // Step 3: Remote catches C3, updates origin/main pointer tag there!
-
-    let pushedCommitX = 190, pushedCommitY = 80, pushedOpacity = 1;
-    let lineColorsRef = "stroke-slate-800";
-    let remoteContainsC3 = false;
-
-    if (currentStep === 1) { // Packing
-      pushedCommitX = 190; pushedCommitY = 80; pushedOpacity = 0.6;
-    } else if (currentStep === 2) { // Flying
-      pushedCommitX = 350; pushedCommitY = 80; pushedOpacity = 1;
-      lineColorsRef = "stroke-indigo-500 animate-pulse";
-    } else if (currentStep === 3) { // Synced
-      pushedCommitX = 490; pushedCommitY = 80; pushedOpacity = 0;
-      remoteContainsC3 = true;
-    }
+    // Local: C1 -> C2 -> C3 (local main at C3)
+    // Server: C1 -> C2 -> C3 (origin/main moves to C3 at step 3)
+    const remoteContainsC3 = currentStep === 3;
+    const isFlight = currentStep === 2;
+    const isPackaging = currentStep === 1;
 
     return (
       <div className="w-full h-full relative" id="push-stage">
-        {/* Local Box */}
-        <div className="absolute left-[15px] top-[15px] w-[210px] h-[130px] rounded-xl border border-slate-800 bg-[#070b15]/40 p-2 flex flex-col justify-between">
-          <span className="text-[8px] font-mono text-slate-500 block uppercase font-bold tracking-wider">{loc.localLabel}</span>
-          
-          <div className="flex gap-2.5 items-center justify-center my-2 select-none">
-            {/* C1 and C2 */}
-            <div className="w-10 h-10 rounded-full border border-slate-700 bg-slate-900 flex items-center justify-center text-[9px] font-bold text-slate-400 font-mono">C1</div>
-            <div className="text-slate-700">➜</div>
-            <div className="w-10 h-10 rounded-full border border-slate-700 bg-slate-900 flex items-center justify-center text-[9px] font-bold text-slate-400 font-mono">C2</div>
-            <div className="text-slate-700">➜</div>
-            {/* Live moving local C3 */}
-            <motion.div 
-              animate={{ scale: currentStep === 1 ? [1, 1.15, 1] : 1 }}
-              transition={{ repeat: Infinity, duration: 2 }}
-              className={`w-10 h-10 rounded-full border border-emerald-500 bg-emerald-950/20 flex flex-col items-center justify-center text-[9.5px] font-bold text-emerald-300 font-mono shadow ${currentStep === 2 ? 'opacity-30' : 'opacity-100'}`}
-            >
-              <span>C3</span>
-            </motion.div>
-          </div>
+        {/* Local Area & Remote Area Side-by-Side Grid */}
+        <div className="grid grid-cols-2 gap-4 h-full relative p-2">
+          {/* Local Machine Dashboard */}
+          <div className={`rounded-xl border p-3 flex flex-col justify-between ${
+            isLight ? 'bg-emerald-50/20 border-emerald-100/60' : 'bg-slate-950/40 border-emerald-950/20'
+          }`}>
+            <div className="flex items-center justify-between border-b pb-1 mb-1 border-emerald-500/10">
+              <span className="text-[8.5px] font-mono font-bold text-emerald-400 uppercase tracking-wider">💻 Local (Client)</span>
+              <span className="text-[7.5px] font-mono bg-emerald-500/10 text-emerald-400 px-1 py-0.2 rounded border border-emerald-500/20">refs/heads/main</span>
+            </div>
+            
+            {/* Local Repository Timeline */}
+            <div className="flex-1 flex items-center justify-center min-h-[50px] relative">
+              <svg className="w-full h-full font-mono" viewBox="0 0 250 80" referrerPolicy="no-referrer">
+                {/* Connection paths */}
+                <line x1="30" y1="40" x2="190" y2="40" className="stroke-emerald-500/40 stroke-2" />
+                
+                {/* Commits */}
+                <g>
+                  <circle cx="45" cy="40" r="11" className="stroke-emerald-500/60 fill-slate-950 stroke-2" />
+                  <text x="45" y="43" textAnchor="middle" className="fill-emerald-400 font-bold text-[7.5px]">C1</text>
+                </g>
 
-          <div className="text-[7.5px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/35 text-center rounded py-1 font-bold flex items-center justify-center gap-1">
-            <span>💻 Local Branch:</span>
-            <span className="bg-emerald-500/20 px-1 py-0.1 rounded border border-emerald-450">main (at C3, Ahead)</span>
-          </div>
-        </div>
+                <g>
+                  <circle cx="115" cy="40" r="11" className="stroke-emerald-500/60 fill-slate-950 stroke-2" />
+                  <text x="115" y="43" textAnchor="middle" className="fill-emerald-400 font-bold text-[7.5px]">C2</text>
+                </g>
 
-        {/* Transfer pipeline line */}
-        <div className="absolute left-[230px] top-[75px] w-[140px] h-[10px] flex items-center justify-center select-none">
-          <svg className="w-full h-8 overflow-visible" referrerPolicy="no-referrer">
-            <line x1="0" y1="10" x2="140" y2="10" className={`stroke-2 stroke-dashed ${lineColorsRef}`} />
-            {currentStep === 2 && (
-              <g transform="translate(70, 0)">
-                <circle cx="0" cy="10" r="10" className="fill-indigo-500 stroke-indigo-400 animate-ping" />
-                <path d="M-4,10 L4,10 M0,6 L6,10 L0,14" className="stroke-white fill-none stroke-2" />
-              </g>
+                <g className="animate-zoomIn">
+                  <circle cx="185" cy="40" r="13" className="stroke-emerald-400 fill-slate-950 stroke-2" />
+                  <text x="185" y="43" textAnchor="middle" className="fill-emerald-300 font-bold text-[7.5px]">C3</text>
+                  
+                  {/* Local main tag stays at C3 */}
+                  <g transform="translate(185, 14)">
+                    <rect x="-18" y="-4" width="36" height="9" rx="1.5" className="fill-emerald-500/20 stroke stroke-emerald-400/60" />
+                    <text x="0" y="2.5" textAnchor="middle" className="fill-emerald-300 text-[5.5px] font-bold">main</text>
+                  </g>
+                </g>
+              </svg>
+            </div>
+
+            {/* Packaging status bar */}
+            {isPackaging && (
+              <div className="text-[7.5px] font-mono bg-emerald-500/10 text-emerald-300 border border-emerald-500/25 rounded py-1 text-center animate-pulse">
+                📦 Creating delta payload packs...
+              </div>
             )}
-          </svg>
-        </div>
+            {!isPackaging && !isFlight && (
+              <div className={`text-[7.5px] text-center font-mono py-1 rounded border-dashed border ${
+                isLight ? 'border-slate-200 text-slate-500' : 'border-slate-900/60 text-slate-600'
+              }`}>
+                Ready to transmit object C3
+              </div>
+            )}
+            {isFlight && (
+              <div className="text-[7.5px] font-mono bg-sky-500/10 text-sky-300 border border-sky-500/20 rounded py-1 text-center animate-pulse">
+                ⚡ Transmitting Packfile stream...
+              </div>
+            )}
+          </div>
 
-        {/* Remote Box */}
-        <div className="absolute right-[15px] top-[15px] w-[210px] h-[130px] rounded-xl border border-dashed border-indigo-900 bg-[#090e1f]/20 p-2 flex flex-col justify-between">
-          <span className="text-[8px] font-mono text-slate-500 block uppercase font-bold tracking-wider">{loc.remoteLabel}</span>
+          {/* Remote (Cloud GitHub Server) Area */}
+          <div className={`rounded-xl border p-3 flex flex-col justify-between ${
+            isLight ? 'bg-indigo-50/20 border-indigo-100/60' : 'bg-slate-950/40 border-indigo-950/20'
+          }`}>
+            <div className="flex items-center justify-between border-b pb-1 mb-1 border-indigo-500/10">
+              <span className="text-[8.5px] font-mono font-bold text-indigo-400 uppercase tracking-wider">☁️ Remote (GitHub Server)</span>
+              <span className="text-[7.5px] font-mono bg-indigo-500/10 text-indigo-400 px-1 py-0.2 rounded border border-indigo-500/20">origin/refs/heads/main</span>
+            </div>
 
-          <div className="flex gap-2.5 items-center justify-center my-2 select-none">
-            {/* Remote C1 and C2 */}
-            <div className="w-10 h-10 rounded-full border border-slate-800 bg-slate-900/50 flex items-center justify-center text-[9px] font-bold text-slate-500 font-mono">C1</div>
-            <div className="text-slate-800">➜</div>
-            <div className="w-10 h-10 rounded-full border border-slate-800 bg-slate-900/50 flex items-center justify-center text-[9px] font-bold text-slate-500 font-mono">C2</div>
-            <div className="text-slate-800">➜</div>
-            {/* Conditional Remote C3 */}
+            {/* Remote Timeline */}
+            <div className="flex-1 flex items-center justify-center min-h-[50px] relative">
+              <svg className="w-full h-full font-mono" viewBox="0 0 250 80" referrerPolicy="no-referrer">
+                {/* Connection line inside Remote */}
+                <line x1="30" y1="40" x2={remoteContainsC3 ? "190" : "115"} y2="40" className="stroke-indigo-500/40 stroke-2" />
+
+                <g>
+                  <circle cx="45" cy="40" r="11" className="stroke-indigo-455 fill-slate-950 stroke-2" />
+                  <text x="45" y="43" textAnchor="middle" className="fill-indigo-300 font-bold text-[7.5px]">C1</text>
+                </g>
+
+                <g>
+                  <circle cx="115" cy="40" r="11" className="stroke-indigo-455 fill-slate-950 stroke-2" />
+                  <text x="115" y="43" textAnchor="middle" className="fill-indigo-300 font-bold text-[7.5px]">C2</text>
+                  
+                  {!remoteContainsC3 && (
+                    <g transform="translate(115, 14)">
+                      <rect x="-24" y="-4" width="48" height="9" rx="1.5" className="fill-indigo-500/20 stroke stroke-indigo-400/60 shadow-md animate-pulse" />
+                      <text x="0" y="2.5" textAnchor="middle" className="fill-indigo-300 text-[5.5px] font-bold">origin/main</text>
+                    </g>
+                  )}
+                </g>
+
+                {remoteContainsC3 ? (
+                  <g className="animate-zoomIn">
+                    <circle cx="185" cy="40" r="13" className="stroke-indigo-400 fill-indigo-950 stroke-2 shadow" />
+                    <text x="185" y="43" textAnchor="middle" className="fill-indigo-300 font-bold text-[7.5px]">C3</text>
+                    
+                    <g transform="translate(185, 14)">
+                      <rect x="-24" y="-4" width="48" height="9" rx="1.5" className="fill-indigo-500/20 stroke stroke-indigo-400/60 shadow" />
+                      <text x="0" y="2.5" textAnchor="middle" className="fill-indigo-300 text-[5.5px] font-bold">origin/main</text>
+                    </g>
+                  </g>
+                ) : (
+                  <g className="opacity-30">
+                    <circle cx="185" cy="40" r="11" className="stroke-slate-800 fill-none stroke-2 stroke-dashed" />
+                    <text x="185" y="43" textAnchor="middle" className="fill-slate-700 text-[7.5px]">C3</text>
+                  </g>
+                )}
+              </svg>
+            </div>
+
             {remoteContainsC3 ? (
-              <motion.div 
-                initial={{ scale: 0, rotate: -45 }}
-                animate={{ scale: 1, rotate: 0 }}
-                className="w-10 h-10 rounded-full border border-indigo-400 bg-indigo-950/40 flex items-center justify-center text-[9px] font-bold text-indigo-300 font-mono shadow-lg shadow-indigo-500/10"
-              >
-                <span>C3</span>
-              </motion.div>
+              <div className="text-[7.5px] font-mono bg-indigo-550/25 text-indigo-300 border border-indigo-505 text-center rounded py-1 font-bold flex items-center justify-center gap-1 animate-pulse">
+                <span>🟢 origin/main is synced at C3</span>
+              </div>
             ) : (
-              <div className="w-10 h-10 rounded-full border border-dashed border-slate-800 flex items-center justify-center text-[8px] italic text-slate-700 font-mono">None</div>
+              <div className="text-[7.5px] font-mono bg-[#0c1329] text-indigo-300/70 border border-dashed border-indigo-500/30 text-center rounded py-1 flex items-center justify-center gap-1">
+                <span>🔴 origin/main is outdated (at C2)</span>
+              </div>
             )}
           </div>
-
-          {remoteContainsC3 ? (
-            <div className="text-[7.5px] font-mono bg-indigo-500/25 text-indigo-300 border border-indigo-505 text-center rounded py-1.5 font-bold flex items-center justify-center gap-1 animate-pulse">
-              <span>☁️ Remote-Tracking:</span>
-              <span className="bg-indigo-500/30 px-1 py-0.1 rounded border border-indigo-400/50">origin/main (at C3, Synced)</span>
-            </div>
-          ) : (
-            <div className="text-[7.5px] font-mono bg-[#0c1329] text-indigo-300/70 border border-dashed border-indigo-500/30 text-center rounded py-1.5 font-semibold flex items-center justify-center gap-1">
-              <span>☁️ Remote-Tracking:</span>
-              <span className="bg-indigo-950/40 px-1 py-0.1 rounded border border-indigo-900/40">origin/main (at C2, Outdated)</span>
-            </div>
-          )}
         </div>
+
+        {/* Flying Pack Animation overlays */}
+        {isFlight && (
+          <motion.div
+            initial={{ left: "25%", top: "50%", opacity: 0, scale: 0.5 }}
+            animate={{ left: "70%", top: "50%", opacity: [0, 1, 1, 0], scale: 1.2 }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
+            className="absolute -translate-x-1/2 -translate-y-1/2 p-2 rounded-xl bg-indigo-600 border-2 border-indigo-400 text-white shadow-lg shadow-indigo-500/30 flex flex-col items-center gap-1 select-none pointer-events-none animate-bounce"
+          >
+            <Bookmark className="w-3.5 h-3.5" />
+            <span className="text-[7px] font-mono font-bold uppercase tracking-wider">C3 PACK</span>
+          </motion.div>
+        )}
       </div>
     );
   };
@@ -1207,7 +1256,7 @@ export default function GitVisualizerPanel({
     return (
       <svg className="w-full h-full font-mono" viewBox={`0 0 ${w} ${h}`} referrerPolicy="no-referrer">
         {/* Baseline anchor lines */}
-        <line x1="50" y1="90" x2="120" y2="90" className="stroke-slate-705 stroke-2 fill-none" />
+        <line x1="50" y1="90" x2="120" y2="90" className="stroke-slate-700 stroke-2 fill-none" />
 
         {/* Local rẽ top */}
         {showSplit && (
@@ -1238,7 +1287,7 @@ export default function GitVisualizerPanel({
               
               <g transform="translate(360, 22)" className="opacity-95">
                 <rect x="-32" y="-5" width="64" height="11" rx="2.5" className="fill-emerald-500/15 stroke stroke-emerald-400" />
-                <text x="0" y="3.5" textAnchor="middle" className="fill-emerald-350 font-bold text-[7px]">💻 main (local)</text>
+                <text x="0" y="3.5" textAnchor="middle" className="fill-emerald-355 font-bold text-[7px]">💻 main (local)</text>
               </g>
             </g>
           </>
@@ -1271,14 +1320,14 @@ export default function GitVisualizerPanel({
               <circle cx="0" cy="0" r="15" className="fill-rose-950/90 stroke-rose-500 stroke-2" />
               <text x="0" y="3.5" textAnchor="middle" className="fill-rose-300 font-bold text-[11px]">⚡</text>
             </g>
-            <text x="360" y="112" textAnchor="left" className="fill-amber-400 text-[8px] font-bold pl-5 font-mono">DIVERGED (SPLIT PATH)</text>
+            <text x="360" y="112" textAnchor="middle" className="fill-amber-400 text-[8px] font-bold font-mono">DIVERGED (SPLIT PATH)</text>
           </g>
         )}
 
         {/* Push Denied shield */}
         {isPushRejected && (
           <g transform="translate(480, 90)" className="animate-zoomIn">
-            <rect x="-60" y="-30" width="120" height="60" rx="6" className="fill-rose-955/90 border border-rose-500/40 text-center stroke-rose-500 stroke-2" />
+            <rect x="-60" y="-30" width="120" height="60" rx="6" className="fill-rose-950/90 border border-rose-500/40 text-center stroke-rose-500 stroke-2" />
             <text x="0" y="-12" textAnchor="middle" className="fill-rose-400 text-[9px] font-bold">PUSH REJECTED!</text>
             <text x="0" y="4" textAnchor="middle" className="fill-slate-300 text-[7.5px] font-mono leading-normal">Cannot Fast-Forward</text>
             <text x="0" y="18" textAnchor="middle" className="fill-amber-450 text-[7px] font-mono leading-normal font-bold">Merge/Rebase Needed</text>
@@ -1330,7 +1379,7 @@ export default function GitVisualizerPanel({
           </g>
         ) : (
           <g transform="translate(220, 35)" className="opacity-80">
-            <rect x="-38" y="-5" width="76" height="11" rx="2" className="fill-indigo-500/10 stroke stroke-indigo-400/40 stroke-dashed" />
+            <rect x="-38" y="-5" width="76" height="11" rx="2" className="fill-indigo-550/10 stroke stroke-indigo-400/40 stroke-dashed" />
             <text x="0" y="3" textAnchor="middle" className="fill-indigo-300 text-[6.5px] font-mono">☁️ origin/main</text>
             <line x1="0" y1="6" x2="0" y2="40" className="stroke-indigo-400/30 stroke-dashed" />
           </g>
@@ -1358,7 +1407,7 @@ export default function GitVisualizerPanel({
         </g>
 
         <g>
-          <circle cx="460" cy="90" r="15" className={`stroke-2 transition-all ${highlightCircle ? 'stroke-indigo-400 fill-indigo-950/20' : 'stroke-indigo-400 fill-slate-950'}`} />
+          <circle cx="460" cy="90" r="15" className={`stroke-2 transition-all ${highlightCircle ? 'stroke-indigo-400 fill-indigo-950/20' : 'stroke-indigo-450 fill-slate-950'}`} />
           <text x="460" y="94" textAnchor="middle" className="fill-indigo-300 font-bold text-[8.5px]">M4</text>
           <text x="460" y="126" textAnchor="middle" className="fill-indigo-400 text-[8px] font-bold">Feature Head</text>
         </g>
@@ -1374,22 +1423,32 @@ export default function GitVisualizerPanel({
   };
 
   return (
-    <div id="interactive-git-flow-visualizer" className="bg-[#0f172a] border border-slate-800 rounded-xl p-5 shadow-lg flex flex-col gap-4 relative overflow-hidden transition-all duration-300">
+    <div id="interactive-git-flow-visualizer" className={`border rounded-xl p-5 shadow-lg flex flex-col gap-4 relative overflow-hidden transition-all duration-300 ${
+      isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0f172a] border-slate-800 text-slate-300'
+    }`}>
       
       {/* Decorative absolute element */}
       <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-indigo-500/5 to-transparent rounded-full blur-xl pointer-events-none" />
 
       {/* Header section with status triggers */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b border-slate-805/60 pb-3.5">
+      <div className={`flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border-b pb-3.5 ${
+        isLight ? 'border-slate-100' : 'border-slate-850/60'
+      }`}>
         <div className="flex items-center gap-2">
-          <div className="p-2 bg-indigo-500/15 rounded-lg border border-indigo-500/20">
-            <Tv className="w-4 h-4 text-indigo-400 animate-pulse" />
+          <div className={`p-2 rounded-lg border ${
+            isLight ? 'bg-indigo-50 border-indigo-150' : 'bg-indigo-500/15 border-indigo-500/20'
+          }`}>
+            <Tv className={`w-4 h-4 animate-pulse ${isLight ? 'text-indigo-650' : 'text-indigo-400'}`} />
           </div>
           <div>
-            <h3 className="text-xs font-bold text-slate-100 uppercase font-mono tracking-wider">
+            <h3 className={`text-xs font-bold uppercase font-mono tracking-wider ${
+              isLight ? 'text-slate-800' : 'text-slate-100'
+            }`}>
               {loc.title}
             </h3>
-            <p className="text-[10px] text-slate-450 mt-0.5">
+            <p className={`text-[10px] mt-0.5 ${
+              isLight ? 'text-slate-500' : 'text-slate-450'
+            }`}>
               {loc.subtitle}
             </p>
           </div>
@@ -1405,8 +1464,12 @@ export default function GitVisualizerPanel({
               }}
               className={`px-2.5 py-1 text-[9.5px] font-mono font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
                 isSyncedWithWizard
-                  ? 'bg-emerald-600/20 border-emerald-500/40 text-emerald-300 animate-pulse'
-                  : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+                  ? isLight
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700 animate-pulse'
+                    : 'bg-emerald-600/20 border-emerald-500/40 text-emerald-300 animate-pulse'
+                  : isLight
+                    ? 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                    : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
               }`}
               title={loc.syncToggleLabel}
             >
@@ -1425,8 +1488,10 @@ export default function GitVisualizerPanel({
                   onClick={() => handleActionChange(action)}
                   className={`px-2.5 py-1 text-[9.5px] font-mono font-bold rounded-lg border transition-all cursor-pointer ${
                     isSelected 
-                      ? 'bg-indigo-600 border-indigo-505 text-white shadow-md shadow-indigo-600/10' 
-                      : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+                      ? 'bg-indigo-605 border-indigo-600 text-white shadow-md shadow-indigo-600/10' 
+                      : isLight
+                        ? 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                        : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
                   }`}
                 >
                   {loc.opLabels[action]}
@@ -1441,17 +1506,23 @@ export default function GitVisualizerPanel({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
         
         {/* Play stage display area (Left - col span 8) */}
-        <div className="lg:col-span-8 flex flex-col gap-3 justify-center min-h-[220px] bg-slate-950/70 border border-slate-905/60 rounded-xl p-4 overflow-hidden relative">
+        <div className={`lg:col-span-8 flex flex-col gap-3 justify-center min-h-[220px] rounded-xl p-4 overflow-hidden relative border ${
+          isLight ? 'bg-indigo-50/20 border-indigo-100/60' : 'bg-slate-950/70 border-slate-905/60'
+        }`}>
           
           {/* Active play indicators */}
           <div className="absolute top-3 left-3 flex items-center gap-2 select-none">
             <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
-            <span className="text-[9px] font-mono font-bold text-slate-400 uppercase tracking-widest bg-slate-900/80 px-2 py-0.5 border border-slate-800 rounded">
+            <span className={`text-[9px] font-mono font-bold uppercase tracking-widest px-2 py-0.5 border rounded ${
+              isLight ? 'text-slate-600 bg-white border-slate-200' : 'text-slate-400 bg-slate-900/80 border-slate-800'
+            }`}>
               {loc.opLabels[activeAction]}
             </span>
           </div>
 
-          <div className="absolute top-3 right-3 flex items-center gap-1.5 select-none text-[8.5px] font-mono font-bold text-slate-400 bg-slate-900/80 px-2 py-0.5 border border-slate-800 rounded">
+          <div className={`absolute top-3 right-3 flex items-center gap-1.5 select-none text-[8.5px] font-mono font-bold border rounded px-2 py-0.5 ${
+            isLight ? 'text-slate-600 bg-white border-slate-200' : 'text-slate-400 bg-slate-900/80 border-slate-800'
+          }`}>
             <span>STEP {currentStep + 1} / {totalSteps}</span>
           </div>
 
@@ -1461,26 +1532,34 @@ export default function GitVisualizerPanel({
           </div>
 
           {/* Differentiate local & remote-tracking branches legend */}
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[9px] font-mono border-t border-slate-900/80 pt-2.5 pb-0.5 opacity-90 select-none">
+          <div className={`flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[9px] font-mono border-t pt-2.5 pb-0.5 opacity-90 select-none ${
+            isLight ? 'border-slate-100 text-slate-600' : 'border-slate-900/85 text-slate-300'
+          }`}>
             <span className="text-slate-500 font-bold uppercase tracking-wider text-[8px]">{loc.legendLabel}</span>
             <div className="flex items-center gap-1.5">
               <span className="inline-block w-3.5 h-2.5 rounded bg-emerald-500/20 border border-emerald-400"></span>
-              <span className="text-emerald-300 font-medium">{loc.localBranchLegend}</span>
+              <span className={`font-medium ${isLight ? 'text-emerald-700' : 'text-emerald-300'}`}>{loc.localBranchLegend}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="inline-block w-3.5 h-2.5 rounded bg-indigo-500/10 border border-dashed border-indigo-400/80"></span>
-              <span className="text-indigo-300 font-medium">{loc.remoteBranchLegend}</span>
+              <span className={`font-medium ${isLight ? 'text-indigo-600' : 'text-indigo-300'}`}>{loc.remoteBranchLegend}</span>
             </div>
           </div>
 
           {/* Player controls */}
-          <div className="flex items-center justify-between border-t border-slate-900/80 pt-3 mt-1 px-1.5">
+          <div className={`flex items-center justify-between border-t pt-3 mt-1 px-1.5 ${
+            isLight ? 'border-slate-100' : 'border-slate-900/80'
+          }`}>
             <div className="flex items-center gap-1.5">
               <button
                 id="btn-vis-prev"
                 onClick={handlePrevStep}
                 disabled={currentStep === 0}
-                className="p-1 px-2.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 rounded-lg border border-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-[10px] flex items-center gap-1"
+                className={`p-1 px-2.5 rounded-lg border disabled:opacity-40 disabled:cursor-not-allowed transition-all text-[10px] flex items-center gap-1 cursor-pointer ${
+                  isLight 
+                    ? 'bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-800 border-slate-200' 
+                    : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border-slate-800'
+                }`}
                 title={loc.prevStepBtn}
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
@@ -1491,7 +1570,11 @@ export default function GitVisualizerPanel({
                 id="btn-vis-next"
                 onClick={handleNextStep}
                 disabled={currentStep === totalSteps - 1}
-                className="p-1 px-2.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 rounded-lg border border-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-[10px] flex items-center gap-1"
+                className={`p-1 px-2.5 rounded-lg border disabled:opacity-40 disabled:cursor-not-allowed transition-all text-[10px] flex items-center gap-1 cursor-pointer ${
+                  isLight 
+                    ? 'bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-800 border-slate-200' 
+                    : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border-slate-800'
+                }`}
                 title={loc.nextStepBtn}
               >
                 <span>{loc.nextStepBtn}</span>
@@ -1506,7 +1589,7 @@ export default function GitVisualizerPanel({
                 className={`p-1.5 px-3 rounded-lg border text-[10px] font-bold font-mono transition-all flex items-center gap-1.5 cursor-pointer ${
                   isPlaying 
                     ? 'bg-amber-600/20 border-amber-500/30 text-amber-300 hover:bg-amber-600/30' 
-                    : 'bg-indigo-600 border-indigo-500 hover:bg-indigo-550 text-white'
+                    : 'bg-indigo-650 border-indigo-500 hover:bg-indigo-550 text-white'
                 }`}
               >
                 {isPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3 fill-current" />}
@@ -1516,7 +1599,11 @@ export default function GitVisualizerPanel({
               <button
                 id="btn-vis-reset"
                 onClick={handleReset}
-                className="p-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 rounded-lg border border-slate-800 transition-all cursor-pointer"
+                className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                  isLight 
+                    ? 'bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-800 border-slate-200' 
+                    : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border-slate-800'
+                }`}
                 title={loc.resetBtn}
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -1526,10 +1613,14 @@ export default function GitVisualizerPanel({
         </div>
 
         {/* Dynamic active step descriptions (Right - col span 4) */}
-        <div className="lg:col-span-4 flex flex-col justify-between gap-3 p-4 border border-slate-850 bg-slate-900/20 rounded-xl relative overflow-hidden">
+        <div className={`lg:col-span-4 flex flex-col justify-between gap-3 p-4 border rounded-xl relative overflow-hidden ${
+          isLight ? 'border-slate-200 bg-slate-50/50' : 'border-slate-850 bg-slate-900/20'
+        }`}>
           
           <div className="flex flex-col gap-3">
-            <h4 className="text-[10px] font-mono font-bold tracking-wider text-slate-450 uppercase flex items-center gap-1.5">
+            <h4 className={`text-[10px] font-mono font-bold tracking-wider uppercase flex items-center gap-1.5 ${
+              isLight ? 'text-slate-500' : 'text-slate-450'
+            }`}>
               <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
               <span>{loc.explanationTitle.replace('{step}', String(currentStep + 1))}</span>
             </h4>
@@ -1543,7 +1634,9 @@ export default function GitVisualizerPanel({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: 0.2 }}
-                  className="text-xs leading-relaxed text-slate-200 font-sans font-medium"
+                  className={`text-xs leading-relaxed font-sans font-medium ${
+                    isLight ? 'text-slate-700' : 'text-slate-200'
+                  }`}
                 >
                   {loc.opDescriptions[activeAction][currentStep] || "Scanning state logs..."}
                 </motion.div>
@@ -1551,22 +1644,34 @@ export default function GitVisualizerPanel({
             </div>
 
             {/* Under the hood technical references */}
-            <div className="border-t border-slate-900/80 pt-2.5">
-              <span className="text-[9px] font-mono font-bold text-violet-400 tracking-wider block mb-1">
+            <div className={`border-t pt-2.5 ${
+              isLight ? 'border-slate-200/60' : 'border-slate-900/80'
+            }`}>
+              <span className={`text-[9px] font-mono font-bold tracking-wider block mb-1 ${
+                isLight ? 'text-violet-700' : 'text-violet-400'
+              }`}>
                 {loc.underTheHoodLabel}
               </span>
-              <p className="text-[10px] text-slate-400 leading-relaxed font-sans font-medium">
+              <p className={`text-[10px] leading-relaxed font-sans font-medium ${
+                isLight ? 'text-slate-650' : 'text-slate-400'
+              }`}>
                 {loc.opUnderTheHood[activeAction]}
               </p>
             </div>
           </div>
 
           {/* Expected final outcome brief */}
-          <div className="bg-indigo-950/20 rounded-lg p-2.5 border border-indigo-500/10 mt-2">
-            <span className="text-[9px] font-mono font-bold text-indigo-400 tracking-wider block mb-0.5">
+          <div className={`rounded-lg p-2.5 border mt-2 ${
+            isLight ? 'bg-indigo-50/40 border-indigo-100/60' : 'bg-indigo-950/20 border-indigo-505/10'
+          }`}>
+            <span className={`text-[9px] font-mono font-bold tracking-wider block mb-0.5 ${
+              isLight ? 'text-indigo-700' : 'text-indigo-400'
+            }`}>
               {loc.expectedResultLabel}
             </span>
-            <p className="text-[10px] text-indigo-300 font-sans font-medium leading-relaxed">
+            <p className={`text-[10px] font-sans font-medium leading-relaxed ${
+              isLight ? 'text-indigo-800' : 'text-indigo-300'
+            }`}>
               {loc.opResult[activeAction]}
             </p>
           </div>

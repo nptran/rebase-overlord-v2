@@ -39,3 +39,283 @@
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.4);
 }
+
+/* --- LIGHT MODE BEAUTIFICATION ENHANCEMENTS (GOOGLE MATERIAL DESIGN 3 THEME) --- */
+.light {
+  color-scheme: light;
+}
+
+/* Root level element overrides - Google Material 3 Light Surface */
+html.light, body.light {
+  background-color: #f3f4f9 !important;
+}
+
+/* Override App Core bg & color */
+.light #rebase-overlord-app {
+  background-color: #f3f4f9 !important; /* Material 3 neutral-95 surface */
+  color: #1c1b1f !important; /* Material 3 on-surface text */
+}
+
+/* Primary Level Panels & Cards (used for outer panels) */
+.light [class*="bg-[#0f172a]"],
+.light [class*="bg-[#0b0f19]"],
+.light [class*="bg-[#0a0c1a]"],
+.light [class*="bg-[#0b0f24]"],
+.light [class*="bg-[#0c122c]"],
+.light [class*="bg-[#090d22]"],
+.light [class*="bg-[#15161a]"],
+.light [class*="bg-[#14151a]"],
+.light [class*="bg-[#1c1d22]"],
+.light [class*="bg-[#17181c]"],
+.light [class*="bg-[#1b1c25]"],
+.light [class*="bg-[#1c1d21]"],
+.light [class*="bg-[#1e2026]"],
+.light [class*="bg-[#02040d]"],
+.light .bg-slate-950,
+.light .bg-slate-950\/95,
+.light #repo-header-container,
+.light #rebase-wizard-card,
+.light #interactive-git-flow-visualizer {
+  background-color: #ffffff !important; /* Pure white surface container */
+  color: #1c1b1f !important;
+  /* Material-style elevation shadow with subtle violet-indigo tone */
+  box-shadow: 0 4px 18px -2px rgba(103, 80, 164, 0.04), 0 0 0 1px rgba(103, 80, 164, 0.03) !important;
+}
+
+/* Secondary Panels, Sub-cards, Controls, and Intermediate widgets */
+.light [class*="bg-[#141a36]"],
+.light [class*="bg-[#0f1430]"],
+.light [class*="bg-[#0b0f19]/40]"],
+.light [class*="bg-[#0b0f19]/80]"],
+.light [class*="bg-[#070b13]"],
+.light [class*="bg-[#080d16]"],
+.light [class*="bg-[#14151b]"],
+.light .bg-slate-950\/20,
+.light .bg-slate-950\/30,
+.light .bg-slate-950\/40,
+.light .bg-slate-950\/50,
+.light .bg-slate-950\/60,
+.light .bg-slate-950\/70,
+.light .bg-slate-950\/80,
+.light .bg-slate-950\/90,
+.light .bg-slate-900,
+.light .bg-slate-900\/40,
+.light .bg-slate-900\/60,
+.light .bg-slate-900\/70,
+.light .bg-slate-900\/80,
+.light .bg-slate-850,
+.light #dir-modal-toolbar,
+.light #dir-modal-footer {
+  background-color: #f0f4f8 !important; /* Soft, highly legible Material Surface Container Low */
+  color: #1c1b1f !important;
+}
+
+/* Nested Items or accent elements, tabs, files, gutter columns */
+.light [class*="bg-[#0d1324]/50]"],
+.light [class*="bg-[#070b15]/40]"],
+.light [class*="bg-[#090e1f]/20]"],
+.light [class*="bg-[#0c1329]"],
+.light [class*="bg-[#0b0c15]"],
+.light [class*="bg-[#07080f]"],
+.light [class*="bg-[#111219]"],
+.light [class*="bg-[#252632]"],
+.light [class*="bg-[#2d2f3c]/20]"],
+.light [class*="bg-[#16171d]"],
+.light [class*="bg-[#111217]"],
+.light [class*="bg-[#0f1013]"],
+.light [class*="bg-[#0e0f12]"],
+.light [class*="bg-[#18191f]"] {
+  background-color: #eef2fa !important; /* High-contrast Material Surface Container High */
+  color: #1c1b1f !important;
+}
+
+/* Inner borders and outline rings - Google Material Outline */
+.light .border-slate-800,
+.light .border-slate-850,
+.light .border-slate-900,
+.light .border-slate-950,
+.light [class*="border-[#2d2f3c]"],
+.light .border-indigo-900,
+.light .border-violet-500\/30,
+.light .border-slate-750,
+.light .border-slate-700 {
+  border-color: #e1e2ec !important; /* Material standard outline variant */
+}
+
+/* Glow effects / neon shadow suppression for clean light look */
+.light .shadow-2xl,
+.light .shadow-lg,
+.light .shadow-md {
+  box-shadow: 0 10px 15px -3px rgba(103, 80, 164, 0.02), 0 4px 6px -4px rgba(103, 80, 164, 0.02), 0 0 0 1px rgba(103, 80, 164, 0.03) !important;
+}
+
+/* Standard text replacement for Legibility */
+.light .text-slate-100,
+.light .text-slate-200,
+.light .text-slate-300,
+.light .text-slate-100\/90,
+.light .text-slate-200\/90,
+.light .text-white {
+  color: #1c1b1f !important; /* Near-black On-Surface */
+}
+
+.light .text-slate-400,
+.light .text-slate-400\/90 {
+  color: #49454f !important; /* Slate-750 / On-Surface Variant */
+}
+
+.light .text-slate-500,
+.light .text-slate-500\/90 {
+  color: #5d5e66 !important; /* Medium Grey / Outline */
+}
+
+.light .text-slate-600,
+.light .text-slate-650 {
+  color: #45464f !important; /* Secondary caption text */
+}
+
+/* Interactive elements in Light Mode */
+.light button:disabled {
+  background-color: #eceef4 !important;
+  color: #909199 !important;
+  border-color: #e1e2ec !important;
+  cursor: not-allowed !important;
+}
+
+/* Google Material Tonal Color replacements inside Light Mode */
+.light .text-indigo-400,
+.light .text-indigo-300 {
+  color: #4f46e5 !important; /* Indigo primary */
+}
+
+.light .text-teal-400,
+.light .text-teal-300 {
+  color: #00796b !important; /* Teal primary */
+}
+
+.light .text-emerald-400,
+.light .text-emerald-300 {
+  color: #2e7d32 !important; /* Material green-800 */
+}
+
+.light .text-sky-450,
+.light .text-sky-400,
+.light .text-sky-300 {
+  color: #0277bd !important; /* Sky-800 */
+}
+
+.light .text-violet-400,
+.light .text-violet-300 {
+  color: #6750a4 !important; /* Material Amethyst Purple */
+}
+
+.light .text-amber-400,
+.light .text-amber-300,
+.light .text-amber-500 {
+  color: #ef6c00 !important; /* Material Amber-800 */
+}
+
+.light .text-rose-400,
+.light .text-rose-300,
+.light .text-rose-500 {
+  color: #c62828 !important; /* Material Crimson-800 */
+}
+
+/* Background Highlight Plates - Google Material Tonal Containers */
+.light .bg-indigo-950\/20,
+.light .bg-indigo-950\/40,
+.light [class*="bg-[#111219]"] {
+  background-color: #e8eaf6 !important; /* Indigo tonal container */
+  border-color: #c5cae9 !important;
+  color: #1a237e !important;
+}
+
+.light .bg-teal-500\/10 {
+  background-color: #e0f2f1 !important; /* Teal tonal container */
+  border-color: #b2dfdb !important;
+  color: #004d40 !important;
+}
+
+.light .bg-emerald-950\/15,
+.light .bg-emerald-950\/20,
+.light [class*="bg-[#1b3425]"] {
+  background-color: #e8f5e9 !important; /* Green tonal container */
+  border-color: #c8e6c9 !important;
+  color: #1b5e20 !important;
+}
+
+.light .bg-rose-950\/15,
+.light .bg-rose-950\/30 {
+  background-color: #ffebee !important; /* Red tonal container */
+  border-color: #ffcdd2 !important;
+  color: #b71c1c !important;
+}
+
+.light .bg-amber-950\/20,
+.light .bg-amber-950\/30 {
+  background-color: #fff8e1 !important; /* Gold tonal container */
+  border-color: #ffecb3 !important;
+  color: #ff6f00 !important;
+}
+
+/* Terminal View - KEEP DARK for developer familiarity but style border crisp */
+.light #terminal-panel-container,
+.light #terminal-collapsed-panel,
+.light [class*="bg-[#020617]"] {
+  background-color: #020617 !important;
+  border-color: #cbd5e1 !important;
+}
+
+.light #terminal-panel-container * {
+  /* Retain terminal colors internally */
+}
+
+/* Conflict Solver Side-by-Side Area Overrides - Material Design Editor style */
+.light [class*="bg-[#0f1013]"] {
+  background-color: #f8fafc !important; /* Editor viewport background style */
+}
+
+.light [class*="bg-[#0e0f12]"] {
+  background-color: #f1f5f9 !important; /* Gutter column */
+}
+
+.light [class*="bg-[#16171d]"] {
+  background-color: #ffffff !important; /* Texteditor textbox input */
+  border-color: #cbd5e1 !important;
+}
+
+.light [class*="bg-[#1e2026]"],
+.light [class*="bg-[#17181c]"],
+.light [class*="bg-[#14151b]"],
+.light [class*="bg-[#1b1c25]"],
+.light [class*="bg-[#111217]"] {
+  background-color: #f1f5f9 !important; /* Conflict solver layout frame headers */
+}
+
+/* Inputs, Textareas, Inputs in Forms */
+.light input,
+.light input[type="text"],
+.light textarea,
+.light select {
+  background-color: #ffffff !important;
+  color: #1c1b1f !important;
+  border-color: #cbd5e1 !important;
+}
+
+.light input[type="text"]::placeholder,
+.light textarea::placeholder {
+  color: #909199 !important;
+}
+
+/* Scrollbar behaviors */
+.light .scrollbar-thin::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.6) !important;
+}
+
+.light .scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(103, 80, 164, 0.15) !important;
+}
+
+.light .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(103, 80, 164, 0.3) !important;
+}

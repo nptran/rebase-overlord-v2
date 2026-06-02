@@ -150,6 +150,7 @@ interface ConflictSolverProps {
   currentBranch?: string;
   baseBranch?: string;
   isAiEnabled?: boolean;
+  theme?: 'light' | 'dark';
 }
 
 interface CodeBlock {
@@ -412,7 +413,8 @@ export default function ConflictSolver({
   onCompleteRecovery,
   currentBranch,
   baseBranch,
-  isAiEnabled = true
+  isAiEnabled = true,
+  theme = 'dark'
 }: ConflictSolverProps) {
   const [selectedFile, setSelectedFile] = React.useState<ConflictFile | null>(conflicts[0] || null);
   const [editorText, setEditorText] = React.useState('');
@@ -1443,7 +1445,7 @@ export default function ConflictSolver({
                           : 'bg-[#1d1f26] border-[#25262c] text-slate-400 hover:border-[#2d2f3c] hover:text-slate-200'
                     }`}
                   >
-                    <div className="flex items-center gap-2 max-w-[70%] truncate">
+                    <div className="flex items-center gap-2 max-w-[70%] truncate" title={file.filepath}>
                       <FileCode2 className={`w-4 h-4 shrink-0 ${file.isResolved ? 'text-emerald-400' : 'text-amber-550'}`} />
                       <span className="truncate">{file.filepath}</span>
                     </div>

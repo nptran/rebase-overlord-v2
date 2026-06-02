@@ -70,6 +70,7 @@ interface BranchPanelProps {
   currentBranch: string;
   tone: TranslationTone;
   useEmoji: boolean;
+  theme?: 'light' | 'dark';
   onCheckout: (branchName: string) => void;
   onCreateBranch: (branchName: string) => void;
   onDeleteBranch: (branchName: string) => void;
@@ -80,6 +81,7 @@ export default function BranchPanel({
   currentBranch,
   tone,
   useEmoji,
+  theme = 'dark',
   onCheckout,
   onCreateBranch,
   onDeleteBranch
@@ -111,18 +113,22 @@ export default function BranchPanel({
     setShowCreateForm(false);
   };
 
+  const isLight = theme === 'light';
+
   return (
-    <div id="branch-panel" className="bg-[#0f172a] border border-slate-800 rounded-xl p-5 shadow-xl">
-      <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-800">
-        <h2 className="text-sm font-bold text-white uppercase font-mono tracking-wider flex items-center gap-1.5">
+    <div id="branch-panel" className={`border rounded-xl p-5 shadow-xl transition-all duration-200 ${isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-[#0f172a] border-slate-800 text-slate-100'}`}>
+      <div className={`flex justify-between items-center mb-4 pb-3 border-b ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+        <h2 className="text-sm font-bold uppercase font-mono tracking-wider flex items-center gap-1.5">
           <GitBranch className="w-4 h-4 text-sky-400" />
-          <span>{translate('m_checkout', tone, undefined, useEmoji)}</span>
+          <span className={isLight ? 'text-slate-900' : 'text-white'}>{translate('m_checkout', tone, undefined, useEmoji)}</span>
         </h2>
         
         {/* Branch Create button */}
         <button
           onClick={() => setShowCreateForm(!showCreateForm)}
-          className="text-xs text-sky-400 hover:text-sky-300 font-mono flex items-center gap-1 bg-sky-500/10 border border-sky-500/20 px-2 py-1 rounded transition-colors"
+          className={`text-xs font-mono flex items-center gap-1 px-2 py-1 rounded transition-colors cursor-pointer ${
+            isLight ? 'bg-sky-50 text-sky-600 border border-sky-250 hover:bg-sky-100' : 'bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:text-sky-300'
+          }`}
         >
           <PlusCircle className="w-3.5 h-3.5" />
           <span>{loc.newBranch}</span>
@@ -131,20 +137,22 @@ export default function BranchPanel({
 
       {/* Quick create form collapsed state */}
       {showCreateForm && (
-        <form onSubmit={handleCreateSubmit} className="mb-4 bg-slate-950 p-3 rounded-lg border border-sky-500/20 animate-fade-in">
-          <div className="text-xs text-slate-400 mb-2 font-mono">{loc.titleCreate}</div>
+        <form onSubmit={handleCreateSubmit} className={`mb-4 p-3 rounded-lg border animate-fade-in ${isLight ? 'bg-slate-50 border-sky-200' : 'bg-slate-950 border-sky-500/20'}`}>
+          <div className={`text-xs mb-2 font-mono ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>{loc.titleCreate}</div>
           <div className="flex gap-2">
             <input
               type="text"
               value={newBranchName}
               onChange={(e) => setNewBranchName(e.target.value)}
               placeholder="E.g. feature/checkout-refactor"
-              className="flex-grow bg-slate-900 border border-slate-800 px-3 py-1.5 text-xs font-mono rounded text-slate-200 focus:border-sky-500 outline-none"
+              className={`flex-grow border px-3 py-1.5 text-xs font-mono rounded outline-none ${
+                isLight ? 'bg-white border-slate-250 text-slate-800 focus:border-sky-500' : 'bg-slate-900 border-slate-800 text-slate-250 focus:border-sky-500'
+              }`}
               autoFocus
             />
             <button
               type="submit"
-              className="bg-sky-600 hover:bg-sky-500 text-white text-xs px-3 py-1.5 rounded font-mono border border-sky-500/10"
+              className="bg-sky-600 hover:bg-sky-500 text-white text-xs px-3 py-1.5 rounded font-mono border border-sky-500/10 cursor-pointer"
             >
               {loc.createBtn}
             </button>
@@ -176,7 +184,11 @@ export default function BranchPanel({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={loc.searchPlaceholder}
-          className="w-full pl-8 pr-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs font-mono text-slate-300 focus:border-slate-700 focus:ring-1 focus:ring-slate-800 outline-none placeholder-slate-600"
+          className={`w-full pl-8 pr-3 py-1.5 border rounded-lg text-xs font-mono outline-none transition-colors ${
+            isLight
+              ? 'bg-slate-50 border-slate-200 text-slate-800 focus:border-slate-350 focus:ring-1 focus:ring-slate-300'
+              : 'bg-slate-950 border-slate-800 text-slate-300 focus:border-slate-700 focus:ring-1 focus:ring-slate-800'
+          }`}
         />
       </div>
 
@@ -204,35 +216,37 @@ export default function BranchPanel({
                 title={tooltipText}
                 className={`p-2.5 rounded-lg border transition-all flex items-center justify-between text-xs font-mono select-none ${
                   isCurrent
-                    ? 'bg-sky-500/10 border-sky-400/30 text-sky-300 shadow-md'
-                    : 'bg-slate-950 hover:bg-slate-900/60 hover:border-slate-700/50 text-slate-400 hover:text-slate-200 cursor-pointer active:scale-[0.99]'
+                    ? 'bg-sky-500/10 border-sky-400/30 text-sky-500 font-bold shadow-md'
+                    : isLight
+                      ? 'bg-slate-50 border-slate-150 text-slate-700 hover:bg-slate-100/80 hover:border-slate-300 hover:text-slate-905 cursor-pointer active:scale-[0.99]'
+                      : 'bg-slate-950 border-slate-900/65 hover:bg-slate-900/60 hover:border-slate-700/50 text-slate-400 hover:text-slate-200 cursor-pointer active:scale-[0.99]'
                 }`}
               >
                 {/* Branch Info Left */}
                 <div className="flex items-center gap-2 max-w-[calc(100%-28px)] w-full overflow-hidden">
                   {isCurrent ? (
-                    <CheckCircle2 className="w-4 h-4 text-sky-400 shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-sky-500 shrink-0" />
                   ) : (
-                    <GitBranch className="w-4 h-4 text-slate-600 shrink-0" />
+                    <GitBranch className={`w-4 h-4 shrink-0 ${isLight ? 'text-slate-400' : 'text-slate-600'}`} />
                   )}
-                  <span className={`font-semibold truncate flex-grow ${isCurrent ? 'text-sky-300' : 'text-slate-300'}`}>
+                  <span className={`font-semibold truncate flex-grow ${isCurrent ? 'text-sky-600' : isLight ? 'text-slate-800' : 'text-slate-300'}`} title={branch.name}>
                     {branch.name}
                   </span>
                   
                   {/* Status Badges */}
                   <div className="flex items-center gap-1 shrink-0">
                     {branch.isBase && (
-                      <span className="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1 rounded uppercase font-bold">
+                      <span className="text-[9px] bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-1 rounded uppercase font-bold">
                         BASE
                       </span>
                     )}
                     {branch.isLocal && !branch.isRemote && (
-                      <span className="text-[9px] bg-sky-500/10 text-sky-400 border border-sky-500/20 px-1 rounded uppercase" title="Local only branch">
+                      <span className="text-[9px] bg-sky-500/10 text-sky-600 border border-sky-500/20 px-1 rounded uppercase" title="Local only branch">
                         <Laptop className="w-2.5 h-2.5 inline mr-0.5" />Local
                       </span>
                     )}
                     {branch.isRemote && !branch.isLocal && (
-                      <span className="text-[9px] bg-purple-500/10 text-purple-400 border border-purple-500/20 px-1 rounded uppercase" title="Remote only branch">
+                      <span className="text-[9px] bg-purple-500/10 text-purple-600 border border-purple-500/20 px-1 rounded uppercase" title="Remote only branch">
                         <Globe className="w-2.5 h-2.5 inline mr-0.5" />Remote
                       </span>
                     )}
@@ -249,7 +263,9 @@ export default function BranchPanel({
                         const confirmDel = window.confirm(loc.deleteConfirm(branch.name));
                         if (confirmDel) onDeleteBranch(branch.name);
                       }}
-                      className="text-slate-600 hover:text-rose-400 p-1 rounded hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all active:scale-90"
+                      className={`p-1 rounded border border-transparent transition-all active:scale-90 cursor-pointer ${
+                        isLight ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200' : 'text-slate-600 hover:text-rose-450 hover:bg-rose-500/10 hover:border-rose-500/20'
+                      }`}
                       title={tone === TranslationTone.ENGLISH ? "Delete branch" : "Xoá nhánh"}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -263,7 +279,7 @@ export default function BranchPanel({
       </div>
 
       {/* Local & Remote Branch status indicators metrics */}
-      <div className="mt-4 pt-3 border-t border-slate-900 flex justify-between items-center text-[10px] text-slate-500 font-mono">
+      <div className={`mt-4 pt-3 border-t flex justify-between items-center text-[10px] text-slate-500 font-mono ${isLight ? 'border-slate-200' : 'border-slate-900'}`}>
         <span>{loc.metrics}</span>
         <span>
           Local: {branches.filter(b => b.isLocal).length} | Remote: {branches.filter(b => b.isRemote).length}
