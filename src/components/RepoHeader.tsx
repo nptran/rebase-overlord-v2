@@ -37,6 +37,7 @@ interface RepoHeaderProps {
   isCloning: boolean;
   isAiEnabled: boolean;
   theme: 'light' | 'dark';
+  isRefreshing?: boolean;
   onSetTone: (t: TranslationTone) => void;
   onToggleEmoji: () => void;
   onToggleSimulation: (val: boolean) => void;
@@ -175,6 +176,7 @@ export default function RepoHeader({
   isCloning,
   isAiEnabled,
   theme,
+  isRefreshing = false,
   onSetTone,
   onToggleEmoji,
   onToggleSimulation,
@@ -642,10 +644,13 @@ export default function RepoHeader({
                     <button
                       type="button"
                       onClick={onRefresh}
-                      className="bg-slate-900 border border-slate-800 text-slate-400 hover:text-white p-2 rounded-lg transition-colors shadow-sm flex items-center justify-center"
+                      disabled={isRefreshing}
+                      className={`bg-slate-900 border border-slate-800 text-slate-400 hover:text-white p-2 rounded-lg transition-colors shadow-sm flex items-center justify-center cursor-pointer ${
+                        isRefreshing ? 'opacity-70 cursor-not-allowed' : ''
+                      }`}
                       title={loc.refreshTitle}
                     >
-                      <RefreshCw className="w-4 h-4" />
+                      <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                     </button>
                   </div>
                 </form>
@@ -690,10 +695,13 @@ export default function RepoHeader({
                       id="refresh-repo-btn"
                       type="button"
                       onClick={onRefresh}
-                      className="bg-slate-900 border border-slate-800 text-slate-400 hover:text-white p-2 rounded-lg transition-colors shadow-sm flex items-center justify-center shrink-0 cursor-pointer"
+                      disabled={isRefreshing}
+                      className={`bg-slate-900 border border-slate-800 text-slate-400 hover:text-white p-2 rounded-lg transition-colors shadow-sm flex items-center justify-center shrink-0 cursor-pointer ${
+                        isRefreshing ? 'opacity-70 cursor-not-allowed' : ''
+                      }`}
                       title={loc.refreshTitle}
                     >
-                      <RefreshCw className="w-4 h-4" />
+                      <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                     </button>
                   </div>
                   <p className="text-[10.5px] text-slate-400 font-mono flex items-center gap-1.5 mt-1 px-2.5 py-1 rounded bg-indigo-500/5 border border-indigo-500/10 w-fit">

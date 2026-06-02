@@ -427,6 +427,12 @@ export default function App() {
     ];
   });
 
+  // Add line to terminal
+  const addLog = React.useCallback((line: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    setLogs(prev => [...prev, `[${timestamp}] ${line}`]);
+  }, []);
+
   // Animated Git Doctor states
   const [doctorProblem, setDoctorProblem] = React.useState<string | null>(null);
   const [doctorLoading, setDoctorLoading] = React.useState<boolean>(false);
@@ -543,7 +549,10 @@ export default function App() {
   }, [logs]);
 
   // Fetch metrics upon settings updates
+  const [isRefreshing, setIsRefreshing] = React.useState<boolean>(false);
+  const [checkingOutBranch, setCheckingOutBranch] = React.useState<string | null>(null);
   const handleRefresh = React.useCallback(async (overrideSim?: boolean) => {
+    setIsRefreshing(true);
     try {
       const activeSim = overrideSim !== undefined ? overrideSim : isSimulation;
       addLog(`$ Refreshing git states (Simulation: ${activeSim})...`);
@@ -600,8 +609,10 @@ export default function App() {
         addLog(`🤖 Đã tự động kích hoạt "Simulation Playground" do Backend không phản hồi chính xác JSON.`);
       }
       setBackendStatus('unreachable');
+    } finally {
+      setIsRefreshing(false);
     }
-  }, [isSimulation]);
+  }, [isSimulation, addLog]);
 
   const quietRefresh = React.useCallback(async () => {
     try {
@@ -718,12 +729,6 @@ export default function App() {
       }));
     }
   }, [repoState.currentBranch]);
-
-  // Add line to terminal
-  const addLog = (line: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setLogs(prev => [...prev, `[${timestamp}] ${line}`]);
-  };
 
   // Safe Execute updates of wizard properties
   const handleUpdateWizard = (updates: Partial<WizardState>) => {
@@ -1298,16 +1303,19 @@ export default function App() {
 
   // Active Checkout action
   const handleCheckoutBranch = async (branchName: string) => {
+    setCheckingOutBranch(branchName);
     addLog(`$ git checkout ${branchName}`);
     
-    if (isSimulation) {
-      setRepoState(prev => ({
-        ...prev,
-        currentBranch: branchName
-      }));
-      addLog(`✓ Checkout local branch successful: ${branchName}`);
-    } else {
-      try {
+    try {
+      if (isSimulation) {
+        // Small artificial delay to let user observe checkout animation gracefully
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        setRepoState(prev => ({
+          ...prev,
+          currentBranch: branchName
+        }));
+        addLog(`✓ Checkout local branch successful: ${branchName}`);
+      } else {
         const res = await fetch(resolveApiUrl('/api/execute-command'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1315,14 +1323,16 @@ export default function App() {
         });
         if (res.ok) {
           addLog(`✓ Checkout successful for actual branch: ${branchName}`);
-          handleRefresh();
+          await handleRefresh();
         } else {
           const errMsg = await safeParseError(res, 'Unknown error checking out branch');
           addLog(`! Error checking out branch: ${errMsg}`);
         }
-      } catch (err: any) {
-        addLog(`! Failed network thread executing checkout: ${err.message}`);
       }
+    } catch (err: any) {
+      addLog(`! Failed network thread executing checkout: ${err.message}`);
+    } finally {
+      setCheckingOutBranch(null);
     }
   };
 
@@ -1463,6 +1473,7 @@ export default function App() {
           onUpdateRepoPath={handleUpdateRepoPath}
           onCloneRepo={handleCloneRepo}
           onRefresh={handleRefresh}
+          isRefreshing={isRefreshing}
         />
 
         {/* Night Owl Persistent Banner */}
@@ -1692,6 +1703,7 @@ export default function App() {
               tone={tone}
               useEmoji={useEmoji}
               theme={theme}
+              checkingOutBranch={checkingOutBranch}
               onCheckout={handleCheckoutBranch}
               onCreateBranch={handleCreateBranch}
               onDeleteBranch={handleDeleteBranch}

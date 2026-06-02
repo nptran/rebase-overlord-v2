@@ -13,7 +13,8 @@ import {
   Globe, 
   Laptop, 
   CheckCircle2,
-  GitPullRequest
+  GitPullRequest,
+  RefreshCw
 } from 'lucide-react';
 import { GitBranch as GitBranchType, TranslationTone } from '../types';
 import { translate } from '../i18n';
@@ -28,7 +29,8 @@ const branchLoc = {
     emptyText: "Không tìm thấy chi nhánh nào.",
     checkoutBtn: "Chuyển sang",
     deleteConfirm: (b: string) => `Bạn có chắc chắn muốn xóa chi nhánh [${b}] không? Hành động này sẽ gây mất dữ liệu nếu chưa push.`,
-    metrics: "CHỈ SỐ CHI NHÁNH"
+    metrics: "CHỈ SỐ CHI NHÁNH",
+    checkingOut: "Đang chuyển nhánh..."
   },
   [TranslationTone.JOKE]: {
     newBranch: "Phun nhánh mới 🌿",
@@ -39,7 +41,8 @@ const branchLoc = {
     emptyText: "Tìm mỏi mắt không thấy cái nhánh nào hết trơn.",
     checkoutBtn: "Lượn sang",
     deleteConfirm: (b: string) => `Xóa cái nhánh [${b}] là bốc hơi luôn nha sếp? Chắc chưa á?`,
-    metrics: "CHỈ SỐ SINH TRƯỞNG"
+    metrics: "CHỈ SỐ SINH TRƯỞNG",
+    checkingOut: "Nhánh hịn đang load..."
   },
   [TranslationTone.TOXIC]: {
     newBranch: "Đẻ nhánh mới lẹ lên!",
@@ -50,7 +53,8 @@ const branchLoc = {
     emptyText: "Xịt keo, đéo tìm thấy nhánh nào hết!",
     checkoutBtn: "Cút sang",
     deleteConfirm: (b: string) => `Tao hỏi thật mày muốn khai tử cái nhánh [${b}] đúng không? Đéo khôi phục được đâu!`,
-    metrics: "TỔNG SỐ ĐỐNG RÁC"
+    metrics: "TỔNG SỐ ĐỐNG RÁC",
+    checkingOut: "Đang chuyển... đợi tí đi!"
   },
   [TranslationTone.ENGLISH]: {
     newBranch: "New Branch",
@@ -61,7 +65,8 @@ const branchLoc = {
     emptyText: "No matching branches detected.",
     checkoutBtn: "Checkout",
     deleteConfirm: (b: string) => `Are you sure you want to delete branch [${b}]? Unpushed changes will be lost permanently.`,
-    metrics: "BRANCH METRICS"
+    metrics: "BRANCH METRICS",
+    checkingOut: "Checking out..."
   }
 };
 
@@ -71,6 +76,7 @@ interface BranchPanelProps {
   tone: TranslationTone;
   useEmoji: boolean;
   theme?: 'light' | 'dark';
+  checkingOutBranch?: string | null;
   onCheckout: (branchName: string) => void;
   onCreateBranch: (branchName: string) => void;
   onDeleteBranch: (branchName: string) => void;
@@ -82,6 +88,7 @@ export default function BranchPanel({
   tone,
   useEmoji,
   theme = 'dark',
+  checkingOutBranch = null,
   onCheckout,
   onCreateBranch,
   onDeleteBranch
@@ -205,32 +212,44 @@ export default function BranchPanel({
               ? (tone === TranslationTone.ENGLISH ? `Current branch: ${branch.name}` : tone === TranslationTone.PROFESSIONAL ? `Nhánh hiện tại: ${branch.name}` : tone === TranslationTone.JOKE ? `👑 Nhánh mẹ thiên hạ đang ngự trị: ${branch.name}` : `Nhánh hiện tại: ${branch.name}. Click đúp cũng đéo chạy đi đâu được.`)
               : (tone === TranslationTone.ENGLISH ? `Double-click to checkout: ${branch.name}` : tone === TranslationTone.PROFESSIONAL ? `Nhấp đúp chuột để chuyển nhanh sang nhánh: ${branch.name}` : tone === TranslationTone.JOKE ? `Click đúp phát để lướt ván sang nhánh: ${branch.name} 🚀` : `Click đúp phát để cút lẹ sang nhánh: ${branch.name}`);
 
+            const isCheckingOutThis = checkingOutBranch === branch.name;
+            const isAnyCheckingOut = checkingOutBranch !== null;
+
             return (
               <div
                 key={branch.name}
                 onDoubleClick={() => {
-                  if (!isCurrent) {
+                  if (!isCurrent && !isAnyCheckingOut) {
                     onCheckout(branch.name);
                   }
                 }}
-                title={tooltipText}
+                title={isCheckingOutThis ? loc.checkingOut : tooltipText}
                 className={`p-2.5 rounded-lg border transition-all flex items-center justify-between text-xs font-mono select-none ${
                   isCurrent
                     ? 'bg-sky-500/10 border-sky-400/30 text-sky-500 font-bold shadow-md'
-                    : isLight
-                      ? 'bg-slate-50 border-slate-150 text-slate-700 hover:bg-slate-100/80 hover:border-slate-300 hover:text-slate-905 cursor-pointer active:scale-[0.99]'
-                      : 'bg-slate-950 border-slate-900/65 hover:bg-slate-900/60 hover:border-slate-700/50 text-slate-400 hover:text-slate-200 cursor-pointer active:scale-[0.99]'
+                    : isCheckingOutThis
+                      ? 'bg-indigo-500/15 border-indigo-400/50 text-indigo-400 animate-pulse'
+                      : isLight
+                        ? `bg-slate-50 border-slate-150 text-slate-700 ${isAnyCheckingOut ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-100/80 hover:border-slate-300 hover:text-slate-905 cursor-pointer active:scale-[0.99]'}`
+                        : `bg-slate-950 border-slate-900/65 text-slate-400 ${isAnyCheckingOut ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-900/60 hover:border-slate-700/50 hover:text-slate-200 cursor-pointer active:scale-[0.99]'}`
                 }`}
               >
                 {/* Branch Info Left */}
                 <div className="flex items-center gap-2 max-w-[calc(100%-28px)] w-full overflow-hidden">
-                  {isCurrent ? (
+                  {isCheckingOutThis ? (
+                    <RefreshCw className="w-4 h-4 text-indigo-400 animate-spin shrink-0" />
+                  ) : isCurrent ? (
                     <CheckCircle2 className="w-4 h-4 text-sky-500 shrink-0" />
                   ) : (
                     <GitBranch className={`w-4 h-4 shrink-0 ${isLight ? 'text-slate-400' : 'text-slate-600'}`} />
                   )}
-                  <span className={`font-semibold truncate flex-grow ${isCurrent ? 'text-sky-600' : isLight ? 'text-slate-800' : 'text-slate-300'}`} title={branch.name}>
+                  <span className={`font-semibold truncate flex-grow ${isCurrent ? 'text-sky-600' : isCheckingOutThis ? 'text-indigo-400 font-bold' : isLight ? 'text-slate-800' : 'text-slate-300'}`} title={branch.name}>
                     {branch.name}
+                    {isCheckingOutThis && (
+                      <span className="text-[10px] text-indigo-400 font-bold ml-1.5 italic animate-pulse">
+                        ({loc.checkingOut})
+                      </span>
+                    )}
                   </span>
                   
                   {/* Status Badges */}
@@ -256,7 +275,7 @@ export default function BranchPanel({
                 {/* Operations Right */}
                 <div className="flex items-center gap-1.5 shrink-0">
                   {/* Deletion protection */}
-                  {!isCurrent && !branch.isBase && (
+                  {!isCurrent && !branch.isBase && !isAnyCheckingOut && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation(); // Avoid triggering double click checkout
