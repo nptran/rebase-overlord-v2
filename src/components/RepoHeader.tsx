@@ -288,12 +288,15 @@ export default function RepoHeader({
       const url = resolveApiUrl('/api/update/apply');
       const res = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          version: updateInfo?.latestVersion
+        })
       });
       if (!res.ok) throw new Error('Failed to run update installer.');
       
       setTimeout(() => {
-        window.close();
+        window.location.reload();
       }, 1500);
 
     } catch (err: any) {

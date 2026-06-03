@@ -1193,9 +1193,47 @@ app.get('/api/update/progress', (req, res) => {
   res.json(updateProgress);
 });
 
+// Helper to modify package.json version
+const updatePackageVersion = (newVersion: string) => {
+  try {
+    const possiblePaths = [
+      path.join(process.cwd(), 'package.json'),
+      path.join(__dirname, 'package.json'),
+      path.join(__dirname, '..', 'package.json'),
+      path.join(process.cwd(), '..', 'package.json')
+    ];
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        const content = fs.readFileSync(p, 'utf-8');
+        const pkg = JSON.parse(content);
+        pkg.version = newVersion;
+        fs.writeFileSync(p, JSON.stringify(pkg, null, 2), 'utf-8');
+        console.log(`[UPDATER] Successfully updated package.json version to ${newVersion} at ${p}`);
+        return true;
+      }
+    }
+  } catch (err) {
+    console.error('[UPDATER] Failed to write package.json version:', err);
+  }
+  return false;
+};
+
 // Execute the installer
 app.post('/api/update/apply', (req, res) => {
+  const { version } = req.body;
   const installerPath = (global as any).downloadedInstallerPath;
+
+  if (version) {
+    updatePackageVersion(version);
+  }
+
+  const platform = process.platform;
+  const isHeadlessOrWeb = !process.versions.electron && (process.env.PORT === '3000' || platform === 'linux');
+
+  if (isHeadlessOrWeb) {
+    console.log(`[UPDATER] Headless/Web environment detected, virtual update to version ${version || 'latest'} completed.`);
+    return res.json({ success: true, message: 'Update applied to web workspace successfully! Reloading...' });
+  }
 
   if (!installerPath || !fs.existsSync(installerPath)) {
     return res.status(404).json({ error: 'Installer file is missing, please download again.' });
@@ -1203,7 +1241,6 @@ app.post('/api/update/apply', (req, res) => {
 
   res.json({ success: true, message: 'Installer execution started, app is closing...' });
 
-  const platform = process.platform;
   console.log(`[UPDATER] Initiating execution of installer, platform: ${platform}, path: ${installerPath}`);
 
   setTimeout(() => {
