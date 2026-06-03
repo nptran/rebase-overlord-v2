@@ -88,7 +88,13 @@ app.get('/api/git-status', async (req, res) => {
       currentBranch: 'feature/payment-v2',
       baseBranch: 'develop',
       isDirty: true,
-      dirtyFiles: ['src/routes/payment.ts', 'src/services/stripe.ts', 'config/keys.json'],
+      dirtyFiles: [
+        'src/routes/payment.ts',
+        'src/services/stripe.ts',
+        'config/keys.json',
+        'src/components/ConflictSolver.tsx',
+        'package.json'
+      ],
       branches: [
         { name: 'develop', isLocal: true, isRemote: true, isCurrent: false, isBase: true },
         { name: 'main', isLocal: true, isRemote: true, isCurrent: false, isBase: true },
@@ -99,16 +105,21 @@ app.get('/api/git-status', async (req, res) => {
       commits: [
         { sha: 'f941a3c', author: 'Alex Nguyen', date: '5 mins ago', message: 'feat: add payment intent and webhook handles', type: 'feat', selected: true },
         { sha: 'a82bc4e', author: 'Alex Nguyen', date: '1 hour ago', message: 'fix: resolving null checkout responses', type: 'fix', selected: true },
-        { sha: '662dbf1', author: 'Alex Nguyen', date: '3 hours ago', message: 'refactor: split gateways to dedicated instances', type: 'refactor', selected: true },
+        { sha: 'b5a2e1d', author: 'Alex Nguyen', date: '4 hours ago', message: 'Merge branch \'develop\' into feature/payment-v2', type: 'other', selected: true },
+        { sha: '662dbf1', author: 'Alex Nguyen', date: '6 hours ago', message: 'refactor: split gateways to dedicated instances', type: 'refactor', selected: true },
+        { sha: '7c8d9e2', author: 'Sarah Connor', date: '12 hours ago', message: 'docs: update payment flow sequence diagrams', type: 'docs', selected: true },
         { sha: '001ba90', author: 'Sarah Connor', date: '1 day ago', message: 'docs: document secure billing policies', type: 'docs', selected: true },
-        { sha: 'd92a11b', author: 'Lead System', date: '2 days ago', message: 'chore: bump package requirements', type: 'chore', selected: false }
+        { sha: 'ef12ab3', author: 'Alex Nguyen', date: '2 days ago', message: 'feat: initial stripe payload schema validation', type: 'feat', selected: true },
+        { sha: 'd92a11b', author: 'Lead System', date: '3 days ago', message: 'chore: bump package requirements', type: 'chore', selected: false },
+        { sha: 'a0b1c2d', author: 'Lead System', date: '4 days ago', message: 'Merge pull request #145 from hotfix/billing-token-renewal', type: 'other', selected: false },
+        { sha: '8812cfa', author: 'Sarah Connor', date: '5 days ago', message: 'test: configure billing analytics test fixtures', type: 'chore', selected: false }
       ],
       rebaseInProgress: false,
       mergeInProgress: false,
       conflicts: [],
       ghAvailable: true,
       ghErrorKey: '',
-      commandHistory: ['git status', 'git log --oneline -n 5']
+      commandHistory: ['git status', 'git log --oneline -n 10']
     });
   }
 

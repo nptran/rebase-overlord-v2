@@ -257,6 +257,7 @@ interface SearchBarProps {
   onChange: (updates: { query?: string; matchCase?: boolean; wholeWord?: boolean; useRegex?: boolean; activeIndex?: number }) => void;
   onClose: () => void;
   tone: TranslationTone;
+  theme?: 'light' | 'dark';
 }
 
 function SearchInputBar({
@@ -269,9 +270,12 @@ function SearchInputBar({
   totalMatches,
   onChange,
   onClose,
-  tone
+  tone,
+  theme = 'dark'
 }: SearchBarProps) {
   if (!isOpen) return null;
+
+  const isLight = theme === 'light';
 
   const handlePrev = () => {
     if (totalMatches === 0) return;
@@ -298,9 +302,17 @@ function SearchInputBar({
   };
 
   return (
-    <div className="bg-[#111216] border-b border-[#2d2f3c] px-3 py-1 flex items-center justify-between gap-2 text-xs font-mono select-none animate-fade-in text-slate-300">
+    <div className={`border-b px-3 py-1 flex items-center justify-between gap-2 text-xs font-mono select-none animate-fade-in ${
+      isLight 
+        ? 'bg-slate-100 border-slate-250 text-slate-700' 
+        : 'bg-[#111216] border-b border-[#2d2f3c] text-slate-300'
+    }`}>
       <div className="flex items-center gap-1.5 flex-1 max-w-[85%]">
-        <div className="relative flex items-center bg-[#1c1d24] border border-[#2d2f3c] focus-within:border-violet-500 rounded-md shadow-inner h-6.5 px-2 w-full max-w-[280px]">
+        <div className={`relative flex items-center rounded-md shadow-inner h-6.5 px-2 w-full max-w-[280px] border ${
+          isLight 
+            ? 'bg-white border-slate-200 focus-within:border-violet-500' 
+            : 'bg-[#1c1d24] border-[#2d2f3c] focus-within:border-violet-500'
+        }`}>
           <Search className="w-3.5 h-3.5 text-slate-500 mr-2 shrink-0" />
           <input
             type="text"
@@ -308,7 +320,9 @@ function SearchInputBar({
             onChange={(e) => onChange({ query: e.target.value, activeIndex: 0 })}
             onKeyDown={handleKeyDown}
             placeholder={tone === TranslationTone.ENGLISH ? "Search in pane (Enter/Shift+Enter)..." : "Tìm trong khung (Enter/Shift+Enter)..."}
-            className="bg-transparent border-none outline-none text-[#e8eef5] text-xs w-full mr-2 h-full placeholder-slate-600 focus:ring-0 focus:outline-none"
+            className={`bg-transparent border-none outline-none text-xs w-full mr-2 h-full placeholder-slate-600 focus:ring-0 focus:outline-none ${
+              isLight ? 'text-slate-800 placeholder-slate-400' : 'text-[#e8eef5]'
+            }`}
             autoFocus
           />
           
@@ -318,7 +332,9 @@ function SearchInputBar({
               className={`px-1 py-0.5 text-[8px] font-bold rounded transition-all cursor-pointer border ${
                 matchCase 
                   ? 'bg-violet-500/20 text-violet-400 border-violet-500/50' 
-                  : 'text-slate-500 hover:text-slate-300 border-transparent bg-transparent'
+                  : isLight 
+                    ? 'text-slate-400 hover:text-slate-700 border-transparent bg-transparent'
+                    : 'text-slate-500 hover:text-slate-300 border-transparent bg-transparent'
               }`}
               title="Match Case (Cc)"
             >
@@ -329,7 +345,9 @@ function SearchInputBar({
               className={`px-1 py-0.5 text-[8px] font-bold rounded transition-all cursor-pointer border ${
                 wholeWord 
                   ? 'bg-violet-500/20 text-violet-400 border-violet-500/50' 
-                  : 'text-slate-500 hover:text-slate-300 border-transparent bg-transparent'
+                  : isLight 
+                    ? 'text-slate-400 hover:text-slate-700 border-transparent bg-transparent'
+                    : 'text-slate-500 hover:text-slate-300 border-transparent bg-transparent'
               }`}
               title="Words (W)"
             >
@@ -340,7 +358,9 @@ function SearchInputBar({
               className={`px-1 py-0.5 text-[8px] font-bold rounded transition-all cursor-pointer border ${
                 useRegex 
                   ? 'bg-violet-500/20 text-violet-400 border-violet-500/50' 
-                  : 'text-slate-500 hover:text-slate-300 border-transparent bg-transparent'
+                  : isLight 
+                    ? 'text-slate-400 hover:text-slate-700 border-transparent bg-transparent'
+                    : 'text-slate-500 hover:text-slate-300 border-transparent bg-transparent'
               }`}
               title="Regular Expression (.*)"
             >
@@ -349,15 +369,15 @@ function SearchInputBar({
           </div>
         </div>
 
-        <span className="text-[10px] text-slate-500 whitespace-nowrap px-1">
+        <span className="text-[10px] text-slate-505 whitespace-nowrap px-1">
           {totalMatches > 0 ? (
-            <span className="text-violet-400 font-extrabold font-mono">
+            <span className="text-violet-550 font-extrabold font-mono">
               {activeIndex + 1}/{totalMatches} {tone === TranslationTone.ENGLISH ? "results" : "đáp án"}
             </span>
           ) : query ? (
-            <span className="text-rose-450 font-bold">0 {tone === TranslationTone.ENGLISH ? "results" : "kết quả"}</span>
+            <span className="text-rose-500 font-bold">0 {tone === TranslationTone.ENGLISH ? "results" : "kết quả"}</span>
           ) : (
-            <span className="text-slate-550">{tone === TranslationTone.ENGLISH ? "No query" : "Nhập từ khóa"}</span>
+            <span className={`${isLight ? 'text-slate-400' : 'text-slate-550'}`}>{tone === TranslationTone.ENGLISH ? "No query" : "Nhập từ khóa"}</span>
           )}
         </span>
       </div>
@@ -366,7 +386,13 @@ function SearchInputBar({
         <button
           onClick={handlePrev}
           disabled={totalMatches === 0}
-          className={`p-1 rounded transition-colors ${totalMatches === 0 ? 'text-slate-700 cursor-not-allowed' : 'text-slate-450 hover:text-white hover:bg-[#242532] cursor-pointer'}`}
+          className={`p-1 rounded transition-colors ${
+            totalMatches === 0 
+              ? isLight ? 'text-slate-300 cursor-not-allowed' : 'text-slate-700 cursor-not-allowed' 
+              : isLight 
+                ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-200 cursor-pointer' 
+                : 'text-slate-450 hover:text-white hover:bg-[#242532] cursor-pointer'
+          }`}
           title="Previous Match (Shift+Enter)"
         >
           <ChevronUp className="w-3.5 h-3.5" />
@@ -374,15 +400,25 @@ function SearchInputBar({
         <button
           onClick={handleNext}
           disabled={totalMatches === 0}
-          className={`p-1 rounded transition-colors ${totalMatches === 0 ? 'text-slate-700 cursor-not-allowed' : 'text-slate-450 hover:text-white hover:bg-[#242532] cursor-pointer'}`}
+          className={`p-1 rounded transition-colors ${
+            totalMatches === 0 
+              ? isLight ? 'text-slate-300 cursor-not-allowed' : 'text-slate-700 cursor-not-allowed' 
+              : isLight 
+                ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-200 cursor-pointer' 
+                : 'text-slate-450 hover:text-white hover:bg-[#242532] cursor-pointer'
+          }`}
           title="Next Match (Enter)"
         >
           <ChevronDown className="w-3.5 h-3.5" />
         </button>
-        <div className="w-[1px] h-3 bg-[#2d2f3c] mx-0.5"></div>
+        <div className={`w-[1px] h-3 mx-0.5 ${isLight ? 'bg-slate-300' : 'bg-[#2d2f3c]'}`}></div>
         <button
           onClick={onClose}
-          className="p-1 rounded text-slate-400 hover:text-white hover:bg-rose-950/40 transition-colors cursor-pointer"
+          className={`p-1 rounded transition-colors cursor-pointer ${
+            isLight 
+              ? 'text-slate-500 hover:text-slate-800 lg:hover:bg-slate-200' 
+              : 'text-slate-400 hover:text-white hover:bg-rose-950/40'
+          }`}
           title="Close search (Esc)"
         >
           <X className="w-3.5 h-3.5" />
@@ -416,6 +452,7 @@ export default function ConflictSolver({
   isAiEnabled = true,
   theme = 'dark'
 }: ConflictSolverProps) {
+  const isLight = theme === 'light';
   const [selectedFile, setSelectedFile] = React.useState<ConflictFile | null>(conflicts[0] || null);
   const [editorText, setEditorText] = React.useState('');
   const [isMinimized, setIsMinimized] = React.useState(false);
@@ -559,38 +596,114 @@ export default function ConflictSolver({
         return `INCOMING CHANGES (THEIRS) — FEATURE BRANCH${branchSuffix ? ` (${currentBranch})` : ''}`;
     }
   };
+
+  const getRebaseInversionExplanation = (tone: TranslationTone) => {
+    switch (tone) {
+      case TranslationTone.JOKE:
+        return "Cảnh báo lú lẫn: Rebase xoay chuyển càn khôn! Bình thường merge thì code của mình là 'Ours' (HEAD), nhưng rebase thì Git lại âm thầm check out nhánh Develop làm HEAD trước (nên Develop thành 'Ours'), còn đống commit sếp múa lại biến thành 'Theirs' được quét vào sau! Bản lĩnh dev nằm ở chỗ không bị Git lừa phỉnh chỗ này nhe sếp!";
+      case TranslationTone.TOXIC:
+        return "Ủa lú à? Git rebase là thế đấy con! Đừng cãi Git làm gì cho mệt xác. Merge thì Ours là code của mày, nhưng Rebase thì Git nhảy cẩu sang nhánh gốc trước làm HEAD (biến develop gốc thành 'Ours'), rồi mới phanh thây đống commit rác của mày đè lên (biến feature của mày thành 'Theirs'). Căng mắt ra mà dọn rác đúng bên!";
+      case TranslationTone.ENGLISH:
+        return "A classic mind-bender! During a standard merge, 'Ours' represents your current branch (HEAD). However, during a rebase, Git temporarily switches HEAD to the target base branch first (making public base 'Ours'), then replays your design commits sequentially (making your feature branch 'Theirs'). Keep your eyes sharp!";
+      case TranslationTone.PROFESSIONAL:
+      default:
+        return "Trong quá trình gộp nhánh thông thường (merge), 'Ours' là nhánh hiện tại của bạn. Tuy nhiên, khi rebase, Git tạm chuyển HEAD về nhánh base trước (biến develop gốc thành 'Ours'), sau đó mới đưa các commit của nhánh tính năng đè lên sau (biến tính năng thành 'Theirs'). Vì vậy nhãn bị đảo ngược so với merge thông thường.";
+    }
+  };
   
   // Track resolved status per block index with independent left and right options for JetBrains style
   const [blockChoices, setBlockChoices] = React.useState<Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }>>({});
   const [scrollOffset, setScrollOffset] = React.useState(0);
-  const isScrollingRef = React.useRef(false);
+  const activeScrollSourceRef = React.useRef<HTMLElement | null>(null);
+
+  const mapScrollBetweenPanes = (
+    srcTop: number,
+    srcBlockLines: { startLine: number; height: number }[],
+    tgtBlockLines: { startLine: number; height: number }[],
+    lineHeight = 20
+  ): number => {
+    if (srcBlockLines.length === 0 || tgtBlockLines.length === 0) return srcTop;
+    
+    const srcFLine = srcTop / lineHeight;
+    
+    // Find the block
+    let blockIdx = 0;
+    for (let i = 0; i < srcBlockLines.length; i++) {
+      const block = srcBlockLines[i];
+      if (srcFLine >= block.startLine && srcFLine <= block.startLine + block.height) {
+        blockIdx = i;
+        break;
+      }
+      if (i === srcBlockLines.length - 1) {
+        blockIdx = i;
+      }
+    }
+    
+    const srcBlock = srcBlockLines[blockIdx];
+    const tgtBlock = tgtBlockLines[blockIdx];
+    
+    if (!srcBlock || !tgtBlock) return srcTop;
+    
+    const blockFraction = srcBlock.height > 0 
+      ? (srcFLine - srcBlock.startLine) / srcBlock.height 
+      : 0;
+      
+    const tgtFLine = tgtBlock.startLine + blockFraction * tgtBlock.height;
+    return tgtFLine * lineHeight;
+  };
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement | HTMLTextAreaElement>) => {
-    if (isScrollingRef.current) return;
-    isScrollingRef.current = true;
-
-    const target = e.currentTarget;
+    const target = e.currentTarget as HTMLElement;
+    
+    if (activeScrollSourceRef.current && activeScrollSourceRef.current !== target) {
+      return; // Ignore programmatically triggered scrolls to avoid feedback loops
+    }
+    
+    activeScrollSourceRef.current = target;
     const top = target.scrollTop;
     setScrollOffset(top);
 
-    if (leftPaneContainerRef.current && leftPaneContainerRef.current !== target) {
-      if (Math.abs(leftPaneContainerRef.current.scrollTop - top) > 1) {
-        leftPaneContainerRef.current.scrollTop = top;
-      }
+    // Synchronize to Left, Right, or Center depending on which one was scrolled
+    const isLeft = target === leftPaneContainerRef.current;
+    const isRight = target === rightPaneContainerRef.current;
+    const isMiddle = target === textareaRef.current;
+
+    let leftTop = 0;
+    let rightTop = 0;
+    let middleTop = 0;
+
+    if (isLeft) {
+      leftTop = top;
+      rightTop = top; // Left and Right are 1:1 identical in block lines layout
+      middleTop = mapScrollBetweenPanes(top, leftBlockLines, middleBlockLines);
+    } else if (isRight) {
+      leftTop = top; // Left and Right are 1:1 identical in block lines layout
+      rightTop = top;
+      middleTop = mapScrollBetweenPanes(top, leftBlockLines, middleBlockLines);
+    } else if (isMiddle) {
+      middleTop = top;
+      leftTop = mapScrollBetweenPanes(top, middleBlockLines, leftBlockLines);
+      rightTop = leftTop;
     }
-    if (rightPaneContainerRef.current && rightPaneContainerRef.current !== target) {
-      if (Math.abs(rightPaneContainerRef.current.scrollTop - top) > 1) {
-        rightPaneContainerRef.current.scrollTop = top;
-      }
+
+    // Scroll other containers programmatically
+    if (!isLeft && leftPaneContainerRef.current) {
+      leftPaneContainerRef.current.scrollTop = leftTop;
     }
-    if (textareaRef.current && textareaRef.current !== target) {
-      if (Math.abs(textareaRef.current.scrollTop - top) > 1) {
-        textareaRef.current.scrollTop = top;
-      }
+    if (!isRight && rightPaneContainerRef.current) {
+      rightPaneContainerRef.current.scrollTop = rightTop;
+    }
+    if (!isMiddle && textareaRef.current) {
+      textareaRef.current.scrollTop = middleTop;
+    }
+
+    // Synchronize middle line numbers container perfectly with the textarea element
+    if (middleLineNumbersRef.current) {
+      middleLineNumbersRef.current.scrollTop = middleTop;
     }
 
     window.requestAnimationFrame(() => {
-      isScrollingRef.current = false;
+      activeScrollSourceRef.current = null;
     });
   };
 
@@ -626,6 +739,7 @@ export default function ConflictSolver({
   const leftPaneContainerRef = React.useRef<HTMLDivElement>(null);
   const rightPaneContainerRef = React.useRef<HTMLDivElement>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const middleLineNumbersRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     if (conflicts.length > 0 && (!selectedFile || !conflicts.some(c => c.filepath === selectedFile.filepath))) {
@@ -1125,7 +1239,7 @@ export default function ConflictSolver({
     let lineNum = 1;
     let globalLineCounter = 0;
     return (
-      <div className="font-mono text-[11px] leading-5 text-slate-300 w-full pt-3 pb-8">
+      <div className={`font-mono text-[11px] leading-5 w-full pt-3 pb-8 ${isLight ? 'text-slate-705 bg-[#f8f9fa]' : 'text-slate-300'}`}>
         {blocks.map((block, bIdx) => {
           if (block.type === 'normal') {
             const lines = block.commonText ? block.commonText.split('\n') : [''];
@@ -1136,12 +1250,16 @@ export default function ConflictSolver({
                 <div 
                   key={`n-L-${bIdx}-${lIdx}`} 
                   data-left-line={currentGlobalLineIdx}
-                  className="flex hover:bg-[#202124]/40 min-h-[20px] items-center animate-fade-in"
+                  className={`flex min-h-[20px] items-center animate-fade-in ${
+                    isLight ? 'hover:bg-slate-205/50' : 'hover:bg-[#202124]/40'
+                  }`}
                 >
-                  <div className="w-9 text-right pr-2 text-slate-600 select-none border-r border-[#2d2f3c]/60 bg-[#16171a] font-mono text-[10px] shrink-0">
+                  <div className={`w-9 text-right pr-2 select-none border-r font-mono text-[10px] shrink-0 ${
+                    isLight ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-[#16171a] border-[#2d2f3c]/60 text-slate-600'
+                  }`}>
                     {currNum}
                   </div>
-                  <div className="pl-3 select-text whitespace-pre text-slate-400 font-mono">
+                  <div className={`pl-3 select-text whitespace-pre font-mono ${isLight ? 'text-slate-800' : 'text-slate-400'}`}>
                     {renderLineWithHighlight(line, currentGlobalLineIdx, leftMatches, stateLeftSearch.activeIndex)}
                   </div>
                 </div>
@@ -1168,13 +1286,23 @@ export default function ConflictSolver({
                   data-left-line={currentGlobalLineIdx}
                   className={`flex relative min-h-[20px] items-center ${
                     isAccepted
-                      ? 'bg-emerald-950/20 text-emerald-400 border-l-2 border-emerald-500/80'
+                      ? isLight 
+                        ? 'bg-emerald-50 text-emerald-800 border-l-2 border-emerald-500'
+                        : 'bg-emerald-950/20 text-emerald-400 border-l-2 border-emerald-500/80'
                       : isIgnored
-                        ? 'bg-slate-900/40 text-slate-500/80 border-l-2 border-slate-700/50 line-through decoration-slate-600/50'
-                        : 'bg-rose-950/20 text-[#f28b82] border-l-2 border-rose-500/80'
+                        ? isLight
+                          ? 'bg-slate-100/70 text-slate-400/85 border-l-2 border-slate-300 line-through decoration-slate-400'
+                          : 'bg-slate-900/40 text-slate-500/80 border-l-2 border-slate-700/50 line-through decoration-slate-600/50'
+                        : isLight
+                          ? 'bg-rose-50 text-rose-800 border-l-2 border-rose-450'
+                          : 'bg-rose-950/20 text-[#f28b82] border-l-2 border-rose-500/80'
                   }`}
                 >
-                  <div className="w-9 text-right pr-2 text-rose-550 bg-rose-950/30 select-none border-r border-[#2d2f3c]/60 font-mono text-[10px] font-bold shrink-0">
+                  <div className={`w-9 text-right pr-2 select-none border-r font-mono text-[10px] font-bold shrink-0 ${
+                    isLight 
+                      ? 'text-rose-700 bg-rose-100/50 border-rose-200' 
+                      : 'text-rose-550 bg-rose-950/30 border-[#2d2f3c]/60'
+                  }`}>
                     {currNum || '\u00A0'}
                   </div>
                   <div className="pl-3 flex-1 select-text whitespace-pre pr-24 font-medium font-mono">
@@ -1198,7 +1326,11 @@ export default function ConflictSolver({
                           e.stopPropagation();
                           handleResolveSide(bIdx, 'left', 'ignore');
                         }}
-                        className="bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-white px-1 py-0.5 rounded text-[9px] cursor-pointer"
+                        className={`px-1 py-0.5 rounded text-[9px] cursor-pointer transition-colors ${
+                          isLight 
+                            ? 'bg-slate-205 hover:bg-rose-100 text-slate-600 hover:text-rose-800 border border-slate-300' 
+                            : 'bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-white'
+                        }`}
                         title="Ignore block (Reject)"
                       >
                         ×
@@ -1219,7 +1351,7 @@ export default function ConflictSolver({
     let lineNum = 1;
     let globalLineCounter = 0;
     return (
-      <div className="font-mono text-[11px] leading-5 text-slate-300 w-full pt-3 pb-8">
+      <div className={`font-mono text-[11px] leading-5 w-full pt-3 pb-8 ${isLight ? 'text-slate-705 bg-[#f8f9fa]' : 'text-slate-300'}`}>
         {blocks.map((block, bIdx) => {
           if (block.type === 'normal') {
             const lines = block.commonText ? block.commonText.split('\n') : [''];
@@ -1230,12 +1362,16 @@ export default function ConflictSolver({
                 <div 
                   key={`n-R-${bIdx}-${lIdx}`} 
                   data-right-line={currentGlobalLineIdx}
-                  className="flex hover:bg-[#202124]/40 min-h-[20px] items-center animate-fade-in"
+                  className={`flex min-h-[20px] items-center animate-fade-in ${
+                    isLight ? 'hover:bg-slate-205/50' : 'hover:bg-[#202124]/40'
+                  }`}
                 >
-                  <div className="w-9 text-right pr-2 text-slate-600 select-none border-r border-[#2d2f3c]/60 bg-[#16171a] font-mono text-[10px] shrink-0">
+                  <div className={`w-9 text-right pr-2 select-none border-r font-mono text-[10px] shrink-0 ${
+                    isLight ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-[#16171a] border-[#2d2f3c]/60 text-slate-600'
+                  }`}>
                     {currNum}
                   </div>
-                  <div className="pl-3 select-text whitespace-pre text-slate-400 font-mono">
+                  <div className={`pl-3 select-text whitespace-pre font-mono ${isLight ? 'text-slate-800' : 'text-slate-400'}`}>
                     {renderLineWithHighlight(line, currentGlobalLineIdx, rightMatches, stateRightSearch.activeIndex)}
                   </div>
                 </div>
@@ -1262,13 +1398,23 @@ export default function ConflictSolver({
                   data-right-line={currentGlobalLineIdx}
                   className={`flex relative min-h-[20px] items-center ${
                     isAccepted
-                      ? 'bg-emerald-950/20 text-emerald-400 border-r-2 border-emerald-500/80'
+                      ? isLight 
+                        ? 'bg-emerald-50 text-emerald-800 border-r-2 border-emerald-500'
+                        : 'bg-emerald-950/20 text-emerald-400 border-r-2 border-emerald-500/80'
                       : isIgnored
-                        ? 'bg-slate-900/40 text-slate-500/80 border-r-2 border-slate-700/50 line-through decoration-slate-600/50'
-                        : 'bg-[#3d2f1f]/50 text-amber-300 border-r-2 border-amber-500/80'
+                        ? isLight
+                          ? 'bg-slate-100/70 text-slate-400/85 border-r-2 border-slate-300 line-through decoration-slate-400'
+                          : 'bg-slate-900/40 text-slate-500/80 border-r-2 border-slate-700/50 line-through decoration-slate-600/50'
+                        : isLight
+                          ? 'bg-amber-50 text-amber-900 border-r-2 border-amber-500'
+                          : 'bg-[#3d2f1f]/50 text-amber-300 border-r-2 border-amber-500/80'
                   }`}
                 >
-                  <div className="w-9 text-right pr-2 text-amber-550 bg-amber-950/30 select-none border-r border-[#2d2f3c]/60 font-mono text-[10px] font-bold shrink-0">
+                  <div className={`w-9 text-right pr-2 select-none border-r font-mono text-[10px] font-bold shrink-0 ${
+                    isLight 
+                      ? 'text-amber-700 bg-amber-100/50 border-amber-200' 
+                      : 'text-amber-550 bg-amber-950/30 border-[#2d2f3c]/60'
+                  }`}>
                     {currNum || '\u00A0'}
                   </div>
                   <div className="pl-3 flex-1 select-text whitespace-pre pr-24 font-medium font-mono">
@@ -1292,7 +1438,11 @@ export default function ConflictSolver({
                           e.stopPropagation();
                           handleResolveSide(bIdx, 'right', 'ignore');
                         }}
-                        className="bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-white px-1 py-0.5 rounded text-[9px] cursor-pointer"
+                        className={`px-1 py-0.5 rounded text-[9px] cursor-pointer transition-colors ${
+                          isLight 
+                            ? 'bg-slate-205 hover:bg-rose-105 text-slate-600 hover:text-rose-800 border border-slate-300' 
+                            : 'bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-white'
+                        }`}
                         title="Ignore block (Reject)"
                       >
                         ×
@@ -1311,19 +1461,21 @@ export default function ConflictSolver({
   if (isMinimized) {
     return (
       <>
-        <div className="bg-[#1e1f26]/40 border border-dashed border-[#2d2f3c]/60 p-6 rounded-2xl text-center flex flex-col items-center justify-center gap-3 shadow-inner my-2">
+        <div className={`border border-dashed p-6 rounded-2xl text-center flex flex-col items-center justify-center gap-3 shadow-inner my-2 ${
+          isLight ? 'bg-slate-100/50 border-slate-300 text-slate-700' : 'bg-[#1e1f26]/40 border border-[#2d2f3c]/60 text-slate-350'
+        }`}>
           <AlertTriangle className="w-8 h-8 text-amber-500/60 animate-pulse" />
-          <div className="text-sm font-bold text-slate-350">
+          <div className={`text-sm font-bold ${isLight ? 'text-slate-800' : 'text-slate-350'}`}>
             {tone === TranslationTone.ENGLISH ? "JetBrains Merge Dialog is Minimized" : "Cửa sổ giải quyết xung đột đang thu nhỏ"}
           </div>
-          <p className="text-xs text-slate-500 max-w-md font-sans">
+          <p className={`text-xs max-w-md font-sans ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
             {tone === TranslationTone.ENGLISH 
               ? "The 3-way interactive compare dialog is active but currently minimized. You can verify other modules on this screen or resume merging below." 
               : "Bộ so sánh dòng mã trực quan đang hoạt động ẩn dưới nền. Bạn có thể xem các thông số hoặc khôi phục cửa sổ bên dưới."}
           </p>
           <button
             onClick={() => setIsMinimized(false)}
-            className="px-4 py-2 mt-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-450 border border-amber-500/30 font-mono text-xs font-bold rounded-lg cursor-pointer transition-all active:scale-95 duration-100"
+            className="px-4 py-2 mt-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-505 border border-amber-500/30 font-mono text-xs font-bold rounded-lg cursor-pointer transition-all active:scale-95 duration-100"
           >
             {tone === TranslationTone.ENGLISH ? "Resume Interactive Merging" : "Quay lại giải quyết xung đột"}
           </button>
@@ -1331,7 +1483,9 @@ export default function ConflictSolver({
 
         <div 
           id="conflict-solver-minimized-floating" 
-          className="fixed bottom-6 right-6 z-50 bg-[#1e1f26]/95 border-2 border-amber-500/40 rounded-2xl p-4 shadow-2xl flex items-center gap-5 justify-between backdrop-blur-md max-w-sm transition-all hover:scale-105 duration-200"
+          className={`fixed bottom-6 right-6 z-50 border-2 rounded-2xl p-4 shadow-2xl flex items-center gap-5 justify-between backdrop-blur-md max-w-sm transition-all hover:scale-105 duration-200 ${
+            isLight ? 'bg-white border-amber-500 text-slate-800' : 'bg-[#1e1f26]/95 border-2 border-amber-500/40'
+          }`}
         >
           <div className="flex items-center gap-3">
             <span className="relative flex h-3.5 w-3.5">
@@ -1339,17 +1493,17 @@ export default function ConflictSolver({
               <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-amber-500"></span>
             </span>
             <div>
-              <div className="text-xs font-bold text-slate-200">
+              <div className={`text-xs font-bold ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
                 {tone === TranslationTone.ENGLISH ? "Resolve Conflicts" : "Xử lý xung đột Git"} ({conflicts.filter(c => !c.isResolved).length} file)
               </div>
-              <div className="text-[10px] text-slate-400 font-mono uppercase tracking-wider">
+              <div className={`text-[10px] font-mono uppercase tracking-wider ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                 {tone === TranslationTone.ENGLISH ? "Merge tool minimized" : "Công cụ đang chạy thu nhỏ"}
               </div>
             </div>
           </div>
           <button
             onClick={() => setIsMinimized(false)}
-            className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-mono text-xs font-extrabold rounded-lg hover:from-amber-400 hover:to-orange-400 transition-all cursor-pointer whitespace-nowrap shadow-lg shadow-orange-500/20 active:scale-95"
+            className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-mono text-xs font-extrabold rounded-lg hover:from-amber-400 hover:to-orange-400 transition-all cursor-pointer whitespace-nowrap shadow-lg shadow-orange-500/20 active:scale-95"
           >
             {tone === TranslationTone.ENGLISH ? "Maximize" : "Phục hồi"}
           </button>
@@ -1359,29 +1513,39 @@ export default function ConflictSolver({
   }
 
   return (
-    <div className={`fixed inset-0 z-50 bg-[#060814]/85 backdrop-blur-md flex items-center justify-center animate-fade-in overflow-y-auto ${isFullscreen ? 'p-0' : 'p-4 xl:p-8'}`}>
+    <div className={`fixed inset-0 z-50 backdrop-blur-md flex items-center justify-center animate-fade-in overflow-y-auto ${
+      isLight ? 'bg-slate-900/40' : 'bg-[#060814]/85'
+    } ${isFullscreen ? 'p-0' : 'p-4 xl:p-8'}`}>
       <div 
         id="conflict-solver-container" 
-        className={`bg-[#1e1f26] relative overflow-hidden text-slate-350 flex flex-col gap-4 ${
+        className={`relative overflow-hidden flex flex-col gap-4 ${
+          isLight ? 'bg-white text-slate-700' : 'bg-[#1e1f26] text-slate-350'
+        } ${
           isFullscreen 
             ? 'w-screen h-screen max-w-none max-h-none rounded-none border-none p-6 animate-fade-in' 
-            : 'border border-[#2d2f3c]/90 rounded-2xl p-6 shadow-2xl w-full max-w-7xl max-h-[92vh] animate-scale-up'
+            : isLight 
+              ? 'border border-slate-200 rounded-2xl p-6 shadow-2xl w-full max-w-7xl max-h-[92vh] animate-scale-up'
+              : 'border border-[#2d2f3c]/90 rounded-2xl p-6 shadow-2xl w-full max-w-7xl max-h-[92vh] animate-scale-up'
         }`}
       >
         <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-indigo-500 via-violet-600 to-amber-500"></div>
 
-        <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border-b border-[#2d2f3c]/60 pb-4 shrink-0">
+        <div className={`flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 pb-4 shrink-0 border-b ${
+          isLight ? 'border-slate-205' : 'border-b border-[#2d2f3c]/60'
+        }`}>
           <div>
             <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 bg-[#2d2f3c] text-violet-400 border border-violet-500/20 rounded font-mono text-[10px] font-bold tracking-wider uppercase">
+              <span className={`px-2 py-0.5 rounded font-mono text-[10px] font-bold tracking-wider uppercase border border-violet-500/20 ${
+                isLight ? 'bg-violet-50 text-violet-600' : 'bg-[#2d2f3c] text-violet-400'
+              }`}>
                 {isFullscreen ? "JETBRAINS 3-WAY MERGE (FULL SCREEN)" : "JETBRAINS 3-WAY MERGE"}
               </span>
-              <h2 className="text-base font-black text-[#e8eef5] font-mono flex items-center gap-1.5">
+              <h2 className={`text-base font-black font-mono flex items-center gap-1.5 ${isLight ? 'text-slate-900' : 'text-[#e8eef5]'}`}>
                 <Code2 className="w-5 h-5 text-violet-400 rotate-12" />
                 {loc.title}
               </h2>
             </div>
-            <p className="text-xs text-slate-450 font-sans mt-1">
+            <p className={`text-xs font-sans mt-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
               {loc.desc}
             </p>
           </div>
@@ -1389,16 +1553,24 @@ export default function ConflictSolver({
           <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
             <button
               onClick={() => setIsFullscreen(!isFullscreen)}
-              className="px-4 py-2 text-xs bg-[#242632] hover:bg-[#2d3042] text-violet-400 rounded-lg border border-violet-500/20 hover:border-violet-500/45 transition-all duration-150 cursor-pointer flex items-center gap-1.5 whitespace-nowrap active:scale-95"
+              className={`px-4 py-2 text-xs rounded-lg border transition-all duration-150 cursor-pointer flex items-center gap-1.5 whitespace-nowrap active:scale-95 ${
+                isLight 
+                  ? 'bg-violet-50 hover:bg-violet-100 border-violet-200 text-violet-600 hover:border-violet-300' 
+                  : 'bg-[#242632] hover:bg-[#2d3042] text-violet-400 border border-violet-500/20 hover:border-violet-500/45'
+              }`}
               title={isFullscreen ? "Restore standard size" : "Expand to full screen"}
             >
-              {isFullscreen ? <Minimize2 className="w-3.5 h-3.5 text-violet-400" /> : <Maximize2 className="w-3.5 h-3.5 text-violet-400" />}
+              {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
               <span>{isFullscreen ? (tone === TranslationTone.ENGLISH ? "Restore down" : "Cửa sổ nhỏ") : (tone === TranslationTone.ENGLISH ? "Full Screen" : "Toàn màn hình")}</span>
             </button>
 
             <button
               onClick={() => setIsMinimized(true)}
-              className="px-4 py-2 text-xs bg-[#2b2d38] hover:bg-[#343644] text-slate-300 rounded-lg border border-[#2d2f3c] hover:text-white transition-all duration-150 cursor-pointer flex items-center gap-1.5 whitespace-nowrap active:scale-95"
+              className={`px-4 py-2 text-xs rounded-lg border transition-all duration-150 cursor-pointer flex items-center gap-1.5 whitespace-nowrap active:scale-95 ${
+                isLight 
+                  ? 'bg-slate-100 border-slate-200 hover:bg-slate-200 text-slate-705 hover:text-slate-900' 
+                  : 'bg-[#2b2d38] hover:bg-[#343644] text-slate-300 border border-[#2d2f3c] hover:text-white'
+              }`}
               title="Minimize to main screen"
             >
               <Minimize2 className="w-3.5 h-3.5" />
@@ -1418,12 +1590,20 @@ export default function ConflictSolver({
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch overflow-y-auto flex-1 pr-1">
           
-          <div className={`${isSidebarCollapsed ? 'hidden' : 'lg:col-span-3 flex'} flex-col gap-2.5 bg-[#17181c] p-3 rounded-xl border border-[#2d2f3c]/60 h-full ${isFullscreen ? 'max-h-none h-[calc(100vh-210px)]' : 'max-h-[580px]'}`}>
-            <div className="flex justify-between items-center border-b border-[#2d2f3c]/40 pb-2">
-              <span className="text-[10px] text-slate-505 uppercase font-mono tracking-wider font-bold">{loc.colTitle}</span>
+          <div className={`${isSidebarCollapsed ? 'hidden' : 'lg:col-span-3 flex'} flex-col gap-2.5 p-3 rounded-xl border h-full ${
+            isFullscreen ? 'max-h-none h-[calc(100vh-210px)]' : 'max-h-[580px]'
+          } ${
+            isLight ? 'bg-slate-50 border-slate-205' : 'bg-[#17181c] border-[#2d2f3c]/60'
+          }`}>
+            <div className={`flex justify-between items-center pb-2 border-b ${
+              isLight ? 'border-slate-200' : 'border-[#2d2f3c]/40'
+            }`}>
+              <span className={`text-[10px] uppercase font-mono tracking-wider font-bold ${isLight ? 'text-slate-500' : 'text-slate-505'}`}>{loc.colTitle}</span>
               <button
                 onClick={() => setIsSidebarCollapsed(true)}
-                className="p-1 rounded hover:bg-[#252632] text-slate-450 hover:text-white transition-colors cursor-pointer"
+                className={`p-1 rounded transition-colors cursor-pointer ${
+                  isLight ? 'hover:bg-slate-200 text-slate-500 hover:text-slate-800' : 'hover:bg-[#252632] text-slate-450 hover:text-white'
+                }`}
                 title="Collapse sidebar to maximize code space"
               >
                 <ChevronLeft className="w-4 h-4 text-violet-450" />
@@ -1439,10 +1619,16 @@ export default function ConflictSolver({
                     onClick={() => setSelectedFile(file)}
                     className={`p-3 rounded-lg border text-left font-mono text-xs transition-all flex justify-between items-center cursor-pointer ${
                       isSelected
-                        ? 'bg-[#2b2d38] border-violet-500/50 text-[#e8eef5] shadow'
+                        ? isLight
+                          ? 'bg-violet-50 border-violet-300 text-violet-750 shadow-sm'
+                          : 'bg-[#2b2d38] border-violet-500/50 text-[#e8eef5] shadow'
                         : file.isResolved
-                          ? 'bg-[#182a20] border-[#22442b]/60 text-emerald-400 hover:bg-[#1b3425]'
-                          : 'bg-[#1d1f26] border-[#25262c] text-slate-400 hover:border-[#2d2f3c] hover:text-slate-200'
+                          ? isLight
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                            : 'bg-[#182a20] border-[#22442b]/60 text-emerald-400 hover:bg-[#1b3425]'
+                          : isLight
+                            ? 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                            : 'bg-[#1d1f26] border-[#25262c] text-slate-400 hover:border-[#2d2f3c] hover:text-slate-200'
                     }`}
                   >
                     <div className="flex items-center gap-2 max-w-[70%] truncate" title={file.filepath}>
@@ -1454,7 +1640,7 @@ export default function ConflictSolver({
                         RESOLVED
                       </span>
                     ) : (
-                      <span className="text-[9px] bg-amber-550/15 text-amber-400 px-1.5 py-0.5 rounded font-extrabold uppercase shrink-0 animate-pulse">
+                      <span className="text-[9px] bg-amber-550/15 text-amber-500 px-1.5 py-0.5 rounded font-extrabold uppercase shrink-0 animate-pulse">
                         CONFLICT
                       </span>
                     )}
@@ -1463,33 +1649,49 @@ export default function ConflictSolver({
               })}
             </div>
             
-            <div className="bg-[#14151a] rounded-lg p-3 border border-[#23242c] text-[11px] text-slate-400 leading-relaxed font-sans mt-auto">
-              <span className="font-bold text-slate-350 flex items-center gap-1 font-mono text-[10px] mb-1.5">
+            <div className={`rounded-lg p-3 border text-[11px] leading-relaxed font-sans mt-auto ${
+              isLight ? 'bg-slate-100 border-slate-200 text-slate-600' : 'bg-[#14151a] border-[#23242c] text-slate-400'
+            }`}>
+              <span className={`font-bold flex items-center gap-1 font-mono text-[10px] mb-1.5 ${
+                isLight ? 'text-slate-800' : 'text-slate-350'
+              }`}>
                 <HelpCircle className="w-3.5 h-3.5 text-violet-400" /> {loc.guideTitle}
               </span>
               {loc.guideText}
             </div>
           </div>
 
-          <div className={`${isSidebarCollapsed ? 'lg:col-span-12' : 'lg:col-span-9'} bg-[#15161a] border border-[#2d2f3c]/50 rounded-xl p-4 flex flex-col gap-4 h-full`}>
+          <div className={`${isSidebarCollapsed ? 'lg:col-span-12' : 'lg:col-span-9'} rounded-xl p-4 flex flex-col gap-4 h-full border ${
+            isLight ? 'bg-slate-50/70 border-slate-200' : 'bg-[#15161a] border-[#2d2f3c]/50'
+          }`}>
             {selectedFile ? (
               <>
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-[#1c1d22] px-3.5 py-2 rounded border border-[#2d2f3c]/40 text-xs font-mono gap-2 shrink-0">
+                <div className={`flex flex-col md:flex-row justify-between items-start md:items-center px-3.5 py-2 rounded border text-xs font-mono gap-2 shrink-0 ${
+                  isLight ? 'bg-slate-100 border-slate-200 text-slate-705' : 'bg-[#1c1d22] border-[#2d2f3c]/40 text-[#e8eef5]'
+                }`}>
                   <div className="flex items-center gap-2">
                     {isSidebarCollapsed && (
                       <button
                         onClick={() => setIsSidebarCollapsed(false)}
-                        className="mr-2 flex items-center gap-1.5 px-2.5 py-1 text-[11px] bg-[#242632] hover:bg-[#2d3042] border border-violet-500/30 hover:border-violet-500/65 rounded text-violet-400 transition-all font-mono cursor-pointer active:scale-95"
+                        className={`mr-2 flex items-center gap-1.5 px-2.5 py-1 text-[11px] border rounded transition-all font-mono cursor-pointer active:scale-95 ${
+                          isLight 
+                            ? 'bg-violet-50 hover:bg-violet-100 border-violet-200 text-violet-600 font-bold'
+                            : 'bg-[#242632] hover:bg-[#2d3042] border-violet-500/30 text-violet-400'
+                        }`}
                       >
                         <Files className="w-3.5 h-3.5 text-violet-400 shrink-0" />
                         <span>{tone === TranslationTone.ENGLISH ? "Files Tree" : "Hiện danh sách"} ({conflicts.filter(c => c.isResolved).length}/{conflicts.length})</span>
                       </button>
                     )}
-                    <span className="text-slate-405">File: </span>
-                    <strong className="text-violet-400 px-1.5 py-0.5 bg-[#25262e] rounded-md border border-[#2d2f3c]/60">{selectedFile.filepath}</strong>
+                    <span className={isLight ? 'text-slate-500' : 'text-slate-405'}>File: </span>
+                    <strong className={`px-1.5 py-0.5 rounded-md border ${
+                      isLight 
+                        ? 'text-violet-700 bg-violet-50 border-violet-200' 
+                        : 'text-violet-400 bg-[#25262e] border-[#2d2f3c]/60'
+                    }`}>{selectedFile.filepath}</strong>
                   </div>
-                  <div className="flex items-center gap-2 text-[10px] uppercase font-bold text-slate-400">
-                    <span className="h-2 w-2 rounded-full bg-amber-505 animate-pulse"></span>
+                  <div className={`flex items-center gap-2 text-[10px] uppercase font-bold ${isLight ? 'text-slate-600' : 'text-slate-450'}`}>
+                    <span className="h-2 w-2 rounded-full bg-amber-550 animate-pulse"></span>
                     {selectedFile.isResolved ? loc.statusResolved : `${loc.statusConflict} (${blocks.filter(b => b.type === 'conflict').length} Block)`}
                   </div>
                 </div>
@@ -1498,16 +1700,26 @@ export default function ConflictSolver({
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
                   
                   {/* LEFT PANE - Local Changes (Ours) */}
-                  <div className="flex flex-col bg-[#1e2026] rounded-lg border border-[#2d2f3c]/70 overflow-hidden">
-                    <div className="bg-[#17181c] px-3 py-1.5 border-b border-[#2d2f3c]/70 flex justify-between items-center select-none">
+                  <div className={`flex flex-col rounded-lg border overflow-hidden ${
+                    isLight ? 'bg-white border-slate-205 shadow-sm' : 'bg-[#1e2026] border-[#2d2f3c]/70'
+                  }`}>
+                    <div className={`px-3 py-1.5 border-b flex justify-between items-center select-none ${
+                      isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#17181c] border-b border-[#2d2f3c]/70'
+                    }`}>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-mono text-indigo-400 font-extrabold uppercase tracking-wider">{getLaneHeadingA()}</span>
-                        <div className="h-2.5 w-[1px] bg-[#2d2f3c]"></div>
-                        <span className="text-[9px] font-mono text-slate-500">Read-Only</span>
+                        <span className="text-[10px] font-mono text-indigo-500 font-extrabold uppercase tracking-wider">{getLaneHeadingA()}</span>
+                        <div className={`h-2.5 w-[1px] ${isLight ? 'bg-slate-300' : 'bg-[#2d2f3c]'}`}></div>
+                        <span className={`text-[9px] font-mono ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Read-Only</span>
                       </div>
                       <button
                         onClick={() => setStateLeftSearch(prev => ({ ...prev, isOpen: !prev.isOpen }))}
-                        className={`p-1 rounded transition-colors ${stateLeftSearch.isOpen ? 'bg-violet-600 text-white animate-pulse' : 'text-slate-400 hover:text-slate-200 hover:bg-[#252632]'} cursor-pointer`}
+                        className={`p-1 rounded transition-colors ${
+                          stateLeftSearch.isOpen 
+                            ? 'bg-violet-600 text-white animate-pulse' 
+                            : isLight 
+                              ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-100' 
+                              : 'text-slate-400 hover:text-slate-200 hover:bg-[#252632]'
+                        } cursor-pointer`}
                         title="Search inside this box"
                       >
                         <Search className="w-3.5 h-3.5" />
@@ -1525,38 +1737,56 @@ export default function ConflictSolver({
                       onChange={(updates) => setStateLeftSearch(prev => ({ ...prev, ...updates }))}
                       onClose={() => setStateLeftSearch(prev => ({ ...prev, isOpen: false }))}
                       tone={tone}
+                      theme={theme}
                     />
 
                     <div 
                       ref={leftPaneContainerRef}
-                      className={`flex relative items-stretch ${isFullscreen ? 'h-[calc(100vh-320px)] lg:h-[calc(100vh-280px)] min-h-[420px]' : 'h-[420px]'} overflow-y-auto index-0 bg-[#0f1013] scrollbar-thin scrollbar-thumb-slate-800`}
+                      onScroll={handleScroll}
+                      className={`flex relative items-stretch ${
+                        isFullscreen ? 'h-[calc(100vh-320px)] lg:h-[calc(100vh-280px)] min-h-[420px]' : 'h-[420px]'
+                      } overflow-y-auto index-0 scrollbar-thin ${
+                        isLight ? 'bg-[#f8f9fa] scrollbar-thumb-slate-300' : 'bg-[#0f1013] scrollbar-thumb-slate-800'
+                      }`}
                     >
                       {renderLeftPane()}
                     </div>
                   </div>
 
                   {/* MIDDLE PANE - Merged result (Editable result) */}
-                  <div className="flex flex-col bg-[#16171d] rounded-lg border-2 border-violet-500/50 shadow-inner overflow-hidden">
-                    <div className="bg-[#0f1013] px-3 py-1.5 border-b border-[#2d2f3c]/70 flex justify-between items-center select-none">
-                      <span className="text-[10px] font-mono text-violet-400 font-extrabold uppercase tracking-widest flex items-center gap-1">
-                        <Settings2 className="w-3.5 h-3.5 text-violet-400" />
+                  <div className={`flex flex-col rounded-lg overflow-hidden border-2 ${
+                    isLight ? 'bg-[#fafafa] border-violet-400 shadow shadow-violet-200/50' : 'bg-[#16171d] border-violet-500/50 shadow-inner'
+                  }`}>
+                    <div className={`px-3 py-1.5 border-b flex justify-between items-center select-none ${
+                        isLight ? 'bg-slate-100/85 border-slate-205' : 'bg-[#0f1013] border-[#2d2f3c]/70'
+                    }`}>
+                      <span className={`text-[10px] font-mono font-extrabold uppercase tracking-widest flex items-center gap-1 ${
+                        isLight ? 'text-violet-600' : 'text-violet-400'
+                      }`}>
+                        <Settings2 className={`w-3.5 h-3.5 ${isLight ? 'text-violet-600' : 'text-violet-400'}`} />
                         {loc.resultPane}
                       </span>
                       <div className="flex items-center gap-1.5">
                         {isCurrentlyDirty ? (
-                          <span className="text-[10px] px-1.5 py-0.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-md font-extrabold font-mono flex items-center gap-1 animate-pulse shrink-0">
-                            <AlertTriangle className="w-3.5 h-3.5 text-rose-400 animate-bounce" />
+                          <span className="text-[10px] px-1.5 py-0.5 bg-rose-500/10 border border-rose-500/30 text-rose-500 rounded-md font-extrabold font-mono flex items-center gap-1 animate-pulse shrink-0">
+                            <AlertTriangle className="w-3.5 h-3.5 text-rose-500 animate-bounce" />
                             {totalMarkerBlocks} {tone === TranslationTone.ENGLISH ? "REMAIN" : "CÒN LẠI"}
                           </span>
                         ) : (
-                          <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-md font-extrabold font-mono flex items-center gap-1 shrink-0">
-                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 rounded-md font-extrabold font-mono flex items-center gap-1 shrink-0">
+                            <Check className="w-3.5 h-3.5 text-emerald-500" />
                             READY
                           </span>
                         )}
                         <button
                           onClick={() => setStateResultSearch(prev => ({ ...prev, isOpen: !prev.isOpen }))}
-                          className={`p-1 rounded transition-colors ${stateResultSearch.isOpen ? 'bg-violet-600 text-white animate-pulse' : 'text-slate-400 hover:text-slate-200 hover:bg-[#252632]'} cursor-pointer`}
+                          className={`p-1 rounded transition-colors ${
+                            stateResultSearch.isOpen 
+                              ? 'bg-violet-600 text-white animate-pulse' 
+                              : isLight 
+                                ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-200' 
+                                : 'text-slate-400 hover:text-slate-200 hover:bg-[#252632]'
+                          } cursor-pointer`}
                           title="Search inside this box"
                         >
                           <Search className="w-3.5 h-3.5" />
@@ -1575,12 +1805,18 @@ export default function ConflictSolver({
                       onChange={(updates) => setStateResultSearch(prev => ({ ...prev, ...updates }))}
                       onClose={() => setStateResultSearch(prev => ({ ...prev, isOpen: false }))}
                       tone={tone}
+                      theme={theme}
                     />
 
-                    <div className={`flex relative items-stretch ${isFullscreen ? 'h-[calc(100vh-320px)] lg:h-[calc(100vh-280px)] min-h-[420px]' : 'h-[420px]'} overflow-y-auto font-mono text-[11px] leading-5`}>
-                      <div className="bg-[#0e0f12] px-2 text-right text-slate-600 select-none border-r border-[#2d2f3c]/60 w-9 select-none pt-1">
+                    <div className={`flex relative items-stretch ${isFullscreen ? 'h-[calc(100vh-320px)] lg:h-[calc(100vh-280px)] min-h-[420px]' : 'h-[420px]'} overflow-hidden font-mono text-[11px] leading-5`}>
+                      <div 
+                        ref={middleLineNumbersRef}
+                        className={`text-right select-none border-r w-9 py-3 overflow-hidden h-full font-mono text-[10px] ${
+                          isLight ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-[#0e0f12] border-[#2d2f3c]/60 text-slate-600'
+                        }`}
+                      >
                         {editorText.split('\n').map((_, i) => (
-                          <div key={i} className="h-5 text-[10px] leading-5">{i + 1}</div>
+                          <div key={i} className="h-5 leading-5 px-1">{i + 1}</div>
                         ))}
                       </div>
 
@@ -1588,13 +1824,22 @@ export default function ConflictSolver({
                         ref={textareaRef}
                         value={editorText}
                         onChange={(e) => setEditorText(e.target.value)}
-                        className="w-full bg-[#16171d] border-none text-[#e8eef5] outline-none p-3 resize-none font-mono text-[11.5px] leading-5 focus:ring-0 leading-relaxed overflow-x-auto whitespace-pre select-text h-full placeholder:text-slate-650 scrollbar-thin scrollbar-thumb-slate-800 font-mono"
+                        onScroll={handleScroll}
+                        className={`w-full border-none outline-none p-3 resize-none font-mono text-[11.5px] leading-5 focus:ring-0 leading-relaxed overflow-x-auto whitespace-pre select-text h-full scrollbar-thin ${
+                          isLight 
+                            ? 'bg-white text-slate-850 placeholder:text-slate-400 scrollbar-thumb-slate-300' 
+                            : 'bg-[#16171d] text-[#e8eef5] placeholder:text-slate-650 scrollbar-thumb-slate-800'
+                        }`}
                         placeholder={loc.placeholderCustom}
                       />
 
                       {isCurrentlyDirty && (
-                        <span className="absolute bottom-3 right-3 px-2 py-1 bg-rose-950/90 border border-rose-500/40 text-rose-350 rounded-md font-extrabold text-[9px] shadow-lg flex items-center gap-1 font-mono pointer-events-none select-none z-10">
-                          <AlertTriangle className="w-3 h-3 text-rose-400 animate-pulse" />
+                        <span className={`absolute bottom-3 right-3 px-2 py-1 border rounded-md font-extrabold text-[9px] shadow-lg flex items-center gap-1 font-mono pointer-events-none select-none z-10 ${
+                          isLight 
+                            ? 'bg-rose-50 border-rose-200 text-rose-700' 
+                            : 'bg-rose-950/90 border border-rose-500/40 text-rose-350'
+                        }`}>
+                          <AlertTriangle className="w-3 h-3 text-rose-500 animate-pulse" />
                           {totalMarkerBlocks} UNRESOLVED
                         </span>
                       )}
@@ -1602,16 +1847,26 @@ export default function ConflictSolver({
                   </div>
 
                   {/* RIGHT PANE - Incoming Changes (Theirs) */}
-                  <div className="flex flex-col bg-[#1e2026] rounded-lg border border-[#2d2f3c]/70 overflow-hidden">
-                    <div className="bg-[#17181c] px-3 py-1.5 border-b border-[#2d2f3c]/70 flex justify-between items-center select-none">
+                  <div className={`flex flex-col rounded-lg border overflow-hidden ${
+                    isLight ? 'bg-white border-slate-205 shadow-sm' : 'bg-[#1e2026] border-[#2d2f3c]/70'
+                  }`}>
+                    <div className={`px-3 py-1.5 border-b flex justify-between items-center select-none ${
+                      isLight ? 'bg-slate-50 border-slate-200' : 'bg-[#17181c] border-b border-[#2d2f3c]/70'
+                    }`}>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-mono text-amber-400 font-extrabold uppercase tracking-wider">{getLaneHeadingB()}</span>
-                        <div className="h-2.5 w-[1px] bg-[#2d2f3c]"></div>
-                        <span className="text-[9px] font-mono text-slate-500">Read-Only</span>
+                        <span className="text-[10px] font-mono text-amber-500 font-extrabold uppercase tracking-wider">{getLaneHeadingB()}</span>
+                        <div className={`h-2.5 w-[1px] ${isLight ? 'bg-slate-300' : 'bg-[#2d2f3c]'}`}></div>
+                        <span className={`text-[9px] font-mono ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>Read-Only</span>
                       </div>
                       <button
                         onClick={() => setStateRightSearch(prev => ({ ...prev, isOpen: !prev.isOpen }))}
-                        className={`p-1 rounded transition-colors ${stateRightSearch.isOpen ? 'bg-violet-600 text-white animate-pulse' : 'text-slate-400 hover:text-slate-200 hover:bg-[#252632]'} cursor-pointer`}
+                        className={`p-1 rounded transition-colors ${
+                          stateRightSearch.isOpen 
+                            ? 'bg-violet-600 text-white animate-pulse' 
+                            : isLight 
+                              ? 'text-slate-505 hover:bg-slate-100 hover:text-slate-805' 
+                              : 'text-slate-400 hover:text-slate-200 hover:bg-[#252632]'
+                        } cursor-pointer`}
                         title="Search inside this box"
                       >
                         <Search className="w-3.5 h-3.5" />
@@ -1629,11 +1884,17 @@ export default function ConflictSolver({
                       onChange={(updates) => setStateRightSearch(prev => ({ ...prev, ...updates }))}
                       onClose={() => setStateRightSearch(prev => ({ ...prev, isOpen: false }))}
                       tone={tone}
+                      theme={theme}
                     />
 
                     <div 
                       ref={rightPaneContainerRef}
-                      className={`flex relative items-stretch ${isFullscreen ? 'h-[calc(100vh-320px)] lg:h-[calc(100vh-280px)] min-h-[420px]' : 'h-[420px]'} overflow-y-auto index-0 bg-[#0f1013] scrollbar-thin scrollbar-thumb-slate-800`}
+                      onScroll={handleScroll}
+                      className={`flex relative items-stretch ${
+                        isFullscreen ? 'h-[calc(100vh-320px)] lg:h-[calc(100vh-280px)] min-h-[420px]' : 'h-[420px]'
+                      } overflow-y-auto index-0 scrollbar-thin ${
+                        isLight ? 'bg-[#f8f9fa] scrollbar-thumb-slate-300' : 'bg-[#0f1013] scrollbar-thumb-slate-800'
+                      }`}
                     >
                       {renderRightPane()}
                     </div>
@@ -1641,9 +1902,23 @@ export default function ConflictSolver({
 
                 </div>
 
-                <div className="text-[10px] text-slate-500 font-sans italic flex items-center gap-1 bg-[#16171d]/60 p-2 rounded border border-[#2d2f3c]/20 shrink-0">
-                  <span className="font-bold text-violet-400 shrink-0 font-mono">Tip:</span> 
-                  {loc.toolHelp}
+                <div className={`text-[10px] font-sans italic flex flex-col gap-2 p-3 rounded-xl border shrink-0 ${
+                  isLight 
+                    ? 'bg-slate-100 border-slate-200 text-slate-600 shadow-sm' 
+                    : 'bg-[#16171d]/60 border-[#2d2f3c]/20 text-slate-300'
+                }`}>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-extrabold text-violet-500 shrink-0 font-mono">💡 Tip:</span> 
+                    <span>{loc.toolHelp}</span>
+                  </div>
+                  <div className={`border-t pt-1.5 text-[9.5px] leading-relaxed flex items-start gap-1.5 ${
+                    isLight ? 'border-slate-200 text-slate-500' : 'border-[#2d2f3c]/40 text-slate-400'
+                  }`}>
+                    <span className="font-bold text-amber-500 shrink-0 font-mono">⚠️ {tone === TranslationTone.ENGLISH ? "Rebase Paradox:" : "Nghịch lý Rebase:"}</span>
+                    <span>
+                      {getRebaseInversionExplanation(tone)}
+                    </span>
+                  </div>
                 </div>
 
                 {/* AI RESOLUTION & EXPLANATION CO-PILOT PANEL */}

@@ -84,6 +84,7 @@ const sanityLoc: Record<TranslationTone, {
   scanAnomaliesLoading: string;
   visualTimelineTitle: string;
   squashCompletedTitle: string;
+  dirtyFilesLabel: string;
 }> = {
   [TranslationTone.PROFESSIONAL]: {
     title: "CHẨN ĐOÁN & KIỂM TRA (GIT SANITY CHECKS)",
@@ -125,7 +126,8 @@ const sanityLoc: Record<TranslationTone, {
     doctorApplySync: "Áp dụng: Đồng bộ nhánh base",
     scanAnomaliesLoading: "Đang quét lỗi bất thường của kho lưu trữ...",
     visualTimelineTitle: "TRỰC QUAN HÓA SƠ ĐỒ COMMITS (VISUAL COMMIT TIMELINE GRAPH)",
-    squashCompletedTitle: "HỢP NHẤT THÀNH CÔNG (CÒN LẠI 1 COMMIT)"
+    squashCompletedTitle: "HỢP NHẤT THÀNH CÔNG (CÒN LẠI 1 COMMIT)",
+    dirtyFilesLabel: "Danh sách tệp tin chưa commit:"
   },
   [TranslationTone.JOKE]: {
     title: "KHÁM SỨC KHỎE REPO (GIT SANITY CHECKS)",
@@ -167,7 +169,8 @@ const sanityLoc: Record<TranslationTone, {
     doctorApplySync: "Triển ngay: Đồng bộ nhánh base",
     scanAnomaliesLoading: "Thầy bói đang xem mạch kho chứa...",
     visualTimelineTitle: "RẠP CHIẾU HOẠT HÌNH GIT TRỰC QUAN (GIT MOVIE THEATER)",
-    squashCompletedTitle: "HỢP NHẤT XONG XUÔI (CÒN ĐÚNG 1 COMMIT DUY NHẤT)"
+    squashCompletedTitle: "HỢP NHẤT XONG XUÔI (CÒN ĐÚNG 1 COMMIT DUY NHẤT)",
+    dirtyFilesLabel: "Mấy quả file đang bừa bãi chưa dọn dẹp:"
   },
   [TranslationTone.TOXIC]: {
     title: "BỆNH ÁN GIT (GIT SANITY CHECKS)",
@@ -209,7 +212,8 @@ const sanityLoc: Record<TranslationTone, {
     doctorApplySync: "Bấm đại: Đồng bộ nhánh base",
     scanAnomaliesLoading: "Đang dọn rác bất thường...",
     visualTimelineTitle: "SƠ ĐỒ COMMITS BẤT HỦ (VISUAL COMMIT TIMELINE GRAPH)",
-    squashCompletedTitle: "SQUASH SẠCH BÓNG (CÒN LẠI 1 TÊN COMMIT SỐNG SÓT)"
+    squashCompletedTitle: "SQUASH SẠCH BÓNG (CÒN LẠI 1 TÊN COMMIT SỐNG SÓT)",
+    dirtyFilesLabel: "Đống nợ chưa thèm thắt nút cứu vớt:"
   },
   [TranslationTone.ENGLISH]: {
     title: "DIAGNOSTICS & GIT SANITY CHECKS",
@@ -251,7 +255,8 @@ const sanityLoc: Record<TranslationTone, {
     doctorApplySync: "Apply: Sync reference",
     scanAnomaliesLoading: "Scanning repository anomalies...",
     visualTimelineTitle: "VISUAL COMMIT TIMELINE GRAPH",
-    squashCompletedTitle: "SQUASH COMPLETED (1 COMMIT REMAINING)"
+    squashCompletedTitle: "SQUASH COMPLETED (1 COMMIT REMAINING)",
+    dirtyFilesLabel: "Detailed list of uncommitted changes:"
   }
 };
 
@@ -369,7 +374,13 @@ export default function App() {
       currentBranch: 'feature/payment-v2',
       baseBranch: 'develop',
       isDirty: true,
-      dirtyFiles: ['src/routes/payment.ts', 'src/services/stripe.ts', 'config/keys.json'],
+      dirtyFiles: [
+        'src/routes/payment.ts',
+        'src/services/stripe.ts',
+        'config/keys.json',
+        'src/components/ConflictSolver.tsx',
+        'package.json'
+      ],
       branches: [],
       commits: [],
       rebaseInProgress: false,
@@ -776,8 +787,274 @@ export default function App() {
           {
             filepath: 'src/routes/payment.ts',
             status: 'conflicted',
+            conflictsCount: 2,
+            contentBefore: [
+              'import { Request, Response, Router } from "express";',
+              'import Stripe from "stripe";',
+              'import { logger } from "../utils/logger";',
+              'import { getStripeClient } from "../lib/stripe";',
+              'import { authMiddleware } from "../middleware/auth";',
+              '',
+              'const router = Router();',
+              '',
+              '// Retrieve payment dashboard analytics',
+              'router.get("/dashboard", authMiddleware, async (req: Request, res: Response) => {',
+              '  try {',
+              '    const userId = req.user?.id;',
+              '    logger.info(`Fetching dashboard metrics for user: ${userId}`);',
+              '    ',
+              '    // Fetch user subscription details',
+              '    const stripe = getStripeClient();',
+              '    const payments = await stripe.paymentIntents.list({ limit: 10 });',
+              '    ',
+              '    res.status(200).json({',
+              '      status: "success",',
+              '      count: payments.data.length,',
+              '      recent: payments.data.map(p => ({',
+              '        id: p.id,',
+              '        amount: p.amount / 100,',
+              '        currency: p.currency,',
+              '        status: p.status,',
+              '      }))',
+              '    });',
+              '  } catch (err: any) {',
+              '    logger.error("Failed to query dashboard database", err);',
+              '    res.status(500).json({ error: "INTERNAL_DATABASE_ERR" });',
+              '  }',
+              '});',
+              '',
+              '// CREATE CHARGE ENDPOINT',
+              'router.post("/charge", authMiddleware, async (req: Request, res: Response) => {',
+              '  const { amount, currency, promoCode, paymentMethodId } = req.body;',
+              '  const stripe = getStripeClient();',
+              '  ',
+              '  logger.info(`Starting transaction intake for manual charge: ${amount} ${currency}`);',
+              '',
+              '<<<<<<< HEAD',
+              '  // Alex Nguyen: Add stripe secure charge webhook, telemetry tracking, and retry logic',
+              '  let finalAmount = amount;',
+              '  if (promoCode === "REBASE_WARRIOR") {',
+              '    finalAmount = Math.max(50, Math.round(amount * 0.8)); // 20% discount, min charge 50 cents',
+              '    logger.info(`Promo code applied: REBASE_WARRIOR. Discounted amount: ${finalAmount}`);',
+              '  }',
+              '',
+              '  try {',
+              '    const paymentIntent = await stripe.paymentIntents.create({',
+              '      amount: finalAmount,',
+              '      currency,',
+              '      payment_method: paymentMethodId,',
+              '      confirm: true,',
+              '      automatic_payment_methods: { enabled: true, allow_redirects: "never" },',
+              '      metadata: { ',
+              '        integration: "rebase-overlord-secured",',
+              '        developer: "Alex Nguyen",',
+              '        telemetry_rate: "ultra-high"',
+              '      }',
+              '    });',
+              '',
+              '    res.json({ ',
+              '      success: true, ',
+              '      clientSecret: paymentIntent.client_secret, ',
+              '      transactionId: paymentIntent.id,',
+              '      amountApplied: finalAmount',
+              '    });',
+              '=======',
+              '  // Sarah Connor: Bump rate-limits, add deep telemetry handlers & legacy pipeline',
+              '  let rateLimitWindow = 60 * 1000; // 1 minute',
+              '  let maxRequests = 10;',
+              '  logger.info(`Asserting security rate limiting window of ${rateLimitWindow}ms with max ${maxRequests} requests.`);',
+              '',
+              '  try {',
+              '    const charge = await stripe.charges.create({',
+              '      amount: amount,',
+              '      currency,',
+              '      source: paymentMethodId,',
+              '      description: "Legacy charges backup pipeline for active CRM sync",',
+              '      metadata: {',
+              '        crm_id: req.body.crmId || "N/A",',
+              '        developer: "Sarah Connor"',
+              '      }',
+              '    });',
+              '',
+              '    res.json({ ',
+              '      success: true, ',
+              '      charge: charge.id,',
+              '      telemetryId: req.body.telemetryId || "legacy-fallback-id",',
+              '      receiptUrl: charge.receipt_url',
+              '    });',
+              '>>>>>>> develop',
+              '  } catch (err: any) {',
+              '    logger.error("Transaction pipeline crashed!", err);',
+              '    res.status(400).json({ error: err.message || "TRANSACTION_FAILED" });',
+              '  }',
+              '});',
+              '',
+              '// WEBHOOK DISPATCHER',
+              '<<<<<<< HEAD',
+              'router.post("/webhooks/stripe", async (req: Request, res: Response) => {',
+              '  const sig = req.headers["stripe-signature"] as string;',
+              '  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET_V2;',
+              '  const stripe = getStripeClient();',
+              '',
+              '  if (!endpointSecret) {',
+              '    logger.warn("Webhook system not fully initialized - STRIPE_WEBHOOK_SECRET_V2 missing!");',
+              '    return res.status(500).send("Webhook config error");',
+              '  }',
+              '',
+              '  let event: Stripe.Event;',
+              '  try {',
+              '    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);',
+              '  } catch (err: any) {',
+              '    logger.error(`Webhook signature validation failed v2: ${err.message}`);',
+              '    return res.status(400).send(`Webhook Error: ${err.message}`);',
+              '  }',
+              '',
+              '  // Handle high priority payment webhook types',
+              '  if (event.type === "payment_intent.succeeded") {',
+              '    const pi = event.data.object as Stripe.PaymentIntent;',
+              '    logger.info(`✨ Webhook Success: payment_intent.succeeded! ID: ${pi.id}`);',
+              '    // database sync routine goes here',
+              '  }',
+              '',
+              '  res.json({ received: true, version: "v2.0-alex" });',
+              '});',
+              '=======',
+              'router.post("/webhook/stripe", async (req: Request, res: Response) => {',
+              '  const sig = req.headers["stripe-signature"] as string;',
+              '  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;',
+              '  const stripe = getStripeClient();',
+              '',
+              '  let event: Stripe.Event;',
+              '  try {',
+              '    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret!);',
+              '  } catch (err: any) {',
+              '    logger.error(`Webhook signature validation failed legacy: ${err.message}`);',
+              '    return res.status(400).send(`Webhook Error: ${err.message}`);',
+              '  }',
+              '',
+              '  if (event.type === "charge.succeeded") {',
+              '    const charge = event.data.object as Stripe.Charge;',
+              '    logger.info(`Legacy Webhook Success: charge.succeeded! ID: ${charge.id}`);',
+              '  }',
+              '',
+              '  res.json({ received: true, version: "v1.2-legacy-sarah" });',
+              '});',
+              '>>>>>>> develop',
+              '',
+              'export default router;'
+            ].join('\n'),
+            contentAfter: ''
+          },
+          {
+            filepath: 'src/services/stripe.ts',
+            status: 'conflicted',
             conflictsCount: 1,
-            contentBefore: '<<<<<<< HEAD\n// Code changes on local commit\n=======\n// Code changes on incoming develop base\n>>>>>>> develop',
+            contentBefore: [
+              'import Stripe from "stripe";',
+              'import { logger } from "../utils/logger";',
+              '',
+              'let stripeInstance: Stripe | null = null;',
+              '',
+              '/**',
+              ' * Lazy initialization of the Stripe SDK Client to prevent startup crashes.',
+              ' * Resolves API key securely from environment variables.',
+              ' */',
+              'export function getStripeClient(): Stripe {',
+              '  if (stripeInstance) {',
+              '    return stripeInstance;',
+              '  }',
+              '',
+              '<<<<<<< HEAD',
+              '  const apiKey = process.env.STRIPE_SECRET_KEY;',
+              '  if (!apiKey) {',
+              '    logger.error("FATAL: STRIPE_SECRET_KEY is undefined securely at module loading.");',
+              '    throw new Error("Missing STRIPE_SECRET_KEY runtime environment variable");',
+              '  }',
+              '',
+              '  logger.info("Initializing Stripe SDK v12 in Secure Mode - Server Side proxy");',
+              '  stripeInstance = new Stripe(apiKey, {',
+              '    apiVersion: "2023-10-16",',
+              '    typescript: true,',
+              '    maxNetworkRetries: 3,',
+              '    timeout: 10000,',
+              '    appInfo: {',
+              '      name: "Rebase Overlord Gateway",',
+              '      version: "2.1.0-alpha"',
+              '    }',
+              '  });',
+              '=======',
+              '  const legacyKey = process.env.STRIPE_LEGACY_KEY || process.env.STRIPE_SECRET_KEY;',
+              '  if (!legacyKey) {',
+              '    logger.warn("Warning: STRIPE_SECRET_KEY is empty. Initializing with mock token generator.");',
+              '  }',
+              '',
+              '  logger.info("Initializing Stripe Client in Legacy Compatibility Mode");',
+              '  stripeInstance = new Stripe(legacyKey || "mock-inactive-token", {',
+              '    apiVersion: "2022-11-15",',
+              '    typescript: true,',
+              '    maxNetworkRetries: 1,',
+              '    timeout: 30000',
+              '  });',
+              '>>>>>>> develop',
+              '',
+              '  return stripeInstance;',
+              '}',
+              '',
+              '/**',
+              ' * Validate active customer session',
+              ' */',
+              'export async function validateCustomerSession(customerId: string): Promise<boolean> {',
+              '  const stripe = getStripeClient();',
+              '  try {',
+              '    const customer = await stripe.customers.retrieve(customerId);',
+              '    return !customer.deleted;',
+              '  } catch (err) {',
+              '    logger.warn(`Stripe customer validation failed silently for ${customerId}`);',
+              '    return false;',
+              '  }',
+              '}'
+            ].join('\n'),
+            contentAfter: ''
+          },
+          {
+            filepath: 'config/keys.json',
+            status: 'conflicted',
+            conflictsCount: 1,
+            contentBefore: [
+              '{',
+              '  "project_id": "rebase-overlord-prod",',
+              '  "environment": "production",',
+              '  "version": "2.4.0",',
+              '<<<<<<< HEAD',
+              '  "api": {',
+              '    "host": "https://api.rebaseoverlord.dev",',
+              '    "timeout_ms": 5000,',
+              '    "ssl_only": true,',
+              '    "security_headers": {',
+              '      "x_frame_options": "DENY",',
+              '      "content_security_policy": "default-src \'self\'"',
+              '    }',
+              '  },',
+              '  "database": {',
+              '    "pool_max": 25,',
+              '    "pool_min": 5,',
+              '    "idle_timeout_ms": 30000',
+              '  }',
+              '=======',
+              '  "api": {',
+              '    "host": "https://legacy-gateway.internal.net",',
+              '    "timeout_ms": 15000,',
+              '    "ssl_only": false,',
+              '    "legacy_endpoints": true',
+              '  },',
+              '  "database": {',
+              '    "pool_max": 10,',
+              '    "pool_min": 1,',
+              '    "idle_timeout_ms": 10000',
+              '  }',
+              '>>>>>>> develop',
+              '}'
+            ].join('\n'),
             contentAfter: ''
           }
         ];
@@ -789,8 +1066,11 @@ export default function App() {
         }));
 
         handleUpdateWizard({ status: 'paused_conflict' });
-        addLog(`⚠️ CONFLICT DETECTED in src/routes/payment.ts during interactive rebase. Rebase paused.`);
-        addLog(`// Please use the Recovery Center to salvage line items.`);
+        addLog(`⚠️ CONFLICTS DETECTED during interactive rebase. Rebase paused.`);
+        addLog(`  conflict: src/routes/payment.ts (2 conflicts)`);
+        addLog(`  conflict: src/services/stripe.ts (1 conflict)`);
+        addLog(`  conflict: config/keys.json (1 conflict)`);
+        addLog(`// Please use the interactive 3-Way Merge solver below to rescue your branches!`);
       }, 2000);
     } else {
       // REAL LIVE GIT REBASE WORKFLOW
@@ -1833,13 +2113,31 @@ export default function App() {
                   {repoState.isDirty && (
                     <div className={`border p-3 rounded-xl flex flex-col gap-2 ${theme === 'light' ? 'border-amber-200 bg-amber-500/5' : 'border-amber-500/20 bg-amber-500/5'}`}>
                       <div className="flex justify-between items-start gap-1">
-                        <div className="text-[11px] font-mono leading-tight">
+                        <div className="text-[11px] font-mono leading-tight w-full">
                           <span className={`font-bold block ${theme === 'light' ? 'text-amber-800' : 'text-amber-300'}`}>
                             {sloc.uncommittedChangesTitle}
                           </span>
                           <span className={`text-[10px] block mt-0.5 ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
                             {sloc.uncommittedChangesDesc.replace("{0}", String(repoState.dirtyFiles?.length || 0))}
                           </span>
+
+                          {repoState.dirtyFiles && repoState.dirtyFiles.length > 0 && (
+                            <div className="mt-2 text-[10px]">
+                              <span className={`font-semibold block ${theme === 'light' ? 'text-slate-700 font-bold' : 'text-slate-300 font-bold'} mb-1`}>
+                                {sloc.dirtyFilesLabel}
+                              </span>
+                              <div className="mt-1 flex flex-col gap-1 max-h-32 overflow-y-auto pr-1">
+                                {repoState.dirtyFiles.map(file => (
+                                  <div key={file} className="flex items-center gap-1.5">
+                                    <span className="w-1.2 h-1.2 rounded-full bg-amber-500"></span>
+                                    <span className={`font-mono text-[10px] truncate ${theme === 'light' ? 'text-slate-700 bg-slate-100 border-slate-200' : 'text-amber-250 bg-slate-950/40 border-amber-500/10'} px-1.5 py-0.5 rounded border`}>
+                                      {file}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                         <button
                           onClick={() => handleDiagnoseProblem('dirty_working_tree')}
@@ -2051,6 +2349,24 @@ export default function App() {
                            {doctorDiagnosis.explanation}
                          </p>
                        </div>
+
+                       {doctorProblem === 'dirty_working_tree' && repoState.dirtyFiles && repoState.dirtyFiles.length > 0 && (
+                         <div className="text-[10px] text-slate-300 bg-slate-950/50 p-2.5 rounded border border-[#2d2f3c]/50">
+                           <strong className="text-[9px] font-mono font-bold text-violet-300 uppercase block tracking-wider mb-2">
+                             {sloc.dirtyFilesLabel}
+                           </strong>
+                           <div className="mt-1 flex flex-col gap-1 max-h-32 overflow-y-auto pr-1">
+                             {repoState.dirtyFiles.map(file => (
+                               <div key={file} className="flex items-center gap-1.5 font-mono">
+                                 <span className="w-1.2 h-1.2 rounded-full bg-amber-500 animate-pulse"></span>
+                                 <span className={`text-[10px] truncate ${theme === 'light' ? 'text-slate-800 bg-slate-100 border-slate-200' : 'text-amber-250 bg-slate-900/40 border-amber-500/10'} px-1.5 py-0.5 rounded border`}>
+                                   {file}
+                                 </span>
+                               </div>
+                             ))}
+                           </div>
+                         </div>
+                       )}
 
                        <div className="text-[10px] text-slate-300 bg-indigo-950/20 p-2.5 rounded border border-indigo-500/20">
                          <strong className="text-[9px] font-mono font-bold text-[#a5b4fc] uppercase block tracking-wider">
