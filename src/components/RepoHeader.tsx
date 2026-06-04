@@ -758,12 +758,29 @@ export default function RepoHeader({
               {loc.branch} <span className="text-sky-400 font-semibold">{repoState.currentBranch || 'N/A'}</span>
             </span>
             <span className="text-slate-700">|</span>
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1 relative group">
               {loc.changeStatus}{' '}
               {repoState.isDirty ? (
-                <span className="text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.2 rounded font-semibold flex items-center gap-1 text-[10px]">
-                  ⚡ {loc.hasChanges} ({repoState.dirtyFiles.length})
-                </span>
+                <>
+                  <button className="text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded font-extrabold flex items-center gap-1 text-[10px] cursor-help">
+                    ⚡ {loc.hasChanges} ({repoState.dirtyFiles?.length || 0})
+                  </button>
+                  {/* Hover dropdown displaying detailed uncommitted list */}
+                  <div className="absolute top-full left-0 mt-1 hidden group-hover:block z-50 min-w-[200px] max-w-[280px] bg-[#16171d] border border-amber-500/30 rounded-lg p-2.5 shadow-xl text-[10px] font-mono leading-relaxed text-slate-300">
+                    <div className="font-extrabold text-amber-400 mb-1.5 border-b border-slate-800 pb-1 flex items-center justify-between">
+                      <span className="text-[9px] uppercase tracking-wider">{tone === TranslationTone.ENGLISH ? "Uncommitted Files" : "Tệp chưa commit"}</span>
+                      <span className="bg-amber-500/20 text-amber-300 px-1 py-0.2 rounded text-[8px]">{repoState.dirtyFiles?.length || 0}</span>
+                    </div>
+                    <div className="max-h-40 overflow-y-auto pr-1 flex flex-col gap-1 scrollbar-thin scrollbar-thumb-slate-800">
+                      {repoState.dirtyFiles?.map(file => (
+                        <div key={file} className="flex items-center gap-1 text-left truncate hover:bg-slate-800/60 p-0.5 rounded transition-colors" title={file}>
+                          <span className="w-1.2 h-1.2 rounded-full bg-amber-400 shrink-0"></span>
+                          <span className="text-[9.5px] truncate text-slate-300">{file}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
               ) : (
                 <span className="text-emerald-400 font-semibold">{translate('no_local_changes', tone, undefined, useEmoji)} {loc.clean}</span>
               )}

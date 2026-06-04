@@ -458,6 +458,8 @@ export default function ConflictSolver({
   const [isMinimized, setIsMinimized] = React.useState(false);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
+  const [editMode, setEditMode] = React.useState<'jetbrains' | 'raw'>('jetbrains');
+  const [customBlockTexts, setCustomBlockTexts] = React.useState<Record<number, string>>({});
 
   // AI Resolution and Explanation states
   const [isAiLoading, setIsAiLoading] = React.useState(false);
@@ -666,7 +668,9 @@ export default function ConflictSolver({
     // Synchronize to Left, Right, or Center depending on which one was scrolled
     const isLeft = target === leftPaneContainerRef.current;
     const isRight = target === rightPaneContainerRef.current;
-    const isMiddle = target === textareaRef.current;
+    const isMiddleRaw = target === textareaRef.current;
+    const isMiddleVisual = target === middlePaneContainerRef.current;
+    const isMiddle = isMiddleRaw || isMiddleVisual;
 
     let leftTop = 0;
     let rightTop = 0;
@@ -693,11 +697,14 @@ export default function ConflictSolver({
     if (!isRight && rightPaneContainerRef.current) {
       rightPaneContainerRef.current.scrollTop = rightTop;
     }
-    if (!isMiddle && textareaRef.current) {
+    if (!isMiddleRaw && textareaRef.current) {
       textareaRef.current.scrollTop = middleTop;
     }
+    if (!isMiddleVisual && middlePaneContainerRef.current) {
+      middlePaneContainerRef.current.scrollTop = middleTop;
+    }
 
-    // Synchronize middle line numbers container perfectly with the textarea element
+    // Synchronize middle line numbers container perfectly with the scrolled element
     if (middleLineNumbersRef.current) {
       middleLineNumbersRef.current.scrollTop = middleTop;
     }
@@ -740,6 +747,7 @@ export default function ConflictSolver({
   const rightPaneContainerRef = React.useRef<HTMLDivElement>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const middleLineNumbersRef = React.useRef<HTMLDivElement>(null);
+  const middlePaneContainerRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     if (conflicts.length > 0 && (!selectedFile || !conflicts.some(c => c.filepath === selectedFile.filepath))) {
@@ -1034,10 +1042,12 @@ export default function ConflictSolver({
       elements.push(
         <mark
           key={`match-${m.start}`}
-          className={`px-0.5 rounded font-bold transition-colors select-text ${
+          className={`px-0.5 rounded font-bold transition-all select-text ${
             isActive
               ? 'bg-[#214283] text-white ring-2 ring-blue-400'
-              : 'bg-amber-500/30 text-[#e8eef5] ring-1 ring-amber-500/40'
+              : isLight
+                ? 'bg-amber-300 text-slate-900 border border-amber-400/60'
+                : 'bg-amber-500/30 text-[#e8eef5] ring-1 ring-amber-500/40'
           }`}
         >
           {lineText.substring(m.start, m.end)}
@@ -1058,53 +1068,21 @@ export default function ConflictSolver({
     return <>{elements}</>;
   };
 
-  React.useEffect(() => {
-    // Reset our search fields on file selection transition
-    setStateLeftSearch(prev => ({ ...prev, isOpen: false, query: '', activeIndex: 0 }));
-    setStateRightSearch(prev => ({ ...prev, isOpen: false, query: '', activeIndex: 0 }));
-    setStateResultSearch(prev => ({ ...prev, isOpen: false, query: '', activeIndex: 0 }));
-
-    // Reset AI states
-    setAiExplanation(null);
-    setAiProposedContent(null);
-    setAiError(null);
-    setIsAiLoading(false);
-    setWasAiApplied(false);
-
-    if (selectedFile) {
-      if (selectedFile.isResolved && selectedFile.resolvedContent) {
-        setEditorText(selectedFile.resolvedContent);
-        // mark all block indexes as resolved
-        const initialChoices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }> = {};
-        blocks.forEach((b, i) => {
-          if (b.type === 'conflict') {
-            initialChoices[i] = { left: 'accepted', right: 'ignored' };
-          }
-        });
-        setBlockChoices(initialChoices);
-      } else {
-        setEditorText(activeContent);
-        const initialChoices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }> = {};
-        blocks.forEach((b, i) => {
-          if (b.type === 'conflict') {
-            initialChoices[i] = { left: 'pending', right: 'pending' };
-          }
-        });
-        setBlockChoices(initialChoices);
-      }
-    } else {
-      setEditorText('');
-      setBlockChoices({});
-    }
-  }, [selectedFile, activeContent, blocks]);
-
-  const getMergedContent = React.useCallback((choices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }>) => {
+  const getMergedContent = React.useCallback((
+    choices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }>,
+    customTexts: Record<number, string> = {}
+  ) => {
     return blocks.map((block, idx) => {
       if (block.type === 'normal') {
         return block.commonText;
       } else {
         const choice = choices[idx] || { left: 'pending', right: 'pending' };
         
+        // If there's custom text entered for this block
+        if (customTexts[idx] !== undefined && customTexts[idx] !== '') {
+          return customTexts[idx];
+        }
+
         // If both accepted
         if (choice.left === 'accepted' && choice.right === 'accepted') {
           return `${block.oursText}\n${block.theirsText}`;
@@ -1129,85 +1107,153 @@ export default function ConflictSolver({
         if (choice.right === 'ignored' && choice.left === 'pending') {
           return block.oursText;
         }
-        // Both pending
-        return `<<<<<<< HEAD\n${block.oursText}\n=======\n${block.theirsText}\n>>>>>>> incoming`;
+        // Both pending -> blank/empty like in JetBrains!
+        return '';
       }
     }).join('\n');
   }, [blocks]);
 
-  const handleResolveSide = (blockIdx: number, side: 'left' | 'right', action: 'accept' | 'ignore') => {
-    setBlockChoices(prev => {
-      const current = prev[blockIdx] || { left: 'pending', right: 'pending' };
-      const updated = { ...current };
+  React.useEffect(() => {
+    // Reset our search fields on file selection transition
+    setStateLeftSearch(prev => ({ ...prev, isOpen: false, query: '', activeIndex: 0 }));
+    setStateRightSearch(prev => ({ ...prev, isOpen: false, query: '', activeIndex: 0 }));
+    setStateResultSearch(prev => ({ ...prev, isOpen: false, query: '', activeIndex: 0 }));
 
-      if (side === 'left') {
-        if (action === 'accept') {
-          updated.left = 'accepted';
-          if (updated.right === 'pending') {
-            updated.right = 'ignored';
+    // Reset AI states
+    setAiExplanation(null);
+    setAiProposedContent(null);
+    setAiError(null);
+    setIsAiLoading(false);
+    setWasAiApplied(false);
+
+    if (selectedFile) {
+      const initialChoices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }> = {};
+      const initialCustoms: Record<number, string> = {};
+
+      if (selectedFile.isResolved && selectedFile.resolvedContent) {
+        setEditorText(selectedFile.resolvedContent);
+        blocks.forEach((b, i) => {
+          if (b.type === 'conflict') {
+            initialChoices[i] = { left: 'accepted', right: 'ignored' };
+            initialCustoms[i] = b.oursText || '';
           }
-        } else {
-          updated.left = 'ignored';
+        });
+      } else {
+        blocks.forEach((b, i) => {
+          if (b.type === 'conflict') {
+            initialChoices[i] = { left: 'pending', right: 'pending' };
+            initialCustoms[i] = '';
+          }
+        });
+        const initialMerged = getMergedContent(initialChoices, initialCustoms);
+        setEditorText(initialMerged);
+      }
+      setBlockChoices(initialChoices);
+      setCustomBlockTexts(initialCustoms);
+    } else {
+      setEditorText('');
+      setBlockChoices({});
+      setCustomBlockTexts({});
+    }
+  }, [selectedFile, activeContent, blocks, getMergedContent]);
+
+  const handleResolveSide = (blockIdx: number, side: 'left' | 'right', action: 'accept' | 'ignore') => {
+    const currentChoices = blockChoices[blockIdx] || { left: 'pending', right: 'pending' };
+    const updatedChoicesForBlock = { ...currentChoices };
+
+    if (side === 'left') {
+      if (action === 'accept') {
+        updatedChoicesForBlock.left = 'accepted';
+        if (updatedChoicesForBlock.right === 'pending') {
+          updatedChoicesForBlock.right = 'ignored';
         }
       } else {
-        if (action === 'accept') {
-          updated.right = 'accepted';
-          if (updated.left === 'pending') {
-            updated.left = 'ignored';
-          }
-        } else {
-          updated.right = 'ignored';
-        }
+        updatedChoicesForBlock.left = 'ignored';
       }
+    } else {
+      if (action === 'accept') {
+        updatedChoicesForBlock.right = 'accepted';
+        if (updatedChoicesForBlock.left === 'pending') {
+          updatedChoicesForBlock.left = 'ignored';
+        }
+      } else {
+        updatedChoicesForBlock.right = 'ignored';
+      }
+    }
 
-      const nextChoices = { ...prev, [blockIdx]: updated };
-      setEditorText(getMergedContent(nextChoices));
-      return nextChoices;
-    });
+    const nextChoices = { ...blockChoices, [blockIdx]: updatedChoicesForBlock };
+    setBlockChoices(nextChoices);
+
+    const nextCustoms = { ...customBlockTexts };
+    if (action === 'accept') {
+      if (side === 'left') {
+        nextCustoms[blockIdx] = blocks[blockIdx].oursText || '';
+      } else {
+        nextCustoms[blockIdx] = blocks[blockIdx].theirsText || '';
+      }
+    } else {
+      nextCustoms[blockIdx] = '';
+    }
+    setCustomBlockTexts(nextCustoms);
+
+    setEditorText(getMergedContent(nextChoices, nextCustoms));
   };
 
   const handleApplyLeft = () => {
     const nextChoices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }> = {};
+    const nextCustoms: Record<number, string> = {};
     blocks.forEach((block, idx) => {
       if (block.type === 'conflict') {
         nextChoices[idx] = { left: 'accepted', right: 'ignored' };
+        nextCustoms[idx] = block.oursText || '';
       }
     });
     setBlockChoices(nextChoices);
-    setEditorText(getMergedContent(nextChoices));
+    setCustomBlockTexts(nextCustoms);
+    setEditorText(getMergedContent(nextChoices, nextCustoms));
   };
 
   const handleApplyRight = () => {
     const nextChoices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }> = {};
+    const nextCustoms: Record<number, string> = {};
     blocks.forEach((block, idx) => {
       if (block.type === 'conflict') {
         nextChoices[idx] = { left: 'ignored', right: 'accepted' };
+        nextCustoms[idx] = block.theirsText || '';
       }
     });
     setBlockChoices(nextChoices);
-    setEditorText(getMergedContent(nextChoices));
+    setCustomBlockTexts(nextCustoms);
+    setEditorText(getMergedContent(nextChoices, nextCustoms));
   };
 
   const handleApplyBoth = () => {
     const nextChoices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }> = {};
+    const nextCustoms: Record<number, string> = {};
     blocks.forEach((block, idx) => {
       if (block.type === 'conflict') {
         nextChoices[idx] = { left: 'accepted', right: 'accepted' };
+        nextCustoms[idx] = `${block.oursText}\n${block.theirsText}`;
       }
     });
     setBlockChoices(nextChoices);
-    setEditorText(getMergedContent(nextChoices));
+    setCustomBlockTexts(nextCustoms);
+    setEditorText(getMergedContent(nextChoices, nextCustoms));
   };
 
   const handleResetMerge = () => {
     const nextChoices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }> = {};
+    const nextCustoms: Record<number, string> = {};
     blocks.forEach((block, idx) => {
       if (block.type === 'conflict') {
         nextChoices[idx] = { left: 'pending', right: 'pending' };
+        nextCustoms[idx] = '';
       }
     });
     setBlockChoices(nextChoices);
-    setEditorText(activeContent);
+    setCustomBlockTexts(nextCustoms);
+    const initialMerged = getMergedContent(nextChoices, nextCustoms);
+    setEditorText(initialMerged);
   };
 
   const handleResolveSubmit = () => {
@@ -1232,8 +1278,14 @@ export default function ConflictSolver({
   const countOccurrences = (str: string, substr: string) => {
     return str.split(substr).length - 1;
   };
-  const totalMarkerBlocks = countOccurrences(editorText, '<<<<<<<');
-  const isCurrentlyDirty = editorText.includes('<<<<<<<') || editorText.includes('=======') || editorText.includes('>>>>>>>');
+  const hasPendingBlocks = blocks.some((b, i) => b.type === 'conflict' && (blockChoices[i]?.left === 'pending' || blockChoices[i]?.right === 'pending'));
+  const isCurrentlyDirty = editMode === 'jetbrains'
+    ? hasPendingBlocks
+    : (editorText.includes('<<<<<<<') || editorText.includes('=======') || editorText.includes('>>>>>>>'));
+
+  const totalMarkerBlocks = editMode === 'jetbrains'
+    ? blocks.filter((b, i) => b.type === 'conflict' && (blockChoices[i]?.left === 'pending' || blockChoices[i]?.right === 'pending')).length
+    : countOccurrences(editorText, '<<<<<<<');
 
   const renderLeftPane = () => {
     let lineNum = 1;
@@ -1316,20 +1368,20 @@ export default function ConflictSolver({
                           e.stopPropagation();
                           handleResolveSide(bIdx, 'left', 'accept');
                         }}
-                        className="bg-indigo-600 hover:bg-indigo-500 hover:scale-105 active:scale-95 text-white font-mono font-bold px-1.5 py-0.5 rounded text-[9px] shadow cursor-pointer transition-all flex items-center gap-0.5"
+                        className="bg-indigo-600 hover:bg-indigo-505 hover:scale-105 active:scale-95 text-white font-mono px-2 py-0.5 rounded text-xs font-black shadow cursor-pointer transition-all flex items-center justify-center"
                         title={loc.btnOurs}
                       >
-                        Accept <span className="font-black text-xs">»</span>
+                        »
                       </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleResolveSide(bIdx, 'left', 'ignore');
                         }}
-                        className={`px-1 py-0.5 rounded text-[9px] cursor-pointer transition-colors ${
+                        className={`px-2 py-0.5 font-bold rounded text-xs border cursor-pointer transition-colors ${
                           isLight 
-                            ? 'bg-slate-205 hover:bg-rose-100 text-slate-600 hover:text-rose-800 border border-slate-300' 
-                            : 'bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-white'
+                            ? 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-red-50 hover:text-red-600 hover:border-red-300' 
+                            : 'bg-[#2d2f3c] border-[#3f4152] text-slate-300 hover:bg-red-950/50 hover:text-red-400 hover:border-red-800'
                         }`}
                         title="Ignore block (Reject)"
                       >
@@ -1428,20 +1480,20 @@ export default function ConflictSolver({
                           e.stopPropagation();
                           handleResolveSide(bIdx, 'right', 'accept');
                         }}
-                        className="bg-amber-600 hover:bg-amber-500 hover:scale-105 active:scale-95 text-slate-950 font-mono font-bold px-1.5 py-0.5 rounded text-[9px] shadow cursor-pointer transition-all flex items-center gap-0.5"
+                        className="bg-amber-600 hover:bg-amber-500 hover:scale-105 active:scale-95 text-slate-950 font-mono px-2 py-0.5 rounded text-xs font-black shadow cursor-pointer transition-all flex items-center justify-center"
                         title={loc.btnTheirs}
                       >
-                        <span className="font-black text-xs">«</span> Accept
+                        «
                       </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           handleResolveSide(bIdx, 'right', 'ignore');
                         }}
-                        className={`px-1 py-0.5 rounded text-[9px] cursor-pointer transition-colors ${
+                        className={`px-2 py-0.5 font-bold rounded text-xs border cursor-pointer transition-colors ${
                           isLight 
-                            ? 'bg-slate-205 hover:bg-rose-105 text-slate-600 hover:text-rose-800 border border-slate-300' 
-                            : 'bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-white'
+                            ? 'bg-slate-100 border-slate-300 text-slate-700 hover:bg-red-50 hover:text-red-600 hover:border-red-300' 
+                            : 'bg-[#2d2f3c] border-[#3f4152] text-slate-300 hover:bg-red-950/50 hover:text-red-400 hover:border-red-800'
                         }`}
                         title="Ignore block (Reject)"
                       >
@@ -1452,6 +1504,184 @@ export default function ConflictSolver({
                 </div>
               );
             });
+          }
+        })}
+      </div>
+    );
+  };
+
+  const renderMiddlePaneJetBrains = () => {
+    let lineNum = 1;
+    return (
+      <div 
+        ref={middlePaneContainerRef}
+        onScroll={handleScroll}
+        className={`font-mono text-[11px] leading-5 w-full pt-3 pb-8 h-full overflow-y-auto scrollbar-thin select-none ${
+          isLight 
+            ? 'text-slate-705 bg-white scrollbar-thumb-slate-300' 
+            : 'text-slate-300 bg-[#16171d] scrollbar-thumb-slate-800'
+        }`}
+      >
+        {blocks.map((block, bIdx) => {
+          if (block.type === 'normal') {
+            const lines = block.commonText ? block.commonText.split('\n') : [''];
+            return lines.map((line, lIdx) => {
+              const currNum = lineNum++;
+              return (
+                <div 
+                  key={`n-M-${bIdx}-${lIdx}`} 
+                  className={`flex min-h-[20px] items-center ${
+                    isLight ? 'hover:bg-slate-100' : 'hover:bg-[#202124]/40'
+                  }`}
+                >
+                  <div className={`w-9 text-right pr-2 select-none border-r font-mono text-[10px] shrink-0 ${
+                    isLight ? 'bg-slate-50 border-slate-200 text-slate-400' : 'bg-[#0e0f12] border-[#2d2f3c]/60 text-slate-600'
+                  }`}>
+                    {currNum}
+                  </div>
+                  <div className={`pl-3 select-text whitespace-pre font-mono ${isLight ? 'text-[#1e293b]' : 'text-slate-300'}`}>
+                    {renderLineWithHighlight(line, currNum, middleMatches, stateResultSearch.activeIndex)}
+                  </div>
+                </div>
+              );
+            });
+          } else {
+            const choice = blockChoices[bIdx] || { left: 'pending', right: 'pending' };
+            
+            // Get current text value for this block
+            let blockVal = customBlockTexts[bIdx] !== undefined ? customBlockTexts[bIdx] : '';
+
+            // Fallback if not customized but side is approved
+            if (customBlockTexts[bIdx] === undefined || customBlockTexts[bIdx] === '') {
+              if (choice.left === 'accepted' && choice.right === 'accepted') {
+                blockVal = `${block.oursText}\n${block.theirsText}`;
+              } else if (choice.left === 'accepted') {
+                blockVal = block.oursText || '';
+              } else if (choice.right === 'accepted') {
+                blockVal = block.theirsText || '';
+              } else if (choice.left === 'ignored' && choice.right === 'ignored') {
+                blockVal = '';
+              } else if (choice.left === 'ignored' && choice.right === 'pending') {
+                blockVal = block.theirsText || '';
+              } else if (choice.right === 'ignored' && choice.left === 'pending') {
+                blockVal = block.oursText || '';
+              } else {
+                blockVal = ''; // Pending -> totally blank like in JetBrains!
+              }
+            }
+
+            const blockLines = blockVal ? blockVal.split('\n') : [''];
+            const rowCount = Math.max(blockLines.length, 3); // minimum 3 rows spacing
+
+            const isPending = choice.left === 'pending' && choice.right === 'pending';
+            const isOursOnly = choice.left === 'accepted' && choice.right !== 'accepted';
+            const isTheirsOnly = choice.right === 'accepted' && choice.left !== 'accepted';
+            const isBoth = choice.left === 'accepted' && choice.right === 'accepted';
+            const isIgnored = choice.left === 'ignored' && choice.right === 'ignored';
+
+            return (
+              <div 
+                key={`c-M-${bIdx}`} 
+                className={`relative border-y my-1.5 transition-all select-text ${
+                  isPending
+                    ? isLight
+                      ? 'border-indigo-200 bg-indigo-50/70'
+                      : 'border-indigo-500/30 bg-indigo-500/15'
+                    : isOursOnly
+                      ? isLight
+                        ? 'border-emerald-200 bg-emerald-50/75'
+                        : 'border-emerald-500/30 bg-emerald-500/15'
+                      : isTheirsOnly
+                        ? isLight
+                          ? 'border-amber-200 bg-amber-50/75'
+                          : 'border-amber-500/30 bg-[#3d2f1f]/30'
+                        : isBoth
+                          ? isLight
+                            ? 'border-teal-200 bg-teal-50/75'
+                            : 'border-teal-500/30 bg-teal-500/15'
+                          : isLight
+                            ? 'border-slate-205 bg-slate-100/70'
+                            : 'border-slate-700/30 bg-slate-800/10'
+                }`}
+              >
+                <div className="flex items-stretch">
+                  <div className={`w-9 text-right pr-2 select-none border-r font-mono text-[9px] font-bold shrink-0 py-2 flex flex-col ${
+                    isPending
+                      ? isLight 
+                        ? 'text-indigo-600 bg-indigo-50/80 border-indigo-200'
+                        : 'text-indigo-400 bg-indigo-500/10 border-indigo-500/20'
+                      : isOursOnly
+                        ? isLight
+                          ? 'text-emerald-700 bg-emerald-50/80 border-emerald-200'
+                          : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                        : isTheirsOnly
+                          ? isLight
+                            ? 'text-amber-700 bg-amber-50/80 border-amber-200'
+                            : 'text-amber-505 bg-amber-500/10 border-amber-500/20'
+                          : isLight
+                            ? 'text-slate-550 bg-slate-50 border-slate-200'
+                            : 'text-slate-500 bg-slate-800/20 border-[#2d2f3c]/60'
+                  }`}>
+                    {blockLines.map((_, li) => {
+                      const blockLineNum = lineNum++;
+                      return <div key={li} className="h-5 leading-5">{blockLineNum}</div>;
+                    })}
+                  </div>
+
+                  <div className="flex-1 relative py-2">
+                    <textarea
+                      rows={rowCount}
+                      value={blockVal}
+                      onChange={(e) => {
+                        const newVal = e.target.value;
+                        setCustomBlockTexts(prev => {
+                          const next = { ...prev, [bIdx]: newVal };
+                          // Sync main editor text consolidated string
+                          setEditorText(getMergedContent(blockChoices, next));
+                          return next;
+                        });
+                      }}
+                      className={`w-full border-none outline-none focus:ring-0 leading-5 text-[11.5px] font-mono whitespace-pre bg-transparent px-3 placeholder-slate-500/70 resize-y ${
+                        isLight ? 'text-slate-850' : 'text-[#e8eef5]'
+                      }`}
+                      placeholder={
+                        isPending
+                          ? (tone === TranslationTone.ENGLISH 
+                            ? "« Empty conflict area. Accept Left (<<) or Right (>>) arrows, or customize code here..." 
+                            : "« Vùng xung đột trống. Hãy chọn Nhận Trái (<<) hoặc Nhận Phải (>>), hoặc tự gõ code tại đây...")
+                          : (tone === TranslationTone.ENGLISH
+                            ? "Merged output. Type here to customize..."
+                            : "Đã trộn thành công. Bạn vẫn có thể gõ nội dung tùy chỉnh tại đây...")
+                      }
+                    />
+
+                    <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-80 select-none pointer-events-none">
+                      {isPending ? (
+                        <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/35 text-indigo-400 uppercase tracking-widest animate-pulse">
+                          Pending
+                        </span>
+                      ) : isOursOnly ? (
+                        <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/35 text-emerald-400 uppercase tracking-widest">
+                          Ours (Left)
+                        </span>
+                      ) : isTheirsOnly ? (
+                        <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/35 text-amber-505 uppercase tracking-widest font-mono">
+                          Theirs (Right)
+                        </span>
+                      ) : isBoth ? (
+                        <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-teal-500/20 border border-teal-500/35 text-teal-400 uppercase tracking-widest">
+                          Both (Merged)
+                        </span>
+                      ) : (
+                        <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-slate-500/25 border border-slate-500/35 text-slate-400 uppercase tracking-widest">
+                          Ignored
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
           }
         })}
       </div>
@@ -1766,6 +1996,33 @@ export default function ConflictSolver({
                         <Settings2 className={`w-3.5 h-3.5 ${isLight ? 'text-violet-600' : 'text-violet-400'}`} />
                         {loc.resultPane}
                       </span>
+
+                      {/* JetBrains style premium switcher */}
+                      <div className="hidden xs:flex items-center gap-1 bg-slate-200/50 dark:bg-slate-800/40 p-0.5 rounded-lg border border-slate-350/40 dark:border-slate-700/40 shrink-0">
+                        <button
+                          onClick={() => setEditMode('jetbrains')}
+                          className={`px-2 py-0.5 rounded text-[8.5px] font-bold font-mono transition-all cursor-pointer ${
+                            editMode === 'jetbrains'
+                              ? 'bg-violet-600 text-white shadow-sm'
+                              : isLight ? 'text-slate-600 hover:text-slate-800' : 'text-slate-400 hover:text-slate-200'
+                          }`}
+                          title="JetBrains interactive block mode (Clean empty states, no raw markers)"
+                        >
+                          JetBrains Mode
+                        </button>
+                        <button
+                          onClick={() => setEditMode('raw')}
+                          className={`px-2 py-0.5 rounded text-[8.5px] font-bold font-mono transition-all cursor-pointer ${
+                            editMode === 'raw'
+                              ? 'bg-violet-600 text-white shadow-sm'
+                              : isLight ? 'text-slate-600 hover:text-slate-800' : 'text-slate-400 hover:text-slate-200'
+                          }`}
+                          title="Classic full-text file editor (Shows raw Git conflict markers)"
+                        >
+                          Classic (Raw)
+                        </button>
+                      </div>
+
                       <div className="flex items-center gap-1.5">
                         {isCurrentlyDirty ? (
                           <span className="text-[10px] px-1.5 py-0.5 bg-rose-500/10 border border-rose-500/30 text-rose-500 rounded-md font-extrabold font-mono flex items-center gap-1 animate-pulse shrink-0">
@@ -1808,42 +2065,48 @@ export default function ConflictSolver({
                       theme={theme}
                     />
 
-                    <div className={`flex relative items-stretch ${isFullscreen ? 'h-[calc(100vh-320px)] lg:h-[calc(100vh-280px)] min-h-[420px]' : 'h-[420px]'} overflow-hidden font-mono text-[11px] leading-5`}>
-                      <div 
-                        ref={middleLineNumbersRef}
-                        className={`text-right select-none border-r w-9 py-3 overflow-hidden h-full font-mono text-[10px] ${
-                          isLight ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-[#0e0f12] border-[#2d2f3c]/60 text-slate-600'
-                        }`}
-                      >
-                        {editorText.split('\n').map((_, i) => (
-                          <div key={i} className="h-5 leading-5 px-1">{i + 1}</div>
-                        ))}
+                    {editMode === 'jetbrains' ? (
+                      <div className={`relative ${isFullscreen ? 'h-[calc(100vh-320px)] lg:h-[calc(100vh-280px)] min-h-[420px]' : 'h-[420px]'} overflow-hidden`}>
+                        {renderMiddlePaneJetBrains()}
                       </div>
+                    ) : (
+                      <div className={`flex relative items-stretch ${isFullscreen ? 'h-[calc(100vh-320px)] lg:h-[calc(100vh-280px)] min-h-[420px]' : 'h-[420px]'} overflow-hidden font-mono text-[11px] leading-5`}>
+                        <div 
+                          ref={middleLineNumbersRef}
+                          className={`text-right select-none border-r w-9 py-3 overflow-hidden h-full font-mono text-[10px] ${
+                            isLight ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-[#0e0f12] border-[#2d2f3c]/60 text-slate-600'
+                          }`}
+                        >
+                          {editorText.split('\n').map((_, i) => (
+                            <div key={i} className="h-5 leading-5 px-1">{i + 1}</div>
+                          ))}
+                        </div>
 
-                      <textarea
-                        ref={textareaRef}
-                        value={editorText}
-                        onChange={(e) => setEditorText(e.target.value)}
-                        onScroll={handleScroll}
-                        className={`w-full border-none outline-none p-3 resize-none font-mono text-[11.5px] leading-5 focus:ring-0 leading-relaxed overflow-x-auto whitespace-pre select-text h-full scrollbar-thin ${
-                          isLight 
-                            ? 'bg-white text-slate-850 placeholder:text-slate-400 scrollbar-thumb-slate-300' 
-                            : 'bg-[#16171d] text-[#e8eef5] placeholder:text-slate-650 scrollbar-thumb-slate-800'
-                        }`}
-                        placeholder={loc.placeholderCustom}
-                      />
+                        <textarea
+                          ref={textareaRef}
+                          value={editorText}
+                          onChange={(e) => setEditorText(e.target.value)}
+                          onScroll={handleScroll}
+                          className={`w-full border-none outline-none p-3 resize-none font-mono text-[11.5px] leading-5 focus:ring-0 leading-relaxed overflow-x-auto whitespace-pre select-text h-full scrollbar-thin ${
+                            isLight 
+                              ? 'bg-white text-slate-850 placeholder:text-slate-400 scrollbar-thumb-slate-300' 
+                              : 'bg-[#16171d] text-[#e8eef5] placeholder:text-slate-650 scrollbar-thumb-slate-800'
+                          }`}
+                          placeholder={loc.placeholderCustom}
+                        />
 
-                      {isCurrentlyDirty && (
-                        <span className={`absolute bottom-3 right-3 px-2 py-1 border rounded-md font-extrabold text-[9px] shadow-lg flex items-center gap-1 font-mono pointer-events-none select-none z-10 ${
-                          isLight 
-                            ? 'bg-rose-50 border-rose-200 text-rose-700' 
-                            : 'bg-rose-950/90 border border-rose-500/40 text-rose-350'
-                        }`}>
-                          <AlertTriangle className="w-3 h-3 text-rose-500 animate-pulse" />
-                          {totalMarkerBlocks} UNRESOLVED
-                        </span>
-                      )}
-                    </div>
+                        {isCurrentlyDirty && (
+                          <span className={`absolute bottom-3 right-3 px-2 py-1 border rounded-md font-extrabold text-[9px] shadow-lg flex items-center gap-1 font-mono pointer-events-none select-none z-10 ${
+                            isLight 
+                              ? 'bg-rose-50 border-rose-200 text-rose-700' 
+                              : 'bg-rose-950/90 border border-rose-500/40 text-rose-350'
+                          }`}>
+                            <AlertTriangle className="w-3 h-3 text-rose-500 animate-pulse" />
+                            {totalMarkerBlocks} UNRESOLVED
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* RIGHT PANE - Incoming Changes (Theirs) */}
@@ -1971,22 +2234,34 @@ export default function ConflictSolver({
                   const aiLabels = getAiLabels();
 
                   return (
-                    <div className="bg-[#1b1c25] border border-violet-500/30 p-4 rounded-xl flex flex-col gap-3.5 shrink-0 shadow-lg relative overflow-hidden">
+                    <div className={`p-4 rounded-xl flex flex-col gap-3.5 shrink-0 shadow-sm relative overflow-hidden border ${
+                      isLight 
+                        ? 'bg-violet-50/40 border-violet-200/50 text-slate-700 shadow-violet-100/20' 
+                        : 'bg-[#1b1c25] border-violet-500/30 text-slate-350 shadow-lg'
+                    }`}>
                       <div className="absolute top-0 right-0 p-1 opacity-10">
                         <Bot className="w-24 h-24 text-violet-400 rotate-12 -mr-6 -mt-6" />
                       </div>
                       
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
-                          <div className="p-1 px-1.5 bg-violet-500/20 text-violet-400 rounded-lg border border-violet-500/30">
-                            <Bot className="w-4 h-4 text-violet-400 animate-pulse" />
+                          <div className={`p-1 px-1.5 rounded-lg border ${
+                            isLight
+                              ? 'bg-violet-100/60 border-violet-200 text-violet-600'
+                              : 'bg-violet-500/20 text-violet-400 border-violet-500/30'
+                          }`}>
+                            <Bot className={`w-4 h-4 animate-pulse ${isLight ? 'text-violet-600' : 'text-violet-400'}`} />
                           </div>
                           <div>
-                            <span className="text-xs font-mono font-black text-[#e8eef5] tracking-wide flex items-center gap-1">
+                            <span className={`text-xs font-mono font-black tracking-wide flex items-center gap-1 ${
+                              isLight ? 'text-slate-900' : 'text-[#e8eef5]'
+                            }`}>
                               {aiLabels.title}
                               <span className="h-1.5 w-1.5 bg-violet-400 rounded-full inline-block animate-ping"></span>
                             </span>
-                            <span className="text-[10px] text-slate-500 font-mono text-purple-400/70 block sm:inline">Powered by Gemini 3.5 Flash</span>
+                            <span className={`text-[10px] font-mono block sm:inline ${
+                              isLight ? 'text-violet-700/85' : 'text-purple-400/70'
+                            }`}>Powered by Gemini 3.5 Flash</span>
                           </div>
                         </div>
 
@@ -2013,7 +2288,9 @@ export default function ConflictSolver({
                         </button>
                       </div>
 
-                      <p className="text-[11px] text-slate-400 max-w-3xl leading-relaxed">
+                      <p className={`text-[11px] max-w-3xl leading-relaxed ${
+                        isLight ? 'text-slate-600' : 'text-slate-400'
+                      }`}>
                         {aiLabels.desc}
                       </p>
 
@@ -2024,12 +2301,18 @@ export default function ConflictSolver({
                       )}
 
                       {aiExplanation && (
-                        <div className="bg-[#111217] border border-[#2d2f3c] rounded-lg p-3.5 flex flex-col gap-2.5 animate-fade-in text-slate-300">
+                        <div className={`border rounded-lg p-3.5 flex flex-col gap-2.5 animate-fade-in ${
+                          isLight 
+                            ? 'bg-white border-slate-200 text-slate-800' 
+                            : 'bg-[#111217] border-[#2d2f3c] text-slate-300'
+                        }`}>
                           <span className="text-[10px] font-mono font-black text-violet-400 uppercase tracking-widest flex items-center gap-1">
                             <Bot className="w-3.5 h-3.5 text-violet-400" />
                             {aiLabels.explanationLabel}
                           </span>
-                          <div className="text-xs font-sans leading-relaxed text-slate-300 whitespace-pre-line border-l-2 border-violet-500/40 pl-3">
+                          <div className={`text-xs font-sans leading-relaxed whitespace-pre-line border-l-2 border-violet-500/40 pl-3 ${
+                            isLight ? 'text-slate-700' : 'text-slate-300'
+                          }`}>
                             {aiExplanation}
                           </div>
                           
@@ -2048,7 +2331,11 @@ export default function ConflictSolver({
                       )}
 
                       {wasAiApplied && (
-                        <div className="bg-emerald-950/20 border border-emerald-500/30 text-emerald-400 rounded-lg p-3 text-xs font-sans leading-relaxed animate-fade-in">
+                        <div className={`rounded-lg p-3 text-xs font-sans leading-relaxed animate-fade-in border ${
+                          isLight 
+                            ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+                            : 'bg-emerald-950/20 border border-emerald-500/30 text-emerald-400'
+                        }`}>
                           {aiLabels.successAlert}
                         </div>
                       )}
@@ -2057,11 +2344,17 @@ export default function ConflictSolver({
                 })()}
 
                 {/* JB BULK CONTROL PANEL */}
-                <div className="bg-[#14151b] p-4 rounded-xl border border-[#2d2f3c]/60 mt-auto shrink-0 animate-fade-in">
+                <div className={`p-4 rounded-xl border mt-auto shrink-0 animate-fade-in ${
+                  isLight 
+                    ? 'bg-slate-50 border-slate-205 shadow-inner' 
+                    : 'bg-[#14151b] border-[#2d2f3c]/60'
+                }`}>
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div className="flex items-center gap-2">
                       <Shuffle className="w-4 h-4 text-violet-400" />
-                      <span className="text-xs font-mono font-bold text-slate-200 uppercase tracking-wide">
+                      <span className={`text-xs font-mono font-bold uppercase tracking-wide ${
+                        isLight ? 'text-slate-800' : 'text-slate-205'
+                      }`}>
                         {tone === TranslationTone.ENGLISH ? "BATCH SOLVER ACTION RAILS" : "CÔNG CỤ GỘP NHANH JETBRAINS"}
                       </span>
                     </div>
@@ -2069,25 +2362,41 @@ export default function ConflictSolver({
                     <div className="flex flex-wrap gap-2 w-full md:w-auto">
                       <button
                         onClick={handleApplyLeft}
-                        className="px-3 py-1.5 text-xs font-mono bg-[#1d2333] hover:bg-indigo-900/50 border border-indigo-500/30 hover:border-indigo-500 text-indigo-300 rounded cursor-pointer transition-colors active:scale-95 flex items-center gap-1"
+                        className={`px-3 py-1.5 text-xs font-mono rounded cursor-pointer transition-all active:scale-95 flex items-center gap-1 ${
+                          isLight 
+                            ? 'bg-indigo-50 hover:bg-indigo-100 border border-indigo-250 text-indigo-700 shadow-sm' 
+                            : 'bg-[#1d2333] hover:bg-indigo-900/50 border border-indigo-500/30 hover:border-indigo-500 text-indigo-300'
+                        }`}
                       >
                         <span>« Accept All Left (Ours)</span>
                       </button>
                       <button
                         onClick={handleApplyRight}
-                        className="px-3 py-1.5 text-xs font-mono bg-[#332615] hover:bg-amber-950/50 border border-amber-500/30 hover:border-amber-500 text-amber-300 rounded cursor-pointer transition-colors active:scale-95 flex items-center gap-1"
+                        className={`px-3 py-1.5 text-xs font-mono rounded cursor-pointer transition-all active:scale-95 flex items-center gap-1 ${
+                          isLight 
+                            ? 'bg-amber-50 hover:bg-amber-100 border border-amber-250 text-amber-850 shadow-sm' 
+                            : 'bg-[#332615] hover:bg-amber-950/50 border border-amber-500/30 hover:border-amber-500 text-amber-300'
+                        }`}
                       >
                         <span>Accept All Right (Theirs) »</span>
                       </button>
                       <button
                         onClick={handleApplyBoth}
-                        className="px-3 py-1.5 text-xs font-mono bg-violet-950/40 hover:bg-violet-950/70 border border-violet-500/20 hover:border-violet-500 text-violet-300 rounded cursor-pointer transition-colors active:scale-95 flex items-center gap-1"
+                        className={`px-3 py-1.5 text-xs font-mono rounded cursor-pointer transition-all active:scale-95 flex items-center gap-1 ${
+                          isLight 
+                            ? 'bg-violet-50 hover:bg-violet-100 border border-violet-250 text-violet-750 shadow-sm' 
+                            : 'bg-violet-950/40 hover:bg-violet-950/70 border border-violet-500/20 hover:border-violet-500 text-violet-300'
+                        }`}
                       >
                         <span>Merge Both Chunks</span>
                       </button>
                       <button
                         onClick={handleResetMerge}
-                        className="px-3 py-1.5 text-xs font-mono bg-[#282a36] hover:bg-slate-800 border border-[#44475a]/30 text-slate-400 rounded cursor-pointer transition-colors active:scale-95 flex items-center gap-1"
+                        className={`px-3 py-1.5 text-xs font-mono rounded cursor-pointer transition-all active:scale-95 flex items-center gap-1 border ${
+                          isLight 
+                            ? 'bg-white hover:bg-slate-100 border-slate-205 text-slate-700 shadow-sm' 
+                            : 'bg-[#282a36] hover:bg-slate-800 border-[#44475a]/30 text-slate-400'
+                        }`}
                       >
                         <Undo2 className="w-3.5 h-3.5" />
                         <span>Reset File</span>
@@ -2095,13 +2404,17 @@ export default function ConflictSolver({
                     </div>
                   </div>
 
-                  <div className="flex justify-end mt-4 border-t border-[#2d2f3c]/45 pt-4">
+                  <div className={`flex justify-end mt-4 border-t pt-4 ${
+                    isLight ? 'border-slate-205' : 'border-[#2d2f3c]/45'
+                  }`}>
                     <button
                       onClick={handleResolveSubmit}
                       disabled={isCurrentlyDirty}
                       className={`text-xs px-5 py-2.5 rounded-lg font-mono font-black border flex items-center gap-1.5 transition-all active:scale-95 ${
                         isCurrentlyDirty 
-                          ? 'bg-[#18191f] text-slate-600 border-none cursor-not-allowed' 
+                          ? isLight
+                            ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'
+                            : 'bg-[#18191f] text-slate-600 border-none cursor-not-allowed'
                           : 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 border-emerald-500/25 shadow shadow-emerald-500/10 cursor-pointer text-[#0b0f19]'
                       }`}
                     >
