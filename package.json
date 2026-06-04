@@ -3,7 +3,7 @@
   "private": true,
   "description": "Git Rebase Overlord visual aid tool for developers",
   "author": "NPTran",
-  "version": "1.8.0",
+  "version": "1.13.0",
   "type": "module",
   "main": "electron-main.js",
   "scripts": {
