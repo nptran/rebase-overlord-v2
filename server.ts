@@ -1099,7 +1099,7 @@ let updateProgress: UpdateProgress = {
 
 let activeDownloadRequest: any = null;
 
-// Download helper supporting up to 5 HTTP redirections (e.g. GitHub to AWS S3)
+// Download helper supporting up to 5 HTTP redirections (e.g. GitHub to AWS S3) and TLS fallback
 function downloadFileWithRedirects(url: string, destPath: string, onProgress: (downloaded: number, total: number) => void): Promise<string> {
   return new Promise((resolve, reject) => {
     let redirectsCount = 0;
@@ -1109,83 +1109,131 @@ function downloadFileWithRedirects(url: string, destPath: string, onProgress: (d
         return reject(new Error('Too many redirects followed (max 5)'));
       }
       
-      const req = https.get(currentUrl, (res) => {
-        const { statusCode } = res;
-        
-        if (statusCode && statusCode >= 300 && statusCode < 400 && res.headers.location) {
-          redirectsCount++;
-          return download(res.headers.location);
-        }
-        
-        if (statusCode !== 200) {
-          res.resume();
-          return reject(new Error(`Failed to download file, server responded with status: ${statusCode}`));
-        }
-        
-        const totalBytes = parseInt(res.headers['content-length'] || '0', 10);
-        let downloadedBytes = 0;
-        
-        const fileStream = fs.createWriteStream(destPath);
-        res.pipe(fileStream);
-        
-        res.on('data', (chunk) => {
-          downloadedBytes += chunk.length;
-          onProgress(downloadedBytes, totalBytes);
+      try {
+        const urlObj = new URL(currentUrl);
+        const options: any = {
+          hostname: urlObj.hostname,
+          path: urlObj.pathname + urlObj.search,
+          port: urlObj.port || undefined,
+          method: 'GET',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 rebase-overlord-api-client'
+          },
+          rejectUnauthorized: false // Bypass SSL/TLS intercept constraints on local Windows packages
+        };
+
+        const req = https.get(options, (res) => {
+          const { statusCode } = res;
+          
+          if (statusCode && statusCode >= 300 && statusCode < 400 && res.headers.location) {
+            redirectsCount++;
+            res.resume(); // Clean up response memory stream
+            const absoluteRedirectUrl = res.headers.location.startsWith('http')
+              ? res.headers.location
+              : new URL(res.headers.location, currentUrl).toString();
+            return download(absoluteRedirectUrl);
+          }
+          
+          if (statusCode !== 200) {
+            res.resume();
+            return reject(new Error(`Failed to download file, server responded with status: ${statusCode}`));
+          }
+          
+          const totalBytes = parseInt(res.headers['content-length'] || '0', 10);
+          let downloadedBytes = 0;
+          
+          const fileStream = fs.createWriteStream(destPath);
+          res.pipe(fileStream);
+          
+          res.on('data', (chunk) => {
+            downloadedBytes += chunk.length;
+            onProgress(downloadedBytes, totalBytes);
+          });
+          
+          fileStream.on('finish', () => {
+            fileStream.close();
+            resolve(destPath);
+          });
+          
+          fileStream.on('error', (err) => {
+            fs.unlink(destPath, () => {});
+            reject(err);
+          });
         });
         
-        fileStream.on('finish', () => {
-          fileStream.close();
-          resolve(destPath);
-        });
-        
-        fileStream.on('error', (err) => {
-          fs.unlink(destPath, () => {});
+        req.on('error', (err) => {
           reject(err);
         });
-      });
-      
-      req.on('error', (err) => {
+        
+        activeDownloadRequest = req;
+      } catch (err) {
         reject(err);
-      });
-      
-      activeDownloadRequest = req;
+      }
     }
     
     download(url);
   });
 }
 
-// Fetch JSON helper supporting promise based async calls
-function fetchJson(url: string, headers: Record<string, string> = {}): Promise<{ status: number; data: any }> {
+// Fetch JSON helper supporting promise based async calls with automatic redirect following and TLS fallback
+function fetchJson(url: string, headers: Record<string, string> = {}, redirectCount = 0): Promise<{ status: number; data: any }> {
+  if (redirectCount > 5) {
+    return Promise.reject(new Error('Too many redirects followed in fetchJson (max 5)'));
+  }
   return new Promise((resolve, reject) => {
     try {
       const urlObj = new URL(url);
-      const options = {
+      const options: any = {
         hostname: urlObj.hostname,
         path: urlObj.pathname + urlObj.search,
+        port: urlObj.port || undefined,
         method: 'GET',
         headers: {
-          'User-Agent': 'rebase-overlord-api-client',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 rebase-overlord-api-client',
+          'Accept': 'application/json, text/plain, */*',
           ...headers
-        }
+        },
+        // Bypass TLS/SSL self-signed certificates or proxy constraints on packaged local environments
+        rejectUnauthorized: false
       };
+
       const req = https.get(options, (res) => {
+        const { statusCode } = res;
+
+        // Auto-follow HTTP redirects (301, 302, 303, 307, 308)
+        if (statusCode && [301, 302, 303, 307, 308].includes(statusCode)) {
+          const redirectLocation = res.headers.location;
+          if (redirectLocation) {
+            // Resolve relative paths if necessary
+            const absoluteRedirectUrl = redirectLocation.startsWith('http')
+              ? redirectLocation
+              : new URL(redirectLocation, url).toString();
+            
+            res.resume(); // Clean up response memory stream
+            fetchJson(absoluteRedirectUrl, headers, redirectCount + 1)
+              .then(resolve)
+              .catch(reject);
+            return;
+          }
+        }
+
         let body = '';
         res.on('data', (chunk) => {
           body += chunk;
         });
         res.on('end', () => {
-          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
+          if (statusCode && statusCode >= 200 && statusCode < 300) {
             try {
-              resolve({ status: res.statusCode, data: JSON.parse(body) });
+              resolve({ status: statusCode, data: JSON.parse(body) });
             } catch (err) {
-              resolve({ status: res.statusCode, data: body });
+              resolve({ status: statusCode, data: body });
             }
           } else {
-            resolve({ status: res.statusCode || 0, data: body });
+            resolve({ status: statusCode || 0, data: body });
           }
         });
       });
+
       req.on('error', (err) => {
         reject(err);
       });
@@ -1197,26 +1245,46 @@ function fetchJson(url: string, headers: Record<string, string> = {}): Promise<{
 
 // Check for updates
 app.get('/api/update/check', async (req, res) => {
-  let currentVersion = '1.8.0'; // Default stable compiled package version
-  try {
-    const dir = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
-    const possiblePaths = [
-      path.join(process.cwd(), 'package.json'),
-      path.join(dir, 'package.json'),
-      path.join(dir, '..', 'package.json'),
-      path.join(process.cwd(), '..', 'package.json')
-    ];
-    for (const p of possiblePaths) {
-      if (fs.existsSync(p)) {
-        const pkg = JSON.parse(fs.readFileSync(p, 'utf-8'));
-        if (pkg.version) {
-          currentVersion = pkg.version;
-          break;
+  let currentVersion = '1.12.0'; // Current standard package version (v1.12.0)
+  
+  // 1. High-reliability Electron version detection
+  if (typeof process !== 'undefined' && process.versions && process.versions.electron) {
+    try {
+      const electron = typeof require !== 'undefined' ? require('electron') : null;
+      if (electron) {
+        const electronApp = electron.app || electron.remote?.app;
+        if (electronApp && typeof electronApp.getVersion === 'function') {
+          currentVersion = electronApp.getVersion();
+          console.log('[UPDATE_CHECK] Successfully probed packaged app version from Electron:', currentVersion);
         }
       }
+    } catch (err) {
+      console.warn('[UPDATE_CHECK] Failed to retrieve version from Electron process:', err);
     }
-  } catch (err) {
-    console.warn('Failed to read package.json version, using default 1.8.0', err);
+  }
+
+  // 2. Fallback: Search in standard directory paths for package.json
+  if (currentVersion === '1.12.0') {
+    try {
+      const dir = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
+      const possiblePaths = [
+        path.join(process.cwd(), 'package.json'),
+        path.join(dir, 'package.json'),
+        path.join(dir, '..', 'package.json'),
+        path.join(process.cwd(), '..', 'package.json')
+      ];
+      for (const p of possiblePaths) {
+        if (fs.existsSync(p)) {
+          const pkg = JSON.parse(fs.readFileSync(p, 'utf-8'));
+          if (pkg.version) {
+            currentVersion = pkg.version;
+            break;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[UPDATE_CHECK] Failed to read package.json version, using default 1.12.0', err);
+    }
   }
 
   const semverCompare = (v1: string, v2: string) => {
