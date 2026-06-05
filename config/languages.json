@@ -1166,6 +1166,12 @@
         "vn_toxic": "Ngu người! Nâng cấp lỗi lòi mắt: {error}",
         "en_pro": "Update failed: {error}"
     },
+    "update_cancel_btn": {
+        "vn_pro": "Hủy cập nhật (Rollback)",
+        "vn_joke": "Hủy kèo rollback đi ní",
+        "vn_toxic": "Thôi dẹp mọe đi, hồi bản cũ!",
+        "en_pro": "Cancel (Rollback)"
+    },
     "theme_mode_dark": {
         "vn_pro": "Giao diện: Tối",
         "vn_joke": "Chế độ: Buổi Đêm 🌙",

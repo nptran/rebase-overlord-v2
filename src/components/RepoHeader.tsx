@@ -365,6 +365,35 @@ export default function RepoHeader({
     }
   };
 
+  const handleCancelUpdate = async () => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+    }
+    
+    try {
+      const url = resolveApiUrl('/api/update/cancel');
+      await fetch(url, { method: 'POST' });
+    } catch (err) {
+      console.error('Failed to send cancel request to server:', err);
+    }
+
+    setDownloadingUpdate(false);
+    setDownloadProgressValue(0);
+    setApplyingUpdate(false);
+    applyingUpdateRef.current = false;
+    setShowUpdateModal(false);
+    
+    const rollbackMsg = tone === 'vn_joke' 
+      ? 'Đã hủy kèo tải xuống, hồi phiên bản cực an toàn!'
+      : tone === 'vn_toxic'
+        ? 'Hủy rồi! Đã trả về bản cũ giùm đại ca!'
+        : 'Đã hủy tải xuống và phục hồi phiên bản gốc thành công.';
+        
+    setSuccessCheckMsg(rollbackMsg);
+    setTimeout(() => setSuccessCheckMsg(null), 4000);
+  };
+
   React.useEffect(() => {
     setEditingPath(repoState.repoPath);
   }, [repoState.repoPath]);
@@ -983,8 +1012,20 @@ export default function RepoHeader({
                 </>
               )}
               {downloadingUpdate && (
-                <div className="text-[11px] text-slate-500 font-mono uppercase tracking-wider animate-pulse py-2">
-                  {applyingUpdate ? 'FINISHING INSTALLATION...' : 'FETCHING PAYLOAD...'}
+                <div className="flex items-center justify-between w-full gap-4">
+                  <div className="text-[11px] text-slate-500 font-mono uppercase tracking-wider animate-pulse py-2">
+                    {applyingUpdate ? 'FINISHING INSTALLATION...' : 'FETCHING PAYLOAD...'}
+                  </div>
+                  {!applyingUpdate && (
+                    <button
+                      type="button"
+                      onClick={handleCancelUpdate}
+                      className="px-3.5 py-1.5 bg-rose-950/40 hover:bg-rose-900/40 text-rose-300 text-xs font-semibold rounded-lg border border-rose-900/30 transition-all cursor-pointer active:scale-95 flex items-center gap-1"
+                    >
+                      <span>🛑</span>
+                      {translate('update_cancel_btn', tone, undefined, useEmoji)}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
