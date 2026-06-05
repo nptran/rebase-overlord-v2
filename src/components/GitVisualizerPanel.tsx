@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Play, 
@@ -516,27 +516,33 @@ export default function GitVisualizerPanel({
   const [resetKey, setResetKey] = useState<number>(0);
 
   const stageContainerRef = useRef<HTMLDivElement>(null);
+  const cleanupVisWheelRef = useRef<(() => void) | null>(null);
   const touchStartDist = useRef<number | null>(null);
   const touchStartScl = useRef<number>(1.0);
 
-  // Wheel zoom handling with passive event listener support to prevent scrolling
-  useEffect(() => {
-    const element = stageContainerRef.current;
-    if (!element) return;
+  const setStageContainerRef = useCallback((node: HTMLDivElement | null) => {
+    if (cleanupVisWheelRef.current) {
+      cleanupVisWheelRef.current();
+      cleanupVisWheelRef.current = null;
+    }
+    
+    (stageContainerRef as any).current = node;
 
-    const handleWheelEvent = (e: WheelEvent) => {
-      e.preventDefault();
-      const zoomStep = 0.05;
-      setVisScale(prev => {
-        const next = prev + (e.deltaY < 0 ? zoomStep : -zoomStep);
-        return Math.min(2.0, Math.max(0.4, Math.round(next * 100) / 100));
-      });
-    };
+    if (node) {
+      const handleWheelEvent = (e: WheelEvent) => {
+        e.preventDefault();
+        const zoomStep = 0.05;
+        setVisScale(prev => {
+          const next = prev + (e.deltaY < 0 ? zoomStep : -zoomStep);
+          return Math.min(2.0, Math.max(0.4, Math.round(next * 100) / 100));
+        });
+      };
 
-    element.addEventListener('wheel', handleWheelEvent, { passive: false });
-    return () => {
-      element.removeEventListener('wheel', handleWheelEvent);
-    };
+      node.addEventListener('wheel', handleWheelEvent, { passive: false });
+      cleanupVisWheelRef.current = () => {
+        node.removeEventListener('wheel', handleWheelEvent);
+      };
+    }
   }, []);
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
@@ -2010,7 +2016,7 @@ export default function GitVisualizerPanel({
 
           {/* Active SVG dynamic stage area */}
           <div 
-            ref={stageContainerRef}
+            ref={setStageContainerRef}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}

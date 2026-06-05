@@ -563,6 +563,54 @@ export default function App() {
   // DOM references for measuring lines connect position dynamic calculation
   const boardRef = React.useRef<HTMLDivElement>(null);
   const viewportRef = React.useRef<HTMLDivElement>(null);
+  const cleanupWheelRef = React.useRef<(() => void) | null>(null);
+
+  const setViewportRef = React.useCallback((node: HTMLDivElement | null) => {
+    if (cleanupWheelRef.current) {
+      cleanupWheelRef.current();
+      cleanupWheelRef.current = null;
+    }
+    
+    (viewportRef as any).current = node;
+
+    if (node) {
+      let limitCooldown = false;
+      const handleWheelEvent = (e: WheelEvent) => {
+        e.preventDefault();
+        const zoomStep = 0.05;
+        setZoomScale(prev => {
+          let next = prev + (e.deltaY < 0 ? zoomStep : -zoomStep);
+          next = Math.round(next * 100) / 100;
+
+          if (next >= 2.5) {
+            if (!limitCooldown) {
+              triggerToast('owl', '🔍 CHẠM TRẦN KÍNH LÚP', 'Phóng to cực hạn 250%! Code to như bánh xe bò rồi sếp ơi!', '🦖');
+              limitCooldown = true;
+              setTimeout(() => { limitCooldown = false; }, 3500);
+            }
+            return 2.5;
+          }
+          
+          if (next <= 0.3) {
+            if (!limitCooldown) {
+              triggerToast('info', '🔍 TẦM NHÌN VŨ TRỤ', 'Thu nhỏ kịch sàn 30%! Sắp nhìn thấy cả sơ đồ tổng thể hệ sao rồi!', '🌌');
+              limitCooldown = true;
+              setTimeout(() => { limitCooldown = false; }, 3500);
+            }
+            return 0.3;
+          }
+
+          return next;
+        });
+      };
+
+      node.addEventListener('wheel', handleWheelEvent, { passive: false });
+      cleanupWheelRef.current = () => {
+        node.removeEventListener('wheel', handleWheelEvent);
+      };
+    }
+  }, [triggerToast]);
+
   const devRef = React.useRef<HTMLDivElement>(null);
   const nodeRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
   
@@ -1142,52 +1190,6 @@ export default function App() {
     handleRefresh();
     fetchStats();
   }, [isSimulation, handleRefresh]);
-
-  // Zoom on wheel inside board viewport (Commit diagram)
-  React.useEffect(() => {
-    const viewport = viewportRef.current;
-    if (!viewport) return;
-
-    let limitCooldown = false;
-
-    const handleWheelEvent = (e: WheelEvent) => {
-      // Prevent default page scroll
-      e.preventDefault();
-      
-      const zoomStep = 0.05;
-      
-      setZoomScale(prev => {
-        let next = prev + (e.deltaY < 0 ? zoomStep : -zoomStep);
-        next = Math.round(next * 100) / 100; // Stabilize floating point precision
-
-        if (next >= 2.5) {
-          if (!limitCooldown) {
-            triggerToast('owl', '🔍 CHẠM TRẦN KÍNH LÚP', 'Phóng to cực hạn 250%! Code to như bánh xe bò rồi sếp ơi!', '🦖');
-            limitCooldown = true;
-            setTimeout(() => { limitCooldown = false; }, 3500);
-          }
-          return 2.5;
-        }
-        
-        if (next <= 0.3) {
-          if (!limitCooldown) {
-            triggerToast('info', '🔍 TẦM NHÌN VŨ TRỤ', 'Thu nhỏ kịch sàn 30%! Sắp nhìn thấy cả sơ đồ tổng thể hệ sao rồi!', '🌌');
-            limitCooldown = true;
-            setTimeout(() => { limitCooldown = false; }, 3500);
-          }
-          return 0.3;
-        }
-
-        return next;
-      });
-    };
-
-    // Use passive: false to allow e.preventDefault()
-    viewport.addEventListener('wheel', handleWheelEvent, { passive: false });
-    return () => {
-      viewport.removeEventListener('wheel', handleWheelEvent);
-    };
-  }, [triggerToast]);
 
   // Watch branch name to suggest a backup branch
   React.useEffect(() => {
@@ -2526,7 +2528,7 @@ export default function App() {
 
               {/* Graphical representation of the Rebase squash action (Board Viewport) */}
               <div 
-                ref={viewportRef}
+                ref={setViewportRef}
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}

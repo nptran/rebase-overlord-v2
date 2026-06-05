@@ -553,23 +553,21 @@ export default function AiDoctorFloatingChat({
                       {/* Msg bubble container */}
                       <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 shadow-sm text-xs ${
                         isUser 
-                          ? theme === 'light'
-                            ? 'bg-indigo-600 text-white rounded-br-none font-medium'
-                            : 'bg-indigo-600 text-white rounded-br-none font-medium'
+                          ? 'bg-indigo-600 text-white !text-white rounded-br-none font-medium'
                           : theme === 'light'
-                            ? 'bg-slate-100 border border-slate-200 text-slate-850 rounded-bl-none'
+                            ? 'bg-slate-100 border border-slate-200 text-slate-800 rounded-bl-none'
                             : 'bg-slate-900 border border-slate-800 text-slate-100 rounded-bl-none'
                       }`}>
                         {/* If AI message, render our structured code copy-aware element */}
                         {isUser ? (
-                          <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+                          <div className="whitespace-pre-wrap leading-relaxed text-white !text-white font-medium">{msg.content}</div>
                         ) : (
                           <FormattedAiMessage content={msg.content} theme={theme} />
                         )}
 
                         {/* Timestamp helper code */}
-                        <div className={`text-[8px] font-mono mt-1 text-right  ${
-                          isUser ? 'text-indigo-200' : 'text-slate-500'
+                        <div className={`text-[8px] font-mono mt-1 text-right ${
+                          isUser ? 'text-indigo-205 !text-indigo-200' : 'text-slate-500'
                         }`}>
                           {msg.timestamp}
                         </div>
