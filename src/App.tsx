@@ -471,13 +471,13 @@ export default function App() {
     emoji?: string;
   }
   const [toasts, setToasts] = React.useState<ActiveToast[]>([]);
-  const triggerToast = (type: ActiveToast['type'], title: string, message: string, emoji?: string) => {
+  const triggerToast = React.useCallback((type: ActiveToast['type'], title: string, message: string, emoji?: string) => {
     const id = Date.now().toString() + Math.random().toString();
     setToasts(prev => [...prev, { id, type, title, message, emoji }]);
     setTimeout(() => {
       setToasts(prev => prev.filter(t => t.id !== id));
     }, 8000);
-  };
+  }, []);
 
   // Night Owl state
   const [isNightOwl, setIsNightOwl] = React.useState<boolean>(() => {
@@ -560,6 +560,7 @@ export default function App() {
 
   // DOM references for measuring lines connect position dynamic calculation
   const boardRef = React.useRef<HTMLDivElement>(null);
+  const viewportRef = React.useRef<HTMLDivElement>(null);
   const devRef = React.useRef<HTMLDivElement>(null);
   const nodeRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
   
@@ -1139,6 +1140,52 @@ export default function App() {
     handleRefresh();
     fetchStats();
   }, [isSimulation, handleRefresh]);
+
+  // Zoom on wheel inside board viewport (Commit diagram)
+  React.useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+
+    let limitCooldown = false;
+
+    const handleWheelEvent = (e: WheelEvent) => {
+      // Prevent default page scroll
+      e.preventDefault();
+      
+      const zoomStep = 0.05;
+      
+      setZoomScale(prev => {
+        let next = prev + (e.deltaY < 0 ? zoomStep : -zoomStep);
+        next = Math.round(next * 100) / 100; // Stabilize floating point precision
+
+        if (next >= 2.5) {
+          if (!limitCooldown) {
+            triggerToast('owl', '🔍 CHẠM TRẦN KÍNH LÚP', 'Phóng to cực hạn 250%! Code to như bánh xe bò rồi sếp ơi!', '🦖');
+            limitCooldown = true;
+            setTimeout(() => { limitCooldown = false; }, 3500);
+          }
+          return 2.5;
+        }
+        
+        if (next <= 0.3) {
+          if (!limitCooldown) {
+            triggerToast('info', '🔍 TẦM NHÌN VŨ TRỤ', 'Thu nhỏ kịch sàn 30%! Sắp nhìn thấy cả sơ đồ tổng thể hệ sao rồi!', '🌌');
+            limitCooldown = true;
+            setTimeout(() => { limitCooldown = false; }, 3500);
+          }
+          return 0.3;
+        }
+
+        return next;
+      });
+    };
+
+    // Use passive: false to allow e.preventDefault()
+    viewport.addEventListener('wheel', handleWheelEvent, { passive: false });
+    return () => {
+      viewport.removeEventListener('wheel', handleWheelEvent);
+    };
+  }, [triggerToast]);
 
   // Watch branch name to suggest a backup branch
   React.useEffect(() => {
@@ -2429,19 +2476,19 @@ export default function App() {
                 {/* Zoom adjustment + Reset */}
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setZoomScale(z => Math.max(0.5, z - 0.1))}
+                    onClick={() => setZoomScale(z => Math.max(0.3, Math.round((z - 0.1) * 10) / 10))}
                     className={`p-1.5 rounded transition-colors cursor-pointer border ${
                       theme === 'light' ? 'bg-white hover:bg-slate-100 border-slate-200' : 'bg-slate-950 hover:bg-slate-900 border-slate-800'
                     }`}
                     title={sloc.zoomOut}
                   >
-                    <ZoomIn className="w-3.5 h-3.5 rotate-180 text-rose-400" />
+                    <ZoomOut className="w-3.5 h-3.5 text-rose-400" />
                   </button>
                   <span className="w-10 text-center font-bold text-[10px]">
                     {Math.round(zoomScale * 100)}%
                   </span>
                   <button
-                    onClick={() => setZoomScale(z => Math.min(2.0, z + 0.1))}
+                    onClick={() => setZoomScale(z => Math.min(2.5, Math.round((z + 0.1) * 10) / 10))}
                     className={`p-1.5 rounded transition-colors cursor-pointer border ${
                       theme === 'light' ? 'bg-white hover:bg-slate-100 border-slate-200' : 'bg-slate-950 hover:bg-slate-900 border-slate-800'
                     }`}
@@ -2477,6 +2524,7 @@ export default function App() {
 
               {/* Graphical representation of the Rebase squash action (Board Viewport) */}
               <div 
+                ref={viewportRef}
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
