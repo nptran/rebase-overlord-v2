@@ -2858,7 +2858,7 @@ export default function App() {
             )}
 
             {/* Dynamic Active Git Operational Visualizer */}
-            <GitVisualizerPanel tone={tone} wizard={wizard} theme={theme} />
+            <GitVisualizerPanel tone={tone} wizard={wizard} theme={theme} repoState={repoState} />
 
             {/* Core Wizard state dashboard */}
             <WizardPanel

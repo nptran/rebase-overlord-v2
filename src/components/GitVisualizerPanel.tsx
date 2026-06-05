@@ -31,7 +31,7 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
-import { TranslationTone, WizardState } from '../types';
+import { TranslationTone, WizardState, GitRepoState } from '../types';
 
 // Let's declare our available visualization types
 export type VisualActionType = 'rebase' | 'stash' | 'merge' | 'commit' | 'push' | 'diverge' | 'fast-forward';
@@ -500,17 +500,20 @@ const mapWizardStepToConcept = (step: number): VisualActionType => {
 export default function GitVisualizerPanel({ 
   tone, 
   wizard,
-  theme = 'dark'
+  theme = 'dark',
+  repoState
 }: { 
   tone: TranslationTone; 
   wizard?: WizardState; 
   theme?: 'light' | 'dark';
+  repoState?: GitRepoState;
 }) {
   const isLight = theme === 'light';
   const [activeAction, setActiveAction] = useState<VisualActionType>('rebase');
   const [currentStep, setCurrentStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isSyncedWithWizard, setIsSyncedWithWizard] = useState(true);
+  const [hoveredCommitSha, setHoveredCommitSha] = useState<string | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
@@ -636,10 +639,365 @@ export default function GitVisualizerPanel({
     setCurrentStep(0);
   };
 
+  // Render real-life git commit tree with connections, lanes and pointers
+  const renderRealGitTree = (w: number, h: number) => {
+    if (!repoState || !repoState.commits || repoState.commits.length === 0) {
+      return (
+        <div className="text-slate-500 font-mono text-[10px] text-center p-8">
+          Không tìm thấy commit nào trong lịch sử Git thực tế.
+        </div>
+      );
+    }
+
+    // Sort/order commits from oldest to newest for left-to-right timeline
+    const orderedCommits = [...repoState.commits].reverse();
+    const count = orderedCommits.length;
+    const startX = 65;
+    const endX = w - 65;
+    const spacing = count > 1 ? (endX - startX) / (count - 1) : 0;
+
+    // Track coordinates
+    const commitCoords: Record<string, { x: number; y: number }> = {};
+    
+    // Map commits to coords
+    orderedCommits.forEach((c, idx) => {
+      const x = count > 1 ? startX + idx * spacing : w / 2;
+      // Map track numbers (0, 1, 2) to visual Y values
+      const trackVal = typeof c.track === 'number' ? c.track : 0;
+      let y = 90; // Default center
+      if (trackVal === 0) {
+        y = 55; // Base track
+      } else if (trackVal === 1) {
+        y = 110; // Feature track
+      } else {
+        y = 150; // Remote or other track
+      }
+      // Keep within bounds
+      y = Math.min(155, Math.max(25, y));
+      commitCoords[c.sha] = { x, y };
+    });
+
+    // Detect latest commits on tracks to display tags
+    const latestTrack0 = [...orderedCommits].reverse().find(c => c.track === 0);
+    const latestTrack1 = [...orderedCommits].reverse().find(c => c.track === 1 || typeof c.track !== 'number');
+    const headCommit = orderedCommits[orderedCommits.length - 1];
+
+    // Branch tag names
+    const baseBranchName = repoState.baseBranch || 'develop';
+    const currentBranchName = repoState.currentBranch || 'feature';
+
+    return (
+      <div className="relative w-full h-full flex items-center justify-center" id="real-git-tree-viewport">
+        {/* SVG Container for commits, connections, and tags */}
+        <svg className="w-full h-full font-mono select-none" viewBox={`0 0 ${w} ${h}`} referrerPolicy="no-referrer" style={{ minHeight: `${h}px` }}>
+          {/* Defs for arrowheads and gradients */}
+          <defs>
+            <marker id="real-arrow" viewBox="0 0 10 10" refX="18" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill={isLight ? '#6366f1' : '#818cf8'} />
+            </marker>
+            <filter id="glow-effect" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="2" result="blur" />
+              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+          </defs>
+
+          {/* 1. Base guidelines for tracks to represent lanes cleanly */}
+          <line x1="40" y1="55" x2={w - 40} y2="55" className={`${isLight ? 'stroke-slate-100' : 'stroke-slate-900/40'} stroke-1 stroke-dashed`} />
+          <line x1="40" y1="110" x2={w - 40} y2="110" className={`${isLight ? 'stroke-slate-100' : 'stroke-slate-900/40'} stroke-1 stroke-dashed`} />
+
+          {/* 2. Drawing lines (parent/child connections) */}
+          {orderedCommits.map((c) => {
+            const childCoords = commitCoords[c.sha];
+            if (!childCoords) return null;
+
+            return (c.parents || []).map((parentSha) => {
+              const parentCoords = commitCoords[parentSha];
+              if (!parentCoords) return null;
+
+              const isSameTrack = Math.abs(parentCoords.y - childCoords.y) < 5;
+              const pathColor = isLight ? 'stroke-slate-300' : 'stroke-slate-700';
+
+              if (isSameTrack) {
+                // Flat horizontal connection
+                return (
+                  <line
+                    key={`${parentSha}-${c.sha}`}
+                    x1={parentCoords.x}
+                    y1={parentCoords.y}
+                    x2={childCoords.x}
+                    y2={childCoords.y}
+                    className={`${pathColor} stroke-2`}
+                    markerEnd="url(#real-arrow)"
+                  />
+                );
+              } else {
+                // Curved connection representing branching or merging (Very professional!)
+                const dx = childCoords.x - parentCoords.x;
+                const cp1X = parentCoords.x + dx * 0.4;
+                const cp2X = parentCoords.x + dx * 0.6;
+                const dPath = `M ${parentCoords.x} ${parentCoords.y} C ${cp1X} ${parentCoords.y}, ${cp2X} ${childCoords.y}, ${childCoords.x} ${childCoords.y}`;
+
+                return (
+                  <path
+                    key={`${parentSha}-${c.sha}`}
+                    d={dPath}
+                    fill="none"
+                    className={`${pathColor} stroke-2`}
+                    markerEnd="url(#real-arrow)"
+                    strokeDasharray={c.isMergeCommit ? '3 3' : undefined}
+                  />
+                );
+              }
+            });
+          })}
+
+          {/* 3. Drawing dirty uncommitted stash indicator if git tree has modifications */}
+          {repoState.isDirty && headCommit && (() => {
+            const headCoord = commitCoords[headCommit.sha];
+            if (!headCoord) return null;
+            const dirtyNodeX = Math.min(w - 20, headCoord.x + 35);
+            const dirtyNodeY = headCoord.y;
+            return (
+              <g key="dirty-node" className="animate-pulse">
+                <line 
+                  x1={headCoord.x} 
+                  y1={headCoord.y} 
+                  x2={dirtyNodeX} 
+                  y2={dirtyNodeY} 
+                  className={`stroke-rose-500 stroke-1.5 stroke-dashed`} 
+                />
+                <circle 
+                  cx={dirtyNodeX} 
+                  cy={dirtyNodeY} 
+                  r="7" 
+                  className="stroke-rose-450 fill-slate-950 stroke-dashed stroke-1.5" 
+                />
+                <text x={dirtyNodeX} y={dirtyNodeY + 16} textAnchor="middle" className="fill-rose-400 text-[6.5px] font-bold uppercase font-mono">Dirty</text>
+              </g>
+            );
+          })()}
+
+          {/* 4. Drawing Commit Nodes */}
+          {orderedCommits.map((c, idx) => {
+            const coords = commitCoords[c.sha];
+            if (!coords) return null;
+
+            // Is this commit selected by the rebase wizard?
+            const isSelected = wizard?.selectedCommits?.includes(c.sha);
+            
+            // Is hovered?
+            const isHovered = hoveredCommitSha === c.sha;
+
+            // Color palette depending on track
+            const trackVal = typeof c.track === 'number' ? c.track : 0;
+            let nodeColorClass = 'stroke-indigo-400';
+            let fillColorClass = isLight ? 'fill-indigo-50/90' : 'fill-slate-950';
+            let textTextColorClass = 'fill-indigo-300';
+
+            if (trackVal === 0) {
+              nodeColorClass = 'stroke-emerald-400';
+              textTextColorClass = 'fill-emerald-400';
+              if (isLight) fillColorClass = 'fill-emerald-50/90';
+            } else if (trackVal === 1) {
+              nodeColorClass = 'stroke-indigo-400';
+              textTextColorClass = 'fill-indigo-400';
+              if (isLight) fillColorClass = 'fill-indigo-50/90';
+            } else {
+              nodeColorClass = 'stroke-amber-400';
+              textTextColorClass = 'fill-amber-400';
+              if (isLight) fillColorClass = 'fill-amber-50/90';
+            }
+
+            if (isSelected) {
+              nodeColorClass = 'stroke-amber-500 stroke-3';
+              fillColorClass = isLight ? 'fill-amber-50' : 'fill-amber-950/20';
+            }
+
+            // Alternating labels to avoid overlapping lines
+            const showLabelAbove = idx % 2 === 0;
+            const truncatedMessage = c.message.length > 14 ? c.message.slice(0, 11) + '..' : c.message;
+
+            return (
+              <g 
+                key={c.sha} 
+                className="cursor-pointer"
+                onMouseEnter={() => setHoveredCommitSha(c.sha)}
+                onMouseLeave={() => setHoveredCommitSha(null)}
+              >
+                {/* Visual hover highlight halo */}
+                {isHovered && (
+                  <circle cx={coords.x} cy={coords.y} r="18" className="fill-indigo-400/10 stroke-none" />
+                )}
+
+                {/* Main commit node circle */}
+                <circle 
+                  cx={coords.x} 
+                  cy={coords.y} 
+                  r={isHovered ? "14" : "12"} 
+                  className={`transition-all duration-150 ${nodeColorClass} ${fillColorClass} stroke-2`}
+                  filter={isHovered || isSelected ? "url(#glow-effect)" : undefined}
+                />
+
+                {/* Short SHA center code */}
+                <text 
+                  x={coords.x} 
+                  y={coords.y + 3} 
+                  textAnchor="middle" 
+                  className={`text-[7.5px] font-bold font-mono ${isLight ? 'fill-slate-700' : textTextColorClass}`}
+                >
+                  {c.sha.slice(0, 4)}
+                </text>
+
+                {/* Commit subject shorthand labels */}
+                <text 
+                  x={coords.x} 
+                  y={showLabelAbove ? coords.y - 18 : coords.y + 22} 
+                  textAnchor="middle" 
+                  className={`text-[7px] font-medium font-sans ${isLight ? 'fill-slate-600' : 'fill-slate-400'}`}
+                >
+                  {truncatedMessage}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* 5. Draw branch pointers (HEAD, current, base) */}
+          {orderedCommits.map((c) => {
+            const coords = commitCoords[c.sha];
+            if (!coords) return null;
+
+            const isLatest0 = latestTrack0?.sha === c.sha;
+            const isLatest1 = latestTrack1?.sha === c.sha;
+            const isHead = headCommit?.sha === c.sha;
+
+            const tagsRender: any[] = [];
+
+            if (isLatest0) {
+              tagsRender.push({
+                text: `💻 ${baseBranchName}`,
+                offsetY: -30,
+                styleClass: isLight 
+                  ? 'fill-emerald-50/90 stroke-emerald-400 text-emerald-800 border-emerald-400' 
+                  : 'fill-emerald-555/10 stroke-emerald-500/40 text-emerald-300'
+              });
+            }
+
+            if (isLatest1 && currentBranchName !== baseBranchName) {
+              tagsRender.push({
+                text: `💻 ${currentBranchName}`,
+                offsetY: 30,
+                styleClass: isLight
+                  ? 'fill-indigo-50/90 stroke-indigo-400 text-indigo-800'
+                  : 'fill-indigo-555/10 stroke-indigo-400/40 text-indigo-300'
+              });
+            }
+
+            if (isHead) {
+              tagsRender.push({
+                text: `📍 HEAD`,
+                offsetY: -44,
+                styleClass: isLight
+                  ? 'fill-rose-50/90 stroke-rose-400 text-rose-800 font-bold'
+                  : 'fill-rose-555/15 stroke-rose-450/60 text-rose-300 font-bold'
+              });
+            }
+
+            // Check if commit message indicates remote tracking
+            const isRemoteMarker = c.message.includes('[Remote]') || c.sha === '7c8d9e2' && repoState.commits.some(x => x.sha === 'f941a3c');
+            if (isRemoteMarker) {
+              tagsRender.push({
+                text: `☁️ origin/${baseBranchName}`,
+                offsetY: -58,
+                styleClass: isLight
+                  ? 'fill-indigo-50/60 stroke-indigo-300 text-indigo-850 stroke-dashed'
+                  : 'fill-indigo-555/5 stroke-indigo-450/30 text-indigo-300 stroke-dashed'
+              });
+            }
+
+            return tagsRender.map((tag, tIdx) => {
+              const widthTag = tag.text.length * 4.8 + 10;
+              return (
+                <g key={`${c.sha}-tag-${tIdx}`} transform={`translate(${coords.x}, ${coords.y + tag.offsetY})`} className="opacity-95 pointer-events-none">
+                  <rect 
+                    x={-widthTag / 2} 
+                    y="-4.5" 
+                    width={widthTag} 
+                    height="9.5" 
+                    rx="2" 
+                    className={`${tag.styleClass} stroke`} 
+                  />
+                  <text 
+                    x="0" 
+                    y="2.5" 
+                    textAnchor="middle" 
+                    className={`text-[6px] font-bold`}
+                    fill={tag.styleClass.includes('text-emerald-800') || tag.styleClass.includes('text-emerald-300') ? (isLight ? '#065f46' : '#a7f3d0') : tag.styleClass.includes('text-indigo-800') || tag.styleClass.includes('text-indigo-300') ? (isLight ? '#3730a3' : '#c7d2fe') : (isLight ? '#9f1239' : '#fecdd3')}
+                  >
+                    {tag.text}
+                  </text>
+                  <line 
+                    x1="0" 
+                    y1={tag.offsetY > 0 ? -4.5 : 5} 
+                    x2="0" 
+                    y2={tag.offsetY > 0 ? -tag.offsetY : -tag.offsetY} 
+                    className={`stroke-1 ${isLight ? 'stroke-slate-300' : 'stroke-slate-800'} stroke-dashed`} 
+                  />
+                </g>
+              );
+            });
+          })}
+        </svg>
+
+        {/* 6. Interactive Floating Details Card on Node Hover */}
+        {hoveredCommitSha && (() => {
+          const matchingCommit = repoState.commits.find(c => c.sha === hoveredCommitSha);
+          if (!matchingCommit) return null;
+
+          return (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: -5 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              className={`absolute top-2 left-1/2 -translate-x-1/2 z-50 p-3 rounded-lg border shadow-xl flex flex-col gap-1 min-w-[280px] max-w-[320px] transition-all pointer-events-none ${
+                isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-slate-950/95 border-slate-800 text-slate-200'
+              }`}
+            >
+              <div className="flex items-center justify-between border-b pb-1.5 mb-1.5 border-slate-800/40">
+                <span className="font-mono text-[9.5px] font-bold text-indigo-400">
+                  Commit: {matchingCommit.sha}
+                </span>
+                <span className="text-[8px] font-mono font-bold bg-indigo-500/15 text-indigo-300 px-1.5 py-0.2 rounded uppercase border border-indigo-500/20">
+                  {matchingCommit.type || 'commit'}
+                </span>
+              </div>
+              <p className="text-[10px] font-sans font-bold leading-normal mb-1">
+                {matchingCommit.message}
+              </p>
+              <div className="font-mono text-[8px] text-slate-400 flex flex-col gap-0.5">
+                <div>🧑‍💻 Tác giả: <span className="font-sans font-medium">{matchingCommit.author}</span></div>
+                <div>📅 Ngày: <span className="font-sans font-medium">{matchingCommit.date}</span></div>
+                {matchingCommit.parents && matchingCommit.parents.length > 0 && (
+                  <div>🔗 Parents: <span>{matchingCommit.parents.join(', ')}</span></div>
+                )}
+                {matchingCommit.selected && (
+                  <div className="text-amber-400 font-bold mt-1">⭐️ Đang được chọn trong Wizard</div>
+                )}
+              </div>
+            </motion.div>
+          );
+        })()}
+      </div>
+    );
+  };
+
   // Render nodes based on step and action type
   const renderVisualStage = () => {
     const width = 600;
     const height = 180;
+
+    // Standard Real Git Tree synchronization if active
+    if (isSyncedWithWizard && repoState && repoState.commits && repoState.commits.length > 0) {
+      return renderRealGitTree(width, height);
+    }
 
     switch (activeAction) {
       case 'rebase':
