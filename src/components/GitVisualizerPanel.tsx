@@ -27,7 +27,9 @@ import {
   Flame,
   CheckCircle,
   HelpCircle as QuestionIcon,
-  RefreshCw
+  RefreshCw,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { TranslationTone, WizardState } from '../types';
 
@@ -510,6 +512,24 @@ export default function GitVisualizerPanel({
   const [isPlaying, setIsPlaying] = useState(false);
   const [isSyncedWithWizard, setIsSyncedWithWizard] = useState(true);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('rebase_overlord_collapse_visualizer_panel');
+      if (saved !== null) return saved === 'true';
+    } catch (e) {}
+    return false;
+  });
+
+  const toggleCollapse = () => {
+    setIsCollapsed(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('rebase_overlord_collapse_visualizer_panel', String(next));
+      } catch (e) {}
+      return next;
+    });
+  };
 
   const loc = localizations[tone] || localizations[TranslationTone.ENGLISH];
 
@@ -1422,6 +1442,31 @@ export default function GitVisualizerPanel({
     );
   };
 
+  if (isCollapsed) {
+    return (
+      <div id="visualizer-panel-collapsed" className={`border rounded-xl p-3 flex justify-between items-center transition-all duration-200 ${isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0f172a] border-slate-900 text-slate-305'}`}>
+        <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
+          <Tv className="w-4 h-4 text-indigo-400" />
+          <span className="font-bold uppercase tracking-wider">{loc.title}</span>
+          <span className="text-[10px] text-slate-500 opacity-60">
+            ({tone === TranslationTone.ENGLISH ? 'Hidden' : 'Đang ẩn'})
+          </span>
+        </div>
+        <button
+          onClick={toggleCollapse}
+          className={`text-xs font-mono flex items-center gap-1 px-2.5 py-1 rounded cursor-pointer border ${
+            isLight
+              ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+              : 'bg-[#1e293b] border-indigo-500/20 text-indigo-400 hover:text-indigo-303'
+          }`}
+        >
+          <Eye className="w-3.5 h-3.5" />
+          <span>{tone === TranslationTone.ENGLISH ? 'Show' : 'Hiển thị'}</span>
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div id="interactive-git-flow-visualizer" className={`border rounded-xl p-5 shadow-lg flex flex-col gap-4 relative overflow-hidden transition-all duration-300 ${
       isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0f172a] border-slate-800 text-slate-300'
@@ -1498,6 +1543,19 @@ export default function GitVisualizerPanel({
                 </button>
               );
             })}
+
+            {/* Collapse Toggle */}
+            <button
+              onClick={toggleCollapse}
+              className={`p-1.5 rounded transition-all text-xs flex items-center justify-center font-mono cursor-pointer border shrink-0 ${
+                isLight 
+                  ? 'bg-slate-100 border-slate-250 text-slate-650 hover:bg-slate-200 hover:text-slate-900' 
+                  : 'bg-slate-950 border border-slate-900 text-slate-500 hover:text-slate-305'
+              }`}
+              title={tone === TranslationTone.ENGLISH ? 'Collapse Panel' : 'Thu gọn Panel'}
+            >
+              <EyeOff className="w-3.5 h-3.5 shrink-0" />
+            </button>
           </div>
         </div>
       </div>

@@ -21,7 +21,18 @@ import {
   Calendar,
   Zap,
   Github,
-  X
+  X,
+  ZoomIn,
+  ZoomOut,
+  RotateCw,
+  Maximize2,
+  Minimize2,
+  Hand,
+  MousePointer,
+  RefreshCw,
+  Move,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 import { 
@@ -85,6 +96,21 @@ const sanityLoc: Record<TranslationTone, {
   visualTimelineTitle: string;
   squashCompletedTitle: string;
   dirtyFilesLabel: string;
+  zoomIn: string;
+  zoomOut: string;
+  resetLayout: string;
+  nodeSizeLabel: string;
+  rotationLabel: string;
+  dragTip: string;
+  panModeLabel: string;
+  dragNodeModeLabel: string;
+  simScenarioHeading: string;
+  simScenarioLinear: string;
+  simScenarioNonLinear: string;
+  simScenarioRewrite: string;
+  simScenarioStale: string;
+  simScenarioDetached: string;
+  simScenarioDesc: string;
 }> = {
   [TranslationTone.PROFESSIONAL]: {
     title: "CHẨN ĐOÁN & KIỂM TRA (GIT SANITY CHECKS)",
@@ -127,7 +153,22 @@ const sanityLoc: Record<TranslationTone, {
     scanAnomaliesLoading: "Đang quét lỗi bất thường của kho lưu trữ...",
     visualTimelineTitle: "TRỰC QUAN HÓA SƠ ĐỒ COMMITS (VISUAL COMMIT TIMELINE GRAPH)",
     squashCompletedTitle: "HỢP NHẤT THÀNH CÔNG (CÒN LẠI 1 COMMIT)",
-    dirtyFilesLabel: "Danh sách tệp tin chưa commit:"
+    dirtyFilesLabel: "Danh sách tệp tin chưa commit:",
+    zoomIn: "Phóng to (+)",
+    zoomOut: "Thu nhỏ (-)",
+    resetLayout: "Đặt lại vị trí",
+    nodeSizeLabel: "Kích thước các ô:",
+    rotationLabel: "Xoay chiều (Dọc/Ngang)",
+    dragTip: "💡 Kéo thả tự do các ô commit để tổ chức sắp xếp sơ đồ!",
+    panModeLabel: "🖐️ Cuộn sơ đồ",
+    dragNodeModeLabel: "🖱️ Kéo thả ô",
+    simScenarioHeading: "🧬 KỊCH BẢN GIẢ LẬP ĐỂ TEST (SCENARIOS):",
+    simScenarioLinear: "Nhánh ngon / Tuyến tính (Linear)",
+    simScenarioNonLinear: "Merge Commit từ develop trước đó (Merge)",
+    simScenarioRewrite: "Develop bị Rewrite History (Diverged)",
+    simScenarioStale: "Nhánh Base bị cũ mốc (Stale Base)",
+    simScenarioDetached: "Lịch sử rỗng rênh (Detached HEAD)",
+    simScenarioDesc: "Mô phỏng lại các kịch bản khó nhằn trong Git để kiểm thử trực quan và phác đồ AI Doctor."
   },
   [TranslationTone.JOKE]: {
     title: "KHÁM SỨC KHỎE REPO (GIT SANITY CHECKS)",
@@ -170,7 +211,22 @@ const sanityLoc: Record<TranslationTone, {
     scanAnomaliesLoading: "Thầy bói đang xem mạch kho chứa...",
     visualTimelineTitle: "RẠP CHIẾU HOẠT HÌNH GIT TRỰC QUAN (GIT MOVIE THEATER)",
     squashCompletedTitle: "HỢP NHẤT XONG XUÔI (CÒN ĐÚNG 1 COMMIT DUY NHẤT)",
-    dirtyFilesLabel: "Mấy quả file đang bừa bãi chưa dọn dẹp:"
+    dirtyFilesLabel: "Mấy quả file đang bừa bãi chưa dọn dẹp:",
+    zoomIn: "Phóng to nha sếp",
+    zoomOut: "Thu bé lại",
+    resetLayout: "Hoàn tác khung hình",
+    nodeSizeLabel: "Phóng to dẹt ô:",
+    rotationLabel: "Xoay dọc/ngang cực phê",
+    dragTip: "💡 Sếp kéo kéo thả thả mấy cục commit bay lượn tung tăng kìa!",
+    panModeLabel: "🖐️ Kéo nền",
+    dragNodeModeLabel: "🖱️ Kéo ô",
+    simScenarioHeading: "🧬 KHUNG TRẬN GIẢ LẬP SIÊU CẤP (SCENARIOS):",
+    simScenarioLinear: "Nhánh ngoan hiền / Thẳng tuột (Linear)",
+    simScenarioNonLinear: "Có Merge Commit phá đám từ develop (Merge)",
+    simScenarioRewrite: "Sau lưng đã bị viết lại lịch sử (Diverged)",
+    simScenarioStale: "Base ở xó chợ mốc meo (Stale Base)",
+    simScenarioDetached: "Đứt dây neo trôi vô định (Detached HEAD)",
+    simScenarioDesc: "Toàn bộ kịch bản bốc mùi của Git để sếp nghịch cho biết thế nào là đau đớn."
   },
   [TranslationTone.TOXIC]: {
     title: "BỆNH ÁN GIT (GIT SANITY CHECKS)",
@@ -213,7 +269,22 @@ const sanityLoc: Record<TranslationTone, {
     scanAnomaliesLoading: "Đang dọn rác bất thường...",
     visualTimelineTitle: "SƠ ĐỒ COMMITS BẤT HỦ (VISUAL COMMIT TIMELINE GRAPH)",
     squashCompletedTitle: "SQUASH SẠCH BÓNG (CÒN LẠI 1 TÊN COMMIT SỐNG SÓT)",
-    dirtyFilesLabel: "Đống nợ chưa thèm thắt nút cứu vớt:"
+    dirtyFilesLabel: "Đống nợ chưa thèm thắt nút cứu vớt:",
+    zoomIn: "Bành to ra",
+    zoomOut: "Bóp bé tí",
+    resetLayout: "Dẹp hết dọn về chỗ cũ",
+    nodeSizeLabel: "Kích cỡ đống tạ:",
+    rotationLabel: "Xoay vẹo ngang dọc",
+    dragTip: "💡 Thích thì ném quăng quật mấy cục commit cho đỡ ngứa mắt nhé!",
+    panModeLabel: "🖐️ Lướt nền",
+    dragNodeModeLabel: "🖱️ Bốc đầu ô",
+    simScenarioHeading: "🧬 BÃI PHÂN TÍCH GIẢ LẬP ĐỂ CHỬI (SCENARIOS):",
+    simScenarioLinear: "Nhánh thẳng tuột như ruột ngựa (Linear)",
+    simScenarioNonLinear: "Merge Commit bốc mùi từ develop (Merge)",
+    simScenarioRewrite: "Develop bị đè nát (Rewrite/Diverged)",
+    simScenarioStale: "Base cổ lỗ sĩ mốc xanh (Stale Base)",
+    simScenarioDetached: "Bay đầu mất xác giữa chợ (Detached HEAD)",
+    simScenarioDesc: "Mấy quả phá hoại Git điển hình để test não AI Doctor và cách chữa bệnh."
   },
   [TranslationTone.ENGLISH]: {
     title: "DIAGNOSTICS & GIT SANITY CHECKS",
@@ -256,7 +327,22 @@ const sanityLoc: Record<TranslationTone, {
     scanAnomaliesLoading: "Scanning repository anomalies...",
     visualTimelineTitle: "VISUAL COMMIT TIMELINE GRAPH",
     squashCompletedTitle: "SQUASH COMPLETED (1 COMMIT REMAINING)",
-    dirtyFilesLabel: "Detailed list of uncommitted changes:"
+    dirtyFilesLabel: "Detailed list of uncommitted changes:",
+    zoomIn: "Zoom In (+)",
+    zoomOut: "Zoom Out (-)",
+    resetLayout: "Reset Layout",
+    nodeSizeLabel: "Node Size:",
+    rotationLabel: "Toggle Vertical/Horizontal",
+    dragTip: "💡 Free drag and reposition commit nodes around the canvas board!",
+    panModeLabel: "🖐️ Pan Canvas",
+    dragNodeModeLabel: "🖱️ Drag Nodes",
+    simScenarioHeading: "🧬 CHOOSE SIMULATED SCENARIO TO TEST:",
+    simScenarioLinear: "Linear Feature Branch (Linear)",
+    simScenarioNonLinear: "Merge Commit Checkpoint from develop (Merge)",
+    simScenarioRewrite: "Diverged History / Rewrite (Diverged)",
+    simScenarioStale: "Stale Base Branch Reference (Stale Base)",
+    simScenarioDetached: "Detached HEAD State (Detached HEAD)",
+    simScenarioDesc: "Simulate complex, real-world, non-linear Git histories to test commit graph layout and live anomaly warning diagnostics."
   }
 };
 
@@ -310,6 +396,22 @@ export default function App() {
     return true;
   });
 
+  const [simScenarioId, setSimScenarioId] = React.useState<'linear' | 'nonlinear' | 'rewrite' | 'stale' | 'detached'>(() => {
+    try {
+      const saved = localStorage.getItem('rebase_overlord_sim_scenario_id') as any;
+      if (['linear', 'nonlinear', 'rewrite', 'stale', 'detached'].includes(saved)) {
+        return saved;
+      }
+    } catch (e) {}
+    return 'linear';
+  });
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('rebase_overlord_sim_scenario_id', simScenarioId);
+    } catch (e) {}
+  }, [simScenarioId]);
+
   const [isAiEnabled, setIsAiEnabled] = React.useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('rebase_overlord_is_ai_enabled');
@@ -325,6 +427,22 @@ export default function App() {
     } catch (e) {}
     return true;
   });
+
+  const [showWarningsPanel, setShowWarningsPanel] = React.useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('rebase_overlord_show_warnings_panel');
+      if (saved !== null) return saved === 'true';
+    } catch (e) {}
+    return true;
+  });
+
+  // Interactive Commit Graph Controls
+  const [zoomScale, setZoomScale] = React.useState<number>(1.0);
+  const [nodeWidth, setNodeWidth] = React.useState<number>(180);
+  const [expandedNodes, setExpandedNodes] = React.useState<Record<string, boolean>>({});
+  const [isGraphVertical, setIsGraphVertical] = React.useState<boolean>(true);
+  const [activeTool, setActiveTool] = React.useState<'pan' | 'dragNode'>('dragNode');
+  const [resetKey, setResetKey] = React.useState<number>(0);
 
   const [isCloning, setIsCloning] = React.useState<boolean>(false);
 
@@ -423,6 +541,249 @@ export default function App() {
       status: 'idle'
     };
   });
+
+  // DOM references for measuring lines connect position dynamic calculation
+  const boardRef = React.useRef<HTMLDivElement>(null);
+  const devRef = React.useRef<HTMLDivElement>(null);
+  const nodeRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
+  
+  const [connections, setConnections] = React.useState<Array<{
+    startX: number;
+    startY: number;
+    endX: number;
+    endY: number;
+    isDash?: boolean;
+  }>>([]);
+  
+  const [nodeSizes, setNodeSizes] = React.useState<Record<string, { width: number; height: number }>>({});
+  const [tick, setTick] = React.useState<number>(0);
+  const triggerRenderTick = React.useCallback(() => {
+    setTick(t => t + 1);
+  }, []);
+
+  const getConnectorPoints = (
+    from: { x: number; y: number; w: number; h: number },
+    to: { x: number; y: number; w: number; h: number }
+  ) => {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    
+    let startX = from.x;
+    let startY = from.y;
+    let endX = to.x;
+    let endY = to.y;
+    
+    if (Math.abs(dx) > Math.abs(dy)) {
+      // Horizontal dominated
+      if (dx > 0) {
+        startX = from.x + from.w / 2;
+        endX = to.x - to.w / 2;
+      } else {
+        startX = from.x - from.w / 2;
+        endX = to.x + to.w / 2;
+      }
+    } else {
+      // Vertical dominated
+      if (dy > 0) {
+        startY = from.y + from.h / 2;
+        endY = to.y - to.h / 2;
+      } else {
+        startY = from.y - from.h / 2;
+        endY = to.y + to.h / 2;
+      }
+    }
+    return { startX, startY, endX, endY };
+  };
+
+  const updateConnectionPaths = React.useCallback(() => {
+    const container = boardRef.current;
+    const devEl = devRef.current;
+    if (!container || !devEl) return;
+    
+    const containerRect = container.getBoundingClientRect();
+    const getCenterAndSize = (el: HTMLElement) => {
+      const rect = el.getBoundingClientRect();
+      const x = (rect.left + rect.width / 2 - containerRect.left) / zoomScale;
+      const y = (rect.top + rect.height / 2 - containerRect.top) / zoomScale;
+      return {
+        x,
+        y,
+        w: rect.width / zoomScale,
+        h: rect.height / zoomScale
+      };
+    };
+    
+    const list: Array<{ startX: number; startY: number; endX: number; endY: number; isDash?: boolean }> = [];
+    const activeCommits = repoState.commits.filter(c => c.selected);
+    const activeKeys = activeCommits.map(c => c.sha);
+    
+    if (activeKeys.length > 0) {
+      const devNode = getCenterAndSize(devEl);
+      
+      // Map through all active commits and link to parents
+      activeCommits.forEach((c) => {
+        const currentEl = nodeRefs.current[c.sha];
+        if (!currentEl) return;
+        const currentMeta = getCenterAndSize(currentEl);
+        
+        if (c.parents && c.parents.length > 0) {
+          c.parents.forEach((parentSha) => {
+            const parentEl = nodeRefs.current[parentSha];
+            if (parentEl) {
+              const parentMeta = getCenterAndSize(parentEl);
+              const pts = getConnectorPoints(currentMeta, parentMeta);
+              
+              const isCurrentSelected = wizard.selectedCommits.includes(c.sha) || wizard.selectedCommits.length === 0;
+              const isParentSelected = wizard.selectedCommits.includes(parentSha) || wizard.selectedCommits.length === 0;
+              
+              list.push({
+                startX: pts.startX,
+                startY: pts.startY,
+                endX: pts.endX,
+                endY: pts.endY,
+                isDash: !(isCurrentSelected && isParentSelected)
+              });
+            }
+          });
+        } else {
+          // Sequential fallback for compatibility and live CLI support
+          const idx = activeKeys.indexOf(c.sha);
+          if (idx !== -1 && idx < activeKeys.length - 1) {
+            const nextSha = activeKeys[idx + 1];
+            const nextEl = nodeRefs.current[nextSha];
+            if (nextEl) {
+              const nextMeta = getCenterAndSize(nextEl);
+              const pts = getConnectorPoints(currentMeta, nextMeta);
+              
+              const isCurrentSelected = wizard.selectedCommits.includes(c.sha) || wizard.selectedCommits.length === 0;
+              const isNextSelected = wizard.selectedCommits.includes(nextSha) || wizard.selectedCommits.length === 0;
+              
+              list.push({
+                startX: pts.startX,
+                startY: pts.startY,
+                endX: pts.endX,
+                endY: pts.endY,
+                isDash: !(isCurrentSelected && isNextSelected)
+              });
+            }
+          }
+        }
+      });
+      
+      // Connect develop HEAD
+      const track0Commits = activeCommits.filter(c => c.track === 0);
+      let targetDevConnectSha = track0Commits.length > 0 ? track0Commits[0].sha : null;
+      if (!targetDevConnectSha) {
+        targetDevConnectSha = activeKeys[activeKeys.length - 1];
+      }
+      
+      const targetDevConnectEl = targetDevConnectSha ? nodeRefs.current[targetDevConnectSha] : null;
+      if (targetDevConnectEl) {
+        const targetNode = getCenterAndSize(targetDevConnectEl);
+        const pts = getConnectorPoints(devNode, targetNode);
+        list.push({
+          startX: pts.startX,
+          startY: pts.startY,
+          endX: pts.endX,
+          endY: pts.endY
+         });
+      }
+    }
+    
+    setConnections(list);
+  }, [repoState.commits, wizard.selectedCommits, zoomScale, nodeWidth, resetKey, isGraphVertical]);
+
+  React.useEffect(() => {
+    const handle = requestAnimationFrame(() => {
+      updateConnectionPaths();
+    });
+    return () => cancelAnimationFrame(handle);
+  }, [updateConnectionPaths, tick, isGraphVertical, resetKey]);
+
+  React.useEffect(() => {
+    window.addEventListener('resize', updateConnectionPaths);
+    return () => {
+      window.removeEventListener('resize', updateConnectionPaths);
+    };
+  }, [updateConnectionPaths]);
+
+  // Handle Drag size resize event of node
+  const handleResizeStart = (e: React.PointerEvent, sha: string, direction: 'w' | 'h' | 'both') => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    const startX = e.clientX;
+    const startY = e.clientY;
+    
+    const isExpanded = !!expandedNodes[sha];
+    const startWidth = nodeSizes[sha]?.width ?? nodeWidth;
+    const startHeight = nodeSizes[sha]?.height ?? (isExpanded ? 140 : 80);
+    
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const deltaX = (moveEvent.clientX - startX) / zoomScale;
+      const deltaY = (moveEvent.clientY - startY) / zoomScale;
+      
+      setNodeSizes(prev => {
+        const currentWidth = prev[sha]?.width ?? nodeWidth;
+        const currentHeight = prev[sha]?.height ?? (isExpanded ? 140 : 80);
+        return {
+          ...prev,
+          [sha]: {
+            width: direction === 'h' ? currentWidth : Math.max(120, Math.min(600, startWidth + deltaX)),
+            height: direction === 'w' ? currentHeight : Math.max(60, Math.min(400, startHeight + deltaY))
+          }
+        };
+      });
+      triggerRenderTick();
+    };
+    
+    const handlePointerUp = () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+    
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+  };
+
+  const [isTouchOnly, setIsTouchOnly] = React.useState<boolean>(false);
+  React.useEffect(() => {
+    const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    setIsTouchOnly(isTouch);
+  }, []);
+
+  const touchStartDistance = React.useRef<number | null>(null);
+  const touchStartScale = React.useRef<number>(1.0);
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length === 2) {
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      touchStartDistance.current = dist;
+      touchStartScale.current = zoomScale;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length === 2 && touchStartDistance.current !== null) {
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      const ratio = dist / touchStartDistance.current;
+      const targetScale = Math.min(2.0, Math.max(0.5, touchStartScale.current * ratio));
+      setZoomScale(targetScale);
+      updateConnectionPaths();
+      triggerRenderTick();
+    }
+  };
+
+  const handleTouchEnd = () => {
+    touchStartDistance.current = null;
+  };
 
   // Log buffer for terminal with localStorage fallback
   const [logs, setLogs] = React.useState<string[]>(() => {
@@ -543,6 +904,12 @@ export default function App() {
 
   React.useEffect(() => {
     try {
+      localStorage.setItem('rebase_overlord_show_warnings_panel', String(showWarningsPanel));
+    } catch (e) {}
+  }, [showWarningsPanel]);
+
+  React.useEffect(() => {
+    try {
       localStorage.setItem('rebase_overlord_repo_state', JSON.stringify(repoState));
     } catch (e) {}
   }, [repoState]);
@@ -566,8 +933,8 @@ export default function App() {
     setIsRefreshing(true);
     try {
       const activeSim = overrideSim !== undefined ? overrideSim : isSimulation;
-      addLog(`$ Refreshing git states (Simulation: ${activeSim})...`);
-      const url = resolveApiUrl(`/api/git-status?simulation=${activeSim}`);
+      addLog(`$ Refreshing git states (Simulation: ${activeSim}, Scenario: ${simScenarioId})...`);
+      const url = resolveApiUrl(`/api/git-status?simulation=${activeSim}&scenario=${simScenarioId}`);
       const res = await fetch(url);
       
       const contentType = res.headers.get('content-type') || '';
@@ -623,7 +990,34 @@ export default function App() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [isSimulation, addLog]);
+  }, [isSimulation, simScenarioId, addLog]);
+
+  React.useEffect(() => {
+    if (isSimulation) {
+      if (simScenarioId === 'linear') {
+        setIsDivergedSimulated(false);
+        setIsStaleBaseSimulated(false);
+        setIsDetachedHeadSimulated(false);
+      } else if (simScenarioId === 'nonlinear') {
+        setIsDivergedSimulated(false);
+        setIsStaleBaseSimulated(false);
+        setIsDetachedHeadSimulated(false);
+      } else if (simScenarioId === 'rewrite') {
+        setIsDivergedSimulated(true);
+        setIsStaleBaseSimulated(false);
+        setIsDetachedHeadSimulated(false);
+      } else if (simScenarioId === 'stale') {
+        setIsDivergedSimulated(false);
+        setIsStaleBaseSimulated(true);
+        setIsDetachedHeadSimulated(false);
+      } else if (simScenarioId === 'detached') {
+        setIsDivergedSimulated(false);
+        setIsStaleBaseSimulated(false);
+        setIsDetachedHeadSimulated(true);
+      }
+      handleRefresh();
+    }
+  }, [simScenarioId, isSimulation]);
 
   const quietRefresh = React.useCallback(async () => {
     try {
@@ -1590,10 +1984,26 @@ export default function App() {
       if (isSimulation) {
         // Small artificial delay to let user observe checkout animation gracefully
         await new Promise(resolve => setTimeout(resolve, 1500));
-        setRepoState(prev => ({
-          ...prev,
-          currentBranch: branchName
-        }));
+        
+        let targetScenario: 'linear' | 'nonlinear' | 'rewrite' | 'stale' | 'detached' | null = null;
+        if (branchName === 'feature/payment-linear') {
+          targetScenario = 'linear';
+        } else if (branchName === 'feature/payment-nonlinear') {
+          targetScenario = 'nonlinear';
+        } else if (branchName === 'feature/payment-diverged-rewrite') {
+          targetScenario = 'rewrite';
+        } else if (branchName === 'feature/payment-stale-base') {
+          targetScenario = 'stale';
+        }
+
+        if (targetScenario) {
+          setSimScenarioId(targetScenario);
+        } else {
+          setRepoState(prev => ({
+            ...prev,
+            currentBranch: branchName
+          }));
+        }
         addLog(`✓ Checkout local branch successful: ${branchName}`);
       } else {
         const res = await fetch(resolveApiUrl('/api/execute-command'), {
@@ -1874,72 +2284,446 @@ export default function App() {
                 <span>{sloc.visualTimelineTitle}</span>
               </h3>
 
-              {/* Graphical representation of the Rebase squash action */}
-              <div className={`flex flex-col md:flex-row items-center justify-center gap-2 p-4 rounded-xl border overflow-x-auto min-h-36 ${theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950/80 border-slate-900/60'}`}>
-                
-                {/* Develop Head represent */}
-                <div className="flex flex-col items-center gap-1.5 px-3 min-w-fit select-none">
-                  <div className="w-9 h-9 rounded-full bg-emerald-500/20 border-2 border-emerald-400 shadow-md flex items-center justify-center text-xs font-mono font-bold text-emerald-300">
-                    dev
-                  </div>
-                  <div className={`text-[10px] font-mono ${theme === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>develop head</div>
+              {/* INTERACTIVE CONTROLS DOCK */}
+              <div className={`p-3 rounded-lg border mb-4 flex flex-wrap gap-4 items-center justify-between text-xs font-mono select-none ${
+                theme === 'light' ? 'bg-slate-50/80 border-slate-200/60' : 'bg-[#131b2e] border-slate-800/80'
+              }`}>
+                {/* Mode Selector */}
+                <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-900/60 p-1 rounded-md">
+                  <button
+                    onClick={() => setActiveTool('dragNode')}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded transition-all cursor-pointer ${
+                      activeTool === 'dragNode'
+                        ? 'bg-indigo-600 text-white shadow font-semibold'
+                        : theme === 'light' ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400 hover:bg-slate-800/50'
+                    }`}
+                    title={sloc.dragNodeModeLabel}
+                  >
+                    <MousePointer className="w-3.5 h-3.5" />
+                    <span>{sloc.dragNodeModeLabel}</span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTool('pan')}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded transition-all cursor-pointer ${
+                      activeTool === 'pan'
+                        ? 'bg-indigo-600 text-white shadow font-semibold'
+                        : theme === 'light' ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400 hover:bg-slate-800/50'
+                    }`}
+                    title={sloc.panModeLabel}
+                  >
+                    <Hand className="w-3.5 h-3.5" />
+                    <span>{sloc.panModeLabel}</span>
+                  </button>
                 </div>
 
-                <div className="text-slate-700 text-lg hidden md:block">══════▶</div>
-                <div className="text-slate-700 text-lg md:hidden">▼</div>
+                {/* Left/Right / Rotation layout toggler */}
+                <button
+                  onClick={() => setIsGraphVertical(v => !v)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded border cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all ${
+                    theme === 'light'
+                      ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100'
+                      : 'bg-slate-950 border-slate-880 text-slate-300 hover:bg-slate-900'
+                  }`}
+                  title={sloc.rotationLabel}
+                >
+                  <RotateCw className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>{isGraphVertical ? "⬇ Vertical (Dọc)" : "➡️ Horizontal (Ngang)"}</span>
+                </button>
 
-                {wizard.step < 5 ? (
-                  <>
-                    {/* Commits checklist visualization line items before squash */}
-                    {activeCommitsForSquash.length === 0 ? (
-                      <div className="text-slate-600 text-xs italic py-2">
-                        {sloc.emptyCommits}
+                {/* Node width slide adjustment */}
+                <div className="flex items-center gap-2">
+                  <span className={theme === 'light' ? 'text-slate-600' : 'text-slate-400'}>{sloc.nodeSizeLabel}</span>
+                  <input
+                    type="range"
+                    min="140"
+                    max="340"
+                    step="10"
+                    value={nodeWidth}
+                    onChange={(e) => setNodeWidth(parseInt(e.target.value))}
+                    className="w-24 accent-indigo-500 cursor-ew-resize h-1 bg-slate-300 dark:bg-slate-800 rounded-lg appearance-none"
+                  />
+                  <span className="text-[10px] bg-slate-200/60 dark:bg-slate-800 border border-slate-300 dark:border-slate-800 px-1 py-0.5 rounded text-slate-400">
+                    {nodeWidth}px
+                  </span>
+                </div>
+
+                {/* Zoom adjustment + Reset */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setZoomScale(z => Math.max(0.5, z - 0.1))}
+                    className={`p-1.5 rounded transition-colors cursor-pointer border ${
+                      theme === 'light' ? 'bg-white hover:bg-slate-100 border-slate-200' : 'bg-slate-950 hover:bg-slate-900 border-slate-800'
+                    }`}
+                    title={sloc.zoomOut}
+                  >
+                    <ZoomIn className="w-3.5 h-3.5 rotate-180 text-rose-400" />
+                  </button>
+                  <span className="w-10 text-center font-bold text-[10px]">
+                    {Math.round(zoomScale * 100)}%
+                  </span>
+                  <button
+                    onClick={() => setZoomScale(z => Math.min(2.0, z + 0.1))}
+                    className={`p-1.5 rounded transition-colors cursor-pointer border ${
+                      theme === 'light' ? 'bg-white hover:bg-slate-100 border-slate-200' : 'bg-slate-950 hover:bg-slate-900 border-slate-800'
+                    }`}
+                    title={sloc.zoomIn}
+                  >
+                    <ZoomIn className="w-3.5 h-3.5 text-emerald-400" />
+                  </button>
+                </div>
+
+                {/* Master Reset Layout */}
+                <button
+                  onClick={() => {
+                    setZoomScale(1.0);
+                    setNodeWidth(180);
+                    setResetKey(k => k + 1);
+                    setExpandedNodes({});
+                    setNodeSizes({});
+                    setConnections([]);
+                    triggerRenderTick();
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded font-mono font-bold cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all shadow"
+                  title={sloc.resetLayout}
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>{sloc.resetLayout}</span>
+                </button>
+              </div>
+
+              {/* Drag n drop Tip */}
+              <div className="text-[10px] text-indigo-400 mb-2 font-semibold">
+                {sloc.dragTip}
+              </div>
+
+              {/* Graphical representation of the Rebase squash action (Board Viewport) */}
+              <div 
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+                onTouchCancel={handleTouchEnd}
+                className={`w-full h-[480px] rounded-xl border relative overflow-hidden flex items-center justify-center select-none ${
+                  theme === 'light' 
+                    ? 'bg-slate-50/50 border-slate-200 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px]' 
+                    : 'bg-[#090d16] border-slate-900 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px]'
+                }`}
+              >
+                {/* Active Tool Overlay Badge */}
+                <div className="absolute top-3 left-3 z-10 px-2.5 py-1 bg-slate-900/80 text-white rounded-full text-[10px] font-mono border border-slate-850 uppercase flex items-center gap-1">
+                  {activeTool === 'pan' ? (
+                    <>
+                      <Hand className="w-3 h-3 text-sky-400" />
+                      <span>{sloc.panModeLabel}</span>
+                    </>
+                  ) : (
+                    <>
+                      <MousePointer className="w-3 h-3 text-indigo-400" />
+                      <span>{sloc.dragNodeModeLabel}</span>
+                    </>
+                  )}
+                </div>
+
+                {/* Inner zoomable and pannable board */}
+                <motion.div
+                  ref={boardRef}
+                  key={`board-${resetKey}`}
+                  drag={activeTool === 'pan'}
+                  dragConstraints={false}
+                  dragElastic={0.1}
+                  dragMomentum={true}
+                  style={{
+                    scale: zoomScale,
+                    transformOrigin: "center center"
+                  }}
+                  className="w-full h-full flex items-center justify-center relative touch-none"
+                >
+                  {/* SVG connections overlay */}
+                  <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible z-0">
+                    <defs>
+                      <marker
+                        id="arrowhead-connector"
+                        markerWidth="7"
+                        markerHeight="7"
+                        refX="6"
+                        refY="3.5"
+                        orient="auto"
+                      >
+                        <polygon points="0 0, 7 3.5, 0 7" fill={theme === 'light' ? '#6366f1' : '#818cf8'} />
+                      </marker>
+                    </defs>
+                    {connections.map((conn, idx) => (
+                      <path
+                        key={idx}
+                        d={`M ${conn.startX} ${conn.startY} L ${conn.endX} ${conn.endY}`}
+                        stroke={theme === 'light' ? '#6366f1' : '#818cf8'}
+                        strokeWidth="2.5"
+                        strokeDasharray={conn.isDash ? '4 4' : undefined}
+                        fill="none"
+                        markerEnd="url(#arrowhead-connector)"
+                        className="opacity-75 transition-all duration-75"
+                      />
+                    ))}
+                  </svg>
+
+                  {/* The actual flow nodes */}
+                  <div className={`flex items-center justify-center gap-12 p-24 relative z-10 ${
+                    isGraphVertical ? 'flex-col' : 'flex-row'
+                  }`}>
+
+                    {/* Develop Head represent */}
+                    <motion.div
+                      ref={devRef}
+                      drag={activeTool === 'dragNode'}
+                      dragConstraints={false}
+                      dragElastic={0.2}
+                      whileDrag={{ scale: 1.05 }}
+                      onDrag={() => {
+                        updateConnectionPaths();
+                        triggerRenderTick();
+                      }}
+                      onDragEnd={() => {
+                        updateConnectionPaths();
+                        triggerRenderTick();
+                      }}
+                      style={{
+                        marginLeft: (isSimulation && isGraphVertical) ? '-180px' : undefined,
+                        marginTop: (isSimulation && !isGraphVertical) ? '-110px' : undefined,
+                      }}
+                      className="flex flex-col items-center gap-1.5 px-3 min-w-fit cursor-grab active:cursor-grabbing relative"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-emerald-500/20 border-2 border-emerald-400 shadow-md flex items-center justify-center text-xs font-mono font-bold text-emerald-300">
+                        dev
                       </div>
+                      <div className={`text-[10px] font-mono ${theme === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>develop head</div>
+                    </motion.div>
+
+                    {wizard.step < 5 ? (
+                      <>
+                        {/* Commits checklist visualization line items before squash */}
+                        {activeCommitsForSquash.length === 0 ? (
+                          <div className="text-slate-400 text-xs italic py-2">
+                            {sloc.emptyCommits}
+                          </div>
+                        ) : (
+                          activeCommitsForSquash.map((c, i) => {
+                            const isSelect = wizard.selectedCommits.includes(c.sha) || wizard.selectedCommits.length === 0;
+                            const isExpanded = !!expandedNodes[c.sha];
+                            const customSz = nodeSizes[c.sha];
+                            const finalWidth = customSz?.width ?? (isExpanded ? nodeWidth + 120 : nodeWidth);
+                            const finalHeight = customSz?.height ?? (isExpanded ? 140 : 80);
+
+                            const track = c.track !== undefined ? c.track : 1;
+                            let nodeOffsetX = 0;
+                            let nodeOffsetY = 0;
+                            if (isSimulation) {
+                              if (isGraphVertical) {
+                                if (track === 0) nodeOffsetX = -180;
+                                if (track === 2) nodeOffsetX = 180;
+                              } else {
+                                if (track === 0) nodeOffsetY = -110;
+                                if (track === 2) nodeOffsetY = 110;
+                              }
+                            }
+
+                            return (
+                              <React.Fragment key={c.sha}>
+                                <motion.div
+                                  ref={el => { nodeRefs.current[c.sha] = el; }}
+                                  drag={activeTool === 'dragNode'}
+                                  dragConstraints={false}
+                                  dragElastic={0.2}
+                                  layout
+                                  whileDrag={{
+                                    scale: 1.03,
+                                    zIndex: 50,
+                                    boxShadow: theme === 'light' ? '0 10px 20px rgba(0,0,0,0.1)' : '0 10px 25px rgba(0,0,0,0.4)',
+                                  }}
+                                  onDrag={() => {
+                                    updateConnectionPaths();
+                                    triggerRenderTick();
+                                  }}
+                                  onDragEnd={() => {
+                                    updateConnectionPaths();
+                                    triggerRenderTick();
+                                  }}
+                                  style={{ 
+                                    width: `${finalWidth}px`,
+                                    height: customSz?.height ? `${finalHeight}px` : 'auto',
+                                    minHeight: customSz?.height ? `${finalHeight}px` : undefined,
+                                    marginLeft: isGraphVertical ? `${nodeOffsetX}px` : undefined,
+                                    marginTop: !isGraphVertical ? `${nodeOffsetY}px` : undefined,
+                                  }}
+                                  className={`flex flex-col items-stretch p-3 text-left border rounded-xl hover:shadow-md cursor-grab active:cursor-grabbing transition-all relative ${
+                                    theme === 'light' 
+                                      ? 'bg-white border-slate-200/80 shadow-sm text-slate-800' 
+                                      : 'bg-slate-900/60 border-slate-800 text-slate-100 shadow'
+                                  }`}
+                                >
+                                  {/* Top header of node */}
+                                  <div className="flex items-center justify-between gap-1.5 mb-2 pointer-events-auto">
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${
+                                        isSelect 
+                                          ? 'bg-indigo-500/10 text-indigo-500 border-indigo-200/50 dark:bg-indigo-500/20 dark:text-indigo-400 dark:border-indigo-500/30' 
+                                          : 'bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-950 dark:text-slate-500 dark:border-slate-900'
+                                      }`}>
+                                        {isExpanded ? c.sha : c.sha.substring(0, 7)}
+                                      </span>
+
+                                      {/* Branch Track Badge */}
+                                      {isSimulation && track === 0 && (
+                                        <span className="text-[8px] font-mono font-bold px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 uppercase tracking-wider scale-[0.9] origin-left">
+                                          develop
+                                        </span>
+                                      )}
+                                      {isSimulation && track === 2 && (
+                                        <span className="text-[8px] font-mono font-bold px-1 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 uppercase tracking-wider scale-[0.9] origin-left">
+                                          origin/remote
+                                        </span>
+                                      )}
+                                      {isSimulation && track === 1 && c.isMergeCommit && (
+                                        <span className="text-[8px] font-mono font-bold px-1 py-0.5 rounded bg-fuchsia-500/15 text-fuchsia-400 border border-fuchsia-500/20 uppercase tracking-wider scale-[0.9] origin-left">
+                                          merge
+                                        </span>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-1.5 select-none">
+                                      {/* Hover Grab Handle Indicator */}
+                                      {activeTool === 'dragNode' && (
+                                        <Move className="w-3 h-3 text-slate-400 hover:text-slate-100 cursor-move" title="Drag node content" />
+                                      )}
+                                      
+                                      {/* Maximize / Collapse Resize Button */}
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setExpandedNodes(prev => ({ ...prev, [c.sha]: !prev[c.sha] }));
+                                          setTimeout(() => {
+                                            updateConnectionPaths();
+                                            triggerRenderTick();
+                                          }, 80);
+                                        }}
+                                        className={`p-1 rounded cursor-pointer transition-colors ${
+                                          theme === 'light' ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-slate-800 text-slate-400'
+                                        }`}
+                                        title={isExpanded ? "Collapse Details" : "Expand to view details"}
+                                      >
+                                        {isExpanded ? (
+                                          <Minimize2 className="w-3 h-3 text-rose-400" />
+                                        ) : (
+                                          <Maximize2 className="w-3 h-3 text-emerald-400" />
+                                        )}
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* Body of node */}
+                                  <div className="flex flex-col gap-1.5 flex-1 overflow-hidden">
+                                    <span 
+                                      className={`text-[11px] font-medium leading-tight ${
+                                        isExpanded ? 'whitespace-normal block break-words text-xs' : 'truncate block w-full text-[10px]'
+                                      } ${
+                                        isSelect ? (theme === 'light' ? 'text-slate-800' : 'text-slate-100') : 'text-slate-400 line-through opacity-60'
+                                      }`}
+                                      title={c.message}
+                                    >
+                                      {c.message}
+                                    </span>
+
+                                    {/* Smooth framer-motion expanded detailed contents */}
+                                    <AnimatePresence>
+                                      {isExpanded && (
+                                        <motion.div
+                                          initial={{ opacity: 0, height: 0 }}
+                                          animate={{ opacity: 1, height: 'auto' }}
+                                          exit={{ opacity: 0, height: 0 }}
+                                          className="border-t border-dashed border-slate-700 mt-2 pt-2 flex flex-col gap-1 text-[10px] font-mono text-slate-400"
+                                        >
+                                          {c.type && (
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="font-bold shrink-0 text-slate-500">Type:</span>
+                                              <span className={`px-1 py-0.2 rounded font-black uppercase text-[8px] ${
+                                                c.type === 'feat' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                                                c.type === 'fix' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
+                                                'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                                              }`}>
+                                                {c.type}
+                                              </span>
+                                            </div>
+                                          )}
+                                          
+                                          {c.author && (
+                                            <div className="truncate">
+                                              <span className="font-bold text-slate-500 text-[9px]">Author:</span> {c.author}
+                                            </div>
+                                          )}
+                                          
+                                          {c.date && (
+                                            <div className="text-[9px]">
+                                              <span className="font-bold text-slate-500">Date:</span> {c.date}
+                                            </div>
+                                          )}
+                                        </motion.div>
+                                      )}
+                                    </AnimatePresence>
+                                  </div>
+
+                                  {/* Custom Drag-to-Resize Handles on Board Borders (hidden on touch machines) */}
+                                  {!isTouchOnly && (
+                                    <>
+                                      {/* Right side resize handle */}
+                                      <div
+                                        onPointerDown={(e) => handleResizeStart(e, c.sha, 'w')}
+                                        className="absolute top-0 right-0 w-2 h-full cursor-ew-resize hover:bg-indigo-500/30 active:bg-indigo-500/40 transition-colors z-20 group"
+                                        title="Kéo để chỉnh độ rộng (Drag to resize width)"
+                                      >
+                                        <div className="w-1 h-1/3 bg-slate-400/25 group-hover:bg-indigo-400/80 rounded mx-auto my-auto top-1/3 relative" />
+                                      </div>
+
+                                      {/* Bottom side resize handle */}
+                                      <div
+                                        onPointerDown={(e) => handleResizeStart(e, c.sha, 'h')}
+                                        className="absolute bottom-0 left-0 h-2 w-full cursor-ns-resize hover:bg-indigo-500/30 active:bg-indigo-500/40 transition-colors z-20 group"
+                                        title="Kéo để chỉnh chiều cao (Drag to resize height)"
+                                      >
+                                        <div className="h-1 w-1/3 bg-slate-400/25 group-hover:bg-indigo-400/80 rounded mx-auto my-auto left-1/3 relative" />
+                                      </div>
+
+                                      {/* Bottom-right diagonal resize handle */}
+                                      <div
+                                        onPointerDown={(e) => handleResizeStart(e, c.sha, 'both')}
+                                        className="absolute bottom-0 right-0 w-4.5 h-4.5 cursor-se-resize hover:bg-indigo-500/50 hover:scale-110 active:scale-95 transition-all z-30 flex items-center justify-center rounded-bl group-hover:bg-indigo-500/10"
+                                        title="Chỉnh cả 2 chiều (Resize both width and height)"
+                                      >
+                                        <svg className="w-3 h-3 text-slate-400 group-hover:text-indigo-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 19H5m14 0V5" />
+                                        </svg>
+                                      </div>
+                                    </>
+                                  )}
+                                </motion.div>
+                              </React.Fragment>
+                            );
+                          })
+                        )}
+                      </>
                     ) : (
-                      activeCommitsForSquash.map((c, i) => {
-                        const isSelect = wizard.selectedCommits.includes(c.sha) || wizard.selectedCommits.length === 0;
-                        return (
-                          <React.Fragment key={c.sha}>
-                            <div className={`flex flex-col items-center gap-1 px-2.5 py-1.5 min-w-[120px] max-w-[140px] text-center border rounded-lg ${
-                              theme === 'light' 
-                                ? 'bg-white border-slate-200 shadow-sm' 
-                                : 'bg-slate-900/40 border-slate-900'
-                            }`}>
-                              <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-bold ${
-                                isSelect 
-                                  ? 'bg-indigo-505/10 text-indigo-500 border border-indigo-200/50 dark:bg-indigo-500/20 dark:text-indigo-400 dark:border-indigo-500/30' 
-                                  : 'bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-950 dark:text-slate-600 dark:border-slate-900'
-                              }`}>
-                                {c.sha}
-                              </span>
-                              <span className={`text-[10px] truncate w-full font-medium ${isSelect ? (theme === 'light' ? 'text-slate-800' : 'text-slate-300') : 'text-slate-400 line-through'}`} title={c.message}>
-                                {c.message}
-                              </span>
-                            </div>
-                            {i < activeCommitsForSquash.length - 1 && (
-                              <>
-                                <div className="text-slate-400/50 text-sm hidden md:block">➜</div>
-                                <div className="text-slate-400/50 text-sm md:hidden">▼</div>
-                              </>
-                            )}
-                          </React.Fragment>
-                        );
-                      })
+                      /* Commits squashed visual state showing a single clean unified block head */
+                      <div className={`flex items-center gap-3 border p-4 rounded-xl animate-fade-in text-center max-w-md w-full ${theme === 'light' ? 'bg-indigo-50/50 border-indigo-200' : 'bg-indigo-550/10 border-indigo-500/30'}`}>
+                        <div className="bg-indigo-500/20 text-indigo-500 dark:text-indigo-400 p-2.5 rounded-lg border border-indigo-500/30 shrink-0">
+                          <GitMerge className="w-5 h-5 animate-pulse" />
+                        </div>
+                        <div className="text-xs text-left">
+                          <div className="text-[10px] text-emerald-500 font-mono font-bold uppercase tracking-wider mb-0.5">{sloc.squashCompletedTitle}</div>
+                          <div className={`font-mono font-semibold ${theme === 'light' ? 'text-slate-800' : 'text-slate-100'}`}>{wizard.finalMsg}</div>
+                          <div className="text-[9px] text-slate-500 font-mono mt-1">Author: Nguyen Tran | Date: Just now</div>
+                        </div>
+                      </div>
                     )}
-                  </>
-                ) : (
-                  /* Commits squashed visual state showing a single clean unified block head */
-                  <div className={`flex items-center gap-3 border p-4 rounded-xl animate-fade-in text-center max-w-md w-full ${theme === 'light' ? 'bg-indigo-50/50 border-indigo-200' : 'bg-indigo-505/10 border-indigo-500/30'}`}>
-                    <div className="bg-indigo-500/20 text-indigo-500 dark:text-indigo-400 p-2.5 rounded-lg border border-indigo-500/30 shrink-0">
-                      <GitMerge className="w-5 h-5 animate-pulse" />
-                    </div>
-                    <div className="text-xs text-left">
-                      <div className="text-[10px] text-emerald-500 font-mono font-bold uppercase tracking-wider mb-0.5">{sloc.squashCompletedTitle}</div>
-                      <div className={`font-mono font-semibold ${theme === 'light' ? 'text-slate-800' : 'text-slate-100'}`}>{wizard.finalMsg}</div>
-                      <div className="text-[9px] text-slate-500 font-mono mt-1">Author: Nguyen Tran | Date: Just now</div>
-                    </div>
+
                   </div>
-                )}
+                </motion.div>
               </div>
             </div>
 
@@ -1990,24 +2774,61 @@ export default function App() {
             />
 
             {/* Simulated Live Diagnostic Warnings Panel with AI Git Doctor Integration */}
-            <div id="git-warnings-board" className={`border rounded-xl p-5 shadow-lg flex flex-col gap-4 transition-all duration-200 ${theme === 'light' ? 'bg-white border-slate-200 text-slate-800 shadow-sm' : 'bg-[#0f172a] border-slate-850 text-slate-100 shadow-2xl'}`}>
-              <div className={`flex items-center justify-between border-b pb-3 ${theme === 'light' ? 'border-slate-150' : 'border-slate-805/60'}`}>
-                <h3 className={`text-xs font-bold uppercase font-mono tracking-wider flex items-center gap-1.5 ${theme === 'light' ? 'text-slate-700' : 'text-slate-400'}`}>
+            {!showWarningsPanel ? (
+              <div id="git-warnings-collapsed" className={`border rounded-xl p-3 flex justify-between items-center transition-all duration-200 ${theme === 'light' ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0f172a] border-slate-900 text-slate-305'}`}>
+                <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
                   <Settings className="w-4 h-4 text-violet-400 animate-spin-slow" />
-                  <span>{sloc.title}</span>
-                </h3>
-                {isSimulation && (
-                  <span className="text-[9px] font-mono text-indigo-400 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/30">
-                    {sloc.simulationAnomalyBadge}
+                  <span className="font-bold uppercase tracking-wider">{sloc.title}</span>
+                  <span className="text-[10px] text-slate-500 opacity-60">
+                    ({tone === TranslationTone.ENGLISH ? 'Hidden' : 'Đang ẩn'})
                   </span>
-                )}
+                </div>
+                <button
+                  onClick={() => setShowWarningsPanel(true)}
+                  className={`text-xs font-mono flex items-center gap-1 px-2.5 py-1 rounded cursor-pointer border ${
+                    theme === 'light'
+                      ? 'bg-violet-50 border-violet-200 text-violet-750 hover:bg-violet-100'
+                      : 'bg-violet-500/10 border-violet-500/20 text-violet-400 hover:text-violet-303'
+                  }`}
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>{tone === TranslationTone.ENGLISH ? 'Show' : 'Hiển thị'}</span>
+                </button>
               </div>
+            ) : (
+              <div id="git-warnings-board" className={`border rounded-xl p-5 shadow-lg flex flex-col gap-4 transition-all duration-200 ${theme === 'light' ? 'bg-white border-slate-200 text-slate-800 shadow-sm' : 'bg-[#0f172a] border-slate-850 text-slate-100 shadow-2xl'}`}>
+                <div className={`flex items-center justify-between border-b pb-3 ${theme === 'light' ? 'border-slate-150' : 'border-slate-800/60'}`}>
+                  <h3 className={`text-xs font-bold uppercase font-mono tracking-wider flex items-center gap-1.5 ${theme === 'light' ? 'text-slate-700' : 'text-slate-400'}`}>
+                    <Settings className="w-4 h-4 text-violet-400 animate-spin-slow" />
+                    <span>{sloc.title}</span>
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    {isSimulation && (
+                      <span className="text-[9px] font-mono text-indigo-400 bg-indigo-505/10 px-1.5 py-0.5 rounded border border-indigo-500/30">
+                        {sloc.simulationAnomalyBadge}
+                      </span>
+                    )}
 
-              <div className={`flex flex-col gap-2.5 text-xs font-mono border-b pb-3 ${theme === 'light' ? 'border-slate-150' : 'border-slate-800/60'}`}>
+                    {/* Collapse Toggle */}
+                    <button
+                      onClick={() => setShowWarningsPanel(false)}
+                      className={`p-1.5 rounded transition-all text-xs flex items-center gap-1 font-mono cursor-pointer border shrink-0 ${
+                        theme === 'light' 
+                          ? 'bg-slate-100 border-slate-250 text-slate-650 hover:bg-slate-200 hover:text-slate-900' 
+                          : 'bg-slate-950 border border-slate-900 text-slate-500 hover:text-slate-355'
+                      }`}
+                      title={tone === TranslationTone.ENGLISH ? 'Collapse Panel' : 'Thu gọn Panel'}
+                    >
+                      <EyeOff className="w-3.5 h-3.5 shrink-0" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className={`flex flex-col gap-2.5 text-xs font-mono border-b pb-3 ${theme === 'light' ? 'border-slate-150' : 'border-slate-800/60'}`}>
                 {/* 1. Git Installation Health */}
                 <div className={`flex justify-between items-center p-2 rounded border ${theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-900'}`}>
                   <span className="text-slate-500">{sloc.gitEnv}</span>
-                  <span className="text-emerald-450 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 text-[10px]">
+                  <span className="text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 text-[10px]">
                     ✓ STABLE (v2.41)
                   </span>
                 </div>
@@ -2016,7 +2837,7 @@ export default function App() {
                 <div className={`flex justify-between items-center p-2 rounded border ${theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-900'}`}>
                   <span className="text-slate-500">{sloc.githubCli}</span>
                   {repoState.ghAvailable ? (
-                    <span className="text-emerald-450 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 text-[10px] flex items-center gap-1">
+                    <span className="text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 text-[10px] flex items-center gap-1">
                       <Github className="w-3 h-3" /> ✓ AUTHORIZED
                     </span>
                   ) : (
@@ -2043,61 +2864,94 @@ export default function App() {
 
               {/* SIMULATION ANOMALY TOGGLERS FOR TESTING/EXPERIMENTATION */}
               {isSimulation && (
-                <div className={`rounded-lg p-2.5 flex flex-col gap-1.5 border transition-all duration-200 ${theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-[#0b0f19]/80 border-slate-850/50'}`}>
-                  <span className="text-[9px] font-mono text-slate-500 uppercase tracking-wider block font-bold">
-                    {sloc.simulateAnomaliesHeading}
-                  </span>
-                  <div className="flex flex-wrap gap-2 text-[10px] font-mono">
-                    <button 
-                      onClick={() => {
-                        const current = !isDivergedSimulated;
-                        setIsDivergedSimulated(current);
-                        addLog(`[Mô phỏng] ${current ? 'Đã kích hoạt lỗi lệch pha (Diverged)' : 'Đã xoá lỗi lệch pha'}`);
+                <div className={`rounded-lg p-3 flex flex-col gap-3.5 border transition-all duration-200 ${theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-[#0b0f19]/80 border-slate-850/50'}`}>
+                  {/* Preset Scenario Selector */}
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[9px] font-mono text-indigo-500 dark:text-indigo-400 uppercase tracking-wider block font-bold">
+                      {sloc.simScenarioHeading}
+                    </span>
+                    <select
+                      value={simScenarioId}
+                      onChange={(e) => {
+                        const targetVal = e.target.value as any;
+                        setSimScenarioId(targetVal);
+                        addLog(`[Mô phỏng] Đã chuyển đổi kịch bản kiểm thử Git sang: ${targetVal.toUpperCase()}`);
                       }}
-                      className={`px-2 py-0.5 text-[9px] rounded border transition-all cursor-pointer ${
-                        isDivergedSimulated 
-                          ? 'bg-amber-550/15 border-amber-500/30 text-amber-300' 
-                          : theme === 'light'
-                          ? 'bg-white border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-350'
-                          : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-400'
+                      className={`w-full px-2.5 py-1.5 text-xs font-mono rounded-lg border transition-colors outline-none cursor-pointer ${
+                        theme === 'light'
+                          ? 'bg-white border-slate-200 text-slate-700 hover:border-slate-350'
+                          : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-750'
                       }`}
                     >
-                      {isDivergedSimulated ? sloc.divergedUnsafeLabel : sloc.divergedSafeLabel}
-                    </button>
+                      <option value="linear">🟢 {sloc.simScenarioLinear}</option>
+                      <option value="nonlinear">🟣 {sloc.simScenarioNonLinear}</option>
+                      <option value="rewrite">🟡 {sloc.simScenarioRewrite}</option>
+                      <option value="stale">🟠 {sloc.simScenarioStale}</option>
+                      <option value="detached">🔴 {sloc.simScenarioDetached}</option>
+                    </select>
+                    <p className="text-[10px] text-slate-500 leading-relaxed font-sans">
+                      {sloc.simScenarioDesc}
+                    </p>
+                  </div>
 
-                    <button 
-                      onClick={() => {
-                        const current = !isDetachedHeadSimulated;
-                        setIsDetachedHeadSimulated(current);
-                        addLog(`[Mô phỏng] ${current ? 'Đã kích hoạt trạng thái Detached HEAD' : 'Đã xoá Detached HEAD'}`);
-                      }}
-                      className={`px-2 py-0.5 text-[9px] rounded border transition-all cursor-pointer ${
-                        isDetachedHeadSimulated 
-                          ? 'bg-rose-550/15 border-rose-500/30 text-rose-300' 
-                          : theme === 'light'
-                          ? 'bg-white border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-350'
-                          : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-400'
-                      }`}
-                    >
-                      {isDetachedHeadSimulated ? sloc.detachedUnsafeLabel : sloc.detachedSafeLabel}
-                    </button>
+                  <div className="border-t border-slate-200/50 dark:border-slate-800/40" />
 
-                    <button 
-                      onClick={() => {
-                        const current = !isStaleBaseSimulated;
-                        setIsStaleBaseSimulated(current);
-                        addLog(`[Mô phỏng] ${current ? 'Đã kích hoạt trạng thái base mốc lỗi thời' : 'Đã đồng bộ base'}`);
-                      }}
-                      className={`px-2 py-0.5 text-[9px] rounded border transition-all cursor-pointer ${
-                        isStaleBaseSimulated 
-                          ? 'bg-amber-550/15 border-amber-500/30 text-amber-300' 
-                          : theme === 'light'
-                          ? 'bg-white border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-350'
-                          : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-400'
-                      }`}
-                    >
-                      {isStaleBaseSimulated ? sloc.staleUnsafeLabel : sloc.staleSafeLabel}
-                    </button>
+                  <div className="flex flex-col gap-1.5">
+                    <span className="text-[9px] font-mono text-slate-500 uppercase tracking-wider block font-bold">
+                      {sloc.simulateAnomaliesHeading}
+                    </span>
+                    <div className="flex flex-wrap gap-2 text-[10px] font-mono">
+                      <button 
+                        onClick={() => {
+                          const current = !isDivergedSimulated;
+                          setIsDivergedSimulated(current);
+                          addLog(`[Mô phỏng] ${current ? 'Đã kích hoạt lỗi lệch pha (Diverged)' : 'Đã xoá lỗi lệch pha'}`);
+                        }}
+                        className={`px-2 py-0.5 text-[9px] rounded border transition-all cursor-pointer ${
+                          isDivergedSimulated 
+                            ? 'bg-amber-550/15 border-amber-500/30 text-amber-300' 
+                            : theme === 'light'
+                            ? 'bg-white border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-350'
+                            : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-400'
+                        }`}
+                      >
+                        {isDivergedSimulated ? sloc.divergedUnsafeLabel : sloc.divergedSafeLabel}
+                      </button>
+
+                      <button 
+                        onClick={() => {
+                          const current = !isDetachedHeadSimulated;
+                          setIsDetachedHeadSimulated(current);
+                          addLog(`[Mô phỏng] ${current ? 'Đã kích hoạt trạng thái Detached HEAD' : 'Đã xoá Detached HEAD'}`);
+                        }}
+                        className={`px-2 py-0.5 text-[9px] rounded border transition-all cursor-pointer ${
+                          isDetachedHeadSimulated 
+                            ? 'bg-rose-550/15 border-rose-500/30 text-rose-300' 
+                            : theme === 'light'
+                            ? 'bg-white border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-350'
+                            : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-400'
+                        }`}
+                      >
+                        {isDetachedHeadSimulated ? sloc.detachedUnsafeLabel : sloc.detachedSafeLabel}
+                      </button>
+
+                      <button 
+                        onClick={() => {
+                          const current = !isStaleBaseSimulated;
+                          setIsStaleBaseSimulated(current);
+                          addLog(`[Mô phỏng] ${current ? 'Đã kích hoạt trạng thái base mốc lỗi thời' : 'Đã đồng bộ base'}`);
+                        }}
+                        className={`px-2 py-0.5 text-[9px] rounded border transition-all cursor-pointer ${
+                          isStaleBaseSimulated 
+                            ? 'bg-amber-550/15 border-amber-500/30 text-amber-300' 
+                            : theme === 'light'
+                            ? 'bg-white border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-350'
+                            : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-400'
+                        }`}
+                      >
+                        {isStaleBaseSimulated ? sloc.staleUnsafeLabel : sloc.staleSafeLabel}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -2417,6 +3271,7 @@ export default function App() {
                 </div>
               )}
             </div>
+          )}
 
             {/* Dynamic visual terminal logger console */}
             <TerminalPanel

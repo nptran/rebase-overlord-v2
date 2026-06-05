@@ -82,10 +82,69 @@ app.get('/api/git-status', async (req, res) => {
   const isSimulation = req.query.simulation === 'true';
 
   if (isSimulation) {
+    const scenario = req.query.scenario || 'linear';
+    
+    let currentBranch = 'feature/payment-linear';
+    let commits: any[] = [
+      { sha: 'f941a3c', author: 'Alex Nguyen', date: '5 mins ago', message: 'feat: add payment intent and webhook handles', type: 'feat', selected: true, parents: ['a82bc4e'], track: 1 },
+      { sha: 'a82bc4e', author: 'Alex Nguyen', date: '1 hour ago', message: 'fix: resolving null checkout responses', type: 'fix', selected: true, parents: ['662dbf1'], track: 1 },
+      { sha: '662dbf1', author: 'Alex Nguyen', date: '6 hours ago', message: 'refactor: split gateways to dedicated instances', type: 'refactor', selected: true, parents: ['7c8d9e2'], track: 1 },
+      { sha: '7c8d9e2', author: 'Sarah Connor', date: '12 hours ago', message: 'docs: update payment flow sequence diagrams', type: 'docs', selected: true, parents: ['001ba90'], track: 1 },
+      { sha: '001ba90', author: 'Sarah Connor', date: '1 day ago', message: 'docs: document secure billing policies', type: 'docs', selected: true, parents: ['ef12ab3'], track: 1 },
+      { sha: 'ef12ab3', author: 'Alex Nguyen', date: '2 days ago', message: 'feat: initial stripe payload schema validation', type: 'feat', selected: true, parents: ['d92a11b'], track: 1 },
+      { sha: 'd92a11b', author: 'Lead System', date: '3 days ago', message: 'chore: bump package requirements', type: 'chore', selected: false, parents: [], track: 0 }
+    ];
+
+    if (scenario === 'nonlinear') {
+      currentBranch = 'feature/payment-nonlinear';
+      commits = [
+        { sha: 'f941a3c', author: 'Alex Nguyen', date: '5 mins ago', message: 'feat: add payment intent and webhook handles', type: 'feat', selected: true, parents: ['a82bc4e'], track: 1 },
+        { sha: 'a82bc4e', author: 'Alex Nguyen', date: '1 hour ago', message: 'fix: resolving null checkout responses', type: 'fix', selected: true, parents: ['b5a2e1d'], track: 1 },
+        { sha: 'b5a2e1d', author: 'Alex Nguyen', date: '4 hours ago', message: 'Merge branch \'develop\' into feature/payment-nonlinear', type: 'other', selected: true, isMergeCommit: true, parents: ['662dbf1', '7c8d9e2'], track: 1 },
+        { sha: '662dbf1', author: 'Alex Nguyen', date: '6 hours ago', message: 'refactor: split gateways to dedicated instances', type: 'refactor', selected: true, parents: ['ef12ab3'], track: 1 },
+        { sha: '7c8d9e2', author: 'Sarah Connor', date: '12 hours ago', message: 'docs: update payment flow sequence diagrams', type: 'docs', selected: true, parents: ['ef12ab3'], track: 0 },
+        { sha: 'ef12ab3', author: 'Alex Nguyen', date: '2 days ago', message: 'feat: initial stripe payload schema validation', type: 'feat', selected: true, parents: [], track: 1 }
+      ];
+    } else if (scenario === 'rewrite') {
+      currentBranch = 'feature/payment-diverged-rewrite';
+      commits = [
+        { sha: 'f941a3c', author: 'Alex Nguyen', date: '5 mins ago', message: 'feat: add payment intent and webhook handles', type: 'feat', selected: true, parents: ['a82bc4e'], track: 1 },
+        { sha: 'a82bc4e', author: 'Alex Nguyen', date: '1 hour ago', message: 'fix: resolving null checkout responses', type: 'fix', selected: true, parents: ['ef12ab3'], track: 1 },
+        { sha: '7c8d9e2', author: 'Sarah Connor', date: '12 hours ago', message: 'docs: update payment flow sequence diagrams [Remote]', type: 'docs', selected: true, parents: ['ef12ab3'], track: 2 },
+        { sha: 'ef12ab3', author: 'Alex Nguyen', date: '2 days ago', message: 'feat: initial stripe payload schema validation', type: 'feat', selected: true, parents: [], track: 1 }
+      ];
+    } else if (scenario === 'stale') {
+      currentBranch = 'feature/payment-stale-base';
+      commits = [
+        { sha: 'f941a3c', author: 'Alex Nguyen', date: '5 mins ago', message: 'feat: add payment intent and webhook handles', type: 'feat', selected: true, parents: ['a82bc4e'], track: 1 },
+        { sha: 'a82bc4e', author: 'Alex Nguyen', date: '1 hour ago', message: 'fix: resolving null checkout responses', type: 'fix', selected: true, parents: ['ef12ab3'], track: 1 },
+        { sha: '662dbf1', author: 'Lead System', date: '6 hours ago', message: 'chore: bump package requirements [Develop New]', type: 'chore', selected: true, parents: ['7c8d9e2'], track: 0 },
+        { sha: '7c8d9e2', author: 'Sarah Connor', date: '12 hours ago', message: 'docs: update payment flow sequence diagrams [Develop New]', type: 'docs', selected: true, parents: ['ef12ab3'], track: 0 },
+        { sha: 'ef12ab3', author: 'Alex Nguyen', date: '2 days ago', message: 'feat: initial stripe payload schema validation', type: 'feat', selected: true, parents: [], track: 1 }
+      ];
+    } else if (scenario === 'detached') {
+      currentBranch = '((HEAD detached at 7c8d9e2))';
+      commits = [
+        { sha: '7c8d9e2', author: 'Sarah Connor', date: '12 hours ago', message: 'docs: update payment flow sequence diagrams', type: 'docs', selected: true, parents: ['ef12ab3'], track: 1 },
+        { sha: 'ef12ab3', author: 'Alex Nguyen', date: '2 days ago', message: 'feat: initial stripe payload schema validation', type: 'feat', selected: true, parents: [], track: 1 }
+      ];
+    }
+
+    const branchesList = [
+      { name: 'develop', isLocal: true, isRemote: true, isCurrent: false, isBase: true },
+      { name: 'main', isLocal: true, isRemote: true, isCurrent: false, isBase: true },
+      { name: 'feature/payment-linear', isLocal: true, isRemote: false, isCurrent: scenario === 'linear', isBase: false },
+      { name: 'feature/payment-nonlinear', isLocal: true, isRemote: false, isCurrent: scenario === 'nonlinear', isBase: false },
+      { name: 'feature/payment-diverged-rewrite', isLocal: true, isRemote: false, isCurrent: scenario === 'rewrite', isBase: false },
+      { name: 'feature/payment-stale-base', isLocal: true, isRemote: false, isCurrent: scenario === 'stale', isBase: false },
+      { name: 'feature/auth-oauth', isLocal: true, isRemote: true, isCurrent: false, isBase: false },
+      { name: 'bugfix/typo-header', isLocal: true, isRemote: false, isCurrent: false, isBase: false }
+    ];
+
     return res.json({
       repoPath: '🤖 [Playground Giả lập]',
       isValid: true,
-      currentBranch: 'feature/payment-v2',
+      currentBranch,
       baseBranch: 'develop',
       isDirty: true,
       dirtyFiles: [
@@ -95,31 +154,14 @@ app.get('/api/git-status', async (req, res) => {
         'src/components/ConflictSolver.tsx',
         'package.json'
       ],
-      branches: [
-        { name: 'develop', isLocal: true, isRemote: true, isCurrent: false, isBase: true },
-        { name: 'main', isLocal: true, isRemote: true, isCurrent: false, isBase: true },
-        { name: 'feature/payment-v2', isLocal: true, isRemote: false, isCurrent: true, isBase: false },
-        { name: 'feature/auth-oauth', isLocal: true, isRemote: true, isCurrent: false, isBase: false },
-        { name: 'bugfix/typo-header', isLocal: true, isRemote: false, isCurrent: false, isBase: false }
-      ],
-      commits: [
-        { sha: 'f941a3c', author: 'Alex Nguyen', date: '5 mins ago', message: 'feat: add payment intent and webhook handles', type: 'feat', selected: true },
-        { sha: 'a82bc4e', author: 'Alex Nguyen', date: '1 hour ago', message: 'fix: resolving null checkout responses', type: 'fix', selected: true },
-        { sha: 'b5a2e1d', author: 'Alex Nguyen', date: '4 hours ago', message: 'Merge branch \'develop\' into feature/payment-v2', type: 'other', selected: true },
-        { sha: '662dbf1', author: 'Alex Nguyen', date: '6 hours ago', message: 'refactor: split gateways to dedicated instances', type: 'refactor', selected: true },
-        { sha: '7c8d9e2', author: 'Sarah Connor', date: '12 hours ago', message: 'docs: update payment flow sequence diagrams', type: 'docs', selected: true },
-        { sha: '001ba90', author: 'Sarah Connor', date: '1 day ago', message: 'docs: document secure billing policies', type: 'docs', selected: true },
-        { sha: 'ef12ab3', author: 'Alex Nguyen', date: '2 days ago', message: 'feat: initial stripe payload schema validation', type: 'feat', selected: true },
-        { sha: 'd92a11b', author: 'Lead System', date: '3 days ago', message: 'chore: bump package requirements', type: 'chore', selected: false },
-        { sha: 'a0b1c2d', author: 'Lead System', date: '4 days ago', message: 'Merge pull request #145 from hotfix/billing-token-renewal', type: 'other', selected: false },
-        { sha: '8812cfa', author: 'Sarah Connor', date: '5 days ago', message: 'test: configure billing analytics test fixtures', type: 'chore', selected: false }
-      ],
+      branches: branchesList,
+      commits,
       rebaseInProgress: false,
       mergeInProgress: false,
       conflicts: [],
       ghAvailable: true,
       ghErrorKey: '',
-      commandHistory: ['git status', 'git log --oneline -n 10']
+      commandHistory: ['git status', `git scenario-simulation load-preset --id ${scenario}`, 'git log --oneline -n 10']
     });
   }
 

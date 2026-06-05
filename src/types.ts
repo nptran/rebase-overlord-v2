@@ -17,6 +17,9 @@ export interface Commit {
   message: string;
   type?: 'feat' | 'fix' | 'refactor' | 'docs' | 'chore' | 'other';
   selected?: boolean;
+  isMergeCommit?: boolean;
+  parents?: string[];
+  track?: number;
 }
 
 export interface GitBranch {

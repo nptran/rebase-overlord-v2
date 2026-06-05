@@ -27,7 +27,9 @@ import {
   Lightbulb,
   Sparkles,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { Commit, WizardState, TranslationTone } from '../types';
 import { translate } from '../i18n';
@@ -695,6 +697,25 @@ export default function WizardPanel({
 }: WizardPanelProps) {
   const [localFinalMsg, setLocalFinalMsg] = React.useState(wizard.finalMsg);
   const loc = wizardLoc[tone] || wizardLoc[TranslationTone.PROFESSIONAL];
+
+  const [isCollapsed, setIsCollapsed] = React.useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('rebase_overlord_collapse_wizard_panel');
+      if (saved !== null) return saved === 'true';
+    } catch (e) {}
+    return false;
+  });
+
+  const toggleCollapse = () => {
+    setIsCollapsed(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('rebase_overlord_collapse_wizard_panel', String(next));
+      } catch (e) {}
+      return next;
+    });
+  };
+
   const currentAnalogy = lowTechAnalogies[tone]?.[wizard.step] || lowTechAnalogies[TranslationTone.PROFESSIONAL]?.[wizard.step];
 
   React.useEffect(() => {
@@ -861,6 +882,31 @@ export default function WizardPanel({
 
   const isLight = theme === 'light';
 
+  if (isCollapsed) {
+    return (
+      <div id="wizard-panel-collapsed" className={`border rounded-xl p-3 flex justify-between items-center transition-all duration-200 ${isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0f172a] border-slate-900 text-slate-305'}`}>
+        <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
+          <Cpu className="w-4 h-4 text-indigo-400" />
+          <span className="font-bold uppercase tracking-wider">{translate('dash_title', tone, undefined, useEmoji)} STATE MACHINE WIZARD</span>
+          <span className="text-[10px] text-slate-500 opacity-60">
+            ({tone === TranslationTone.ENGLISH ? 'Hidden' : 'Đang ẩn'})
+          </span>
+        </div>
+        <button
+          onClick={toggleCollapse}
+          className={`text-xs font-mono flex items-center gap-1 px-2.5 py-1 rounded cursor-pointer border ${
+            isLight
+              ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+              : 'bg-[#1e293b] border-indigo-500/20 text-indigo-400 hover:text-indigo-303'
+          }`}
+        >
+          <Eye className="w-3.5 h-3.5" />
+          <span>{tone === TranslationTone.ENGLISH ? 'Show' : 'Hiển thị'}</span>
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div id="rebase-wizard-card" className={`border rounded-xl p-6 shadow-2xl transition-all duration-200 ${isLight ? 'bg-white border-slate-200 text-slate-900 shadow-xl' : 'bg-[#0f172a] border-slate-800 text-slate-100 shadow-2xl'}`}>
       {/* Header Wizard Info */}
@@ -880,15 +926,30 @@ export default function WizardPanel({
           </div>
         </div>
 
-        {/* Restart Button */}
-        {wizard.step > 0 && (
+        {/* Actions (Restart and Collapse) */}
+        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+          {wizard.step > 0 && (
+            <button
+              onClick={onResetWizard}
+              className="text-xs text-rose-405 hover:text-rose-300 font-mono flex items-center gap-1 bg-rose-500/5 hover:bg-rose-500/10 border border-rose-500/10 px-2.5 py-1.5 rounded transition-all cursor-pointer"
+            >
+              {loc.abortBtn}
+            </button>
+          )}
+
+          {/* Collapse Toggle */}
           <button
-            onClick={onResetWizard}
-            className="text-xs text-rose-455 hover:text-rose-300 font-mono flex items-center gap-1 bg-rose-505/5 hover:bg-rose-500/10 border border-rose-500/10 px-2.5 py-1.5 rounded transition-all cursor-pointer"
+            onClick={toggleCollapse}
+            className={`p-1.5 rounded transition-all text-xs flex items-center gap-1 font-mono cursor-pointer border shrink-0 ${
+              isLight 
+                ? 'bg-slate-100 border-slate-250 text-slate-650 hover:bg-slate-200 hover:text-slate-900' 
+                : 'bg-slate-950 border border-slate-900 text-slate-500 hover:text-slate-305'
+              }`}
+            title={tone === TranslationTone.ENGLISH ? 'Collapse Panel' : 'Thu gọn Panel'}
           >
-            {loc.abortBtn}
+            <EyeOff className="w-3.5 h-3.5 shrink-0" />
           </button>
-        )}
+        </div>
       </div>
 
       {/* Progress timeline navigation circles */}

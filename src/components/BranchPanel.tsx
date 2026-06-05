@@ -14,7 +14,9 @@ import {
   Laptop, 
   CheckCircle2,
   GitPullRequest,
-  RefreshCw
+  RefreshCw,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { GitBranch as GitBranchType, TranslationTone } from '../types';
 import { translate } from '../i18n';
@@ -97,6 +99,24 @@ export default function BranchPanel({
   const [newBranchName, setNewBranchName] = React.useState('');
   const [showCreateForm, setShowCreateForm] = React.useState(false);
 
+  const [isCollapsed, setIsCollapsed] = React.useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('rebase_overlord_collapse_branch_panel');
+      if (saved !== null) return saved === 'true';
+    } catch (e) {}
+    return false;
+  });
+
+  const toggleCollapse = () => {
+    setIsCollapsed(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('rebase_overlord_collapse_branch_panel', String(next));
+      } catch (e) {}
+      return next;
+    });
+  };
+
   // Dynamic localization selection
   const loc = branchLoc[tone] || branchLoc[TranslationTone.PROFESSIONAL];
 
@@ -122,6 +142,31 @@ export default function BranchPanel({
 
   const isLight = theme === 'light';
 
+  if (isCollapsed) {
+    return (
+      <div id="branch-panel-collapsed" className={`border rounded-xl p-3 flex justify-between items-center transition-all duration-200 ${isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0f172a] border-slate-900 text-slate-305'}`}>
+        <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
+          <GitBranch className="w-4 h-4 text-sky-400" />
+          <span className="font-bold uppercase tracking-wider">{translate('m_checkout', tone, undefined, useEmoji)}</span>
+          <span className="text-[10px] text-slate-500 opacity-60">
+            ({tone === TranslationTone.ENGLISH ? 'Hidden' : 'Đang ẩn'})
+          </span>
+        </div>
+        <button
+          onClick={toggleCollapse}
+          className={`text-xs font-mono flex items-center gap-1 px-2.5 py-1 rounded cursor-pointer border ${
+            isLight
+              ? 'bg-sky-50 border-sky-200 text-sky-700 hover:bg-sky-100'
+              : 'bg-[#1e293b] border-slate-750 text-sky-400 hover:text-sky-303'
+          }`}
+        >
+          <Eye className="w-3.5 h-3.5" />
+          <span>{tone === TranslationTone.ENGLISH ? 'Show' : 'Hiển thị'}</span>
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div id="branch-panel" className={`border rounded-xl p-5 shadow-xl transition-all duration-200 ${isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-[#0f172a] border-slate-800 text-slate-100'}`}>
       <div className={`flex justify-between items-center mb-4 pb-3 border-b ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
@@ -130,16 +175,31 @@ export default function BranchPanel({
           <span className={isLight ? 'text-slate-900' : 'text-white'}>{translate('m_checkout', tone, undefined, useEmoji)}</span>
         </h2>
         
-        {/* Branch Create button */}
-        <button
-          onClick={() => setShowCreateForm(!showCreateForm)}
-          className={`text-xs font-mono flex items-center gap-1 px-2 py-1 rounded transition-colors cursor-pointer ${
-            isLight ? 'bg-sky-50 text-sky-600 border border-sky-250 hover:bg-sky-100' : 'bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:text-sky-300'
-          }`}
-        >
-          <PlusCircle className="w-3.5 h-3.5" />
-          <span>{loc.newBranch}</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Branch Create button */}
+          <button
+            onClick={() => setShowCreateForm(!showCreateForm)}
+            className={`text-xs font-mono flex items-center gap-1 px-2 py-1 rounded transition-colors cursor-pointer ${
+              isLight ? 'bg-sky-50 text-sky-600 border border-sky-250 hover:bg-sky-100' : 'bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:text-sky-300'
+            }`}
+          >
+            <PlusCircle className="w-3.5 h-3.5" />
+            <span>{loc.newBranch}</span>
+          </button>
+
+          {/* Collapse Toggle */}
+          <button
+            onClick={toggleCollapse}
+            className={`p-1.5 rounded transition-all text-xs flex items-center gap-1 font-mono cursor-pointer border shrink-0 ${
+              isLight 
+                ? 'bg-slate-100 border-slate-250 text-slate-650 hover:bg-slate-200 hover:text-slate-900' 
+                : 'bg-slate-950 border border-slate-900 text-slate-500 hover:text-slate-305'
+            }`}
+            title={tone === TranslationTone.ENGLISH ? 'Collapse Panel' : 'Thu gọn Panel'}
+          >
+            <EyeOff className="w-3.5 h-3.5 shrink-0" />
+          </button>
+        </div>
       </div>
 
       {/* Quick create form collapsed state */}
