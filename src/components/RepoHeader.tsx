@@ -207,12 +207,31 @@ export default function RepoHeader({
 
   const [checkingUpdate, setCheckingUpdate] = React.useState(false);
   const [updateInfo, setUpdateInfo] = React.useState<UpdateData | null>(null);
+  const [currentDisplayVersion, setCurrentDisplayVersion] = React.useState<string>('1.12.0');
   const [showUpdateModal, setShowUpdateModal] = React.useState(false);
   const [downloadingUpdate, setDownloadingUpdate] = React.useState(false);
   const [downloadProgressValue, setDownloadProgressValue] = React.useState(0);
   const [applyingUpdate, setApplyingUpdate] = React.useState(false);
   const [updateError, setUpdateError] = React.useState<string | null>(null);
   const [successCheckMsg, setSuccessCheckMsg] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const probeVersion = async () => {
+      try {
+        const url = resolveApiUrl('/api/update/check');
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.currentVersion) {
+            setCurrentDisplayVersion(data.currentVersion);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to dynamically probe version:', err);
+      }
+    };
+    probeVersion();
+  }, []);
 
   const handleCheckUpdates = async () => {
     setCheckingUpdate(true);
@@ -377,7 +396,7 @@ export default function RepoHeader({
             <h1 id="app-main-heading" className={`text-2xl font-black tracking-tight font-mono flex items-center gap-2 ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
               REBASE OVERLORD
               <span className="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20 font-sans tracking-normal font-medium animate-pulse">
-                v0.4.0 - Web Native
+                v{currentDisplayVersion} - Web Native
               </span>
             </h1>
           </div>
