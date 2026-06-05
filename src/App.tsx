@@ -374,9 +374,11 @@ export default function App() {
   });
 
   const [theme, setTheme] = React.useState<'light' | 'dark'>(() => {
+    // Tự động đổi giao diện light mode/dark mode theo thời gian sáng tối khi khởi động
+    // Từ 7h tối (19:00) đến 7h sáng (07:00) => tối (dark). Các thời gian còn lại => sáng (light)
     try {
-      const saved = localStorage.getItem('rebase_overlord_theme');
-      if (saved === 'light' || saved === 'dark') return saved;
+      const hours = new Date().getHours();
+      return (hours >= 19 || hours < 7) ? 'dark' : 'light';
     } catch (e) {}
     return 'dark';
   });
@@ -3440,19 +3442,29 @@ export default function App() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -20, scale: 0.95 }}
                 transition={{ duration: 0.3, ease: 'easeOut' }}
-                className={`pointer-events-auto bg-[#070913]/95 text-slate-100 p-4 rounded-xl border shadow-2xl flex gap-3.5 relative backdrop-blur-md ${
+                className={`pointer-events-auto p-4 rounded-xl border shadow-2xl flex gap-3.5 relative backdrop-blur-md transition-all duration-300 ${
+                  theme === 'light'
+                    ? 'bg-white/98 border-slate-200/90 text-slate-800 shadow-slate-300/40'
+                    : 'bg-[#070913]/95 border-slate-800 text-slate-100 shadow-black'
+                } ${
                   toast.type === 'milestone'
-                    ? 'border-amber-500/30 shadow-amber-500/5 bg-gradient-to-r from-amber-950/20 to-[#070913]/95'
+                    ? theme === 'light'
+                      ? 'border-amber-400/50 bg-gradient-to-r from-amber-500/10 to-white/98'
+                      : 'border-amber-500/30 bg-gradient-to-r from-amber-950/20 to-[#070913]/95'
                     : toast.type === 'owl'
-                    ? 'border-indigo-500/30 shadow-indigo-505/5 bg-gradient-to-r from-indigo-950/20 to-[#070913]/95'
+                    ? theme === 'light'
+                      ? 'border-indigo-400/50 bg-gradient-to-r from-indigo-500/10 to-white/98'
+                      : 'border-indigo-500/30 bg-gradient-to-r from-indigo-950/20 to-[#070913]/95'
                     : toast.type === 'rage'
-                    ? 'border-rose-500/30 shadow-rose-505/5 bg-gradient-to-r from-rose-950/20 to-[#070913]/95'
-                    : 'border-slate-800 shadow-black'
+                    ? theme === 'light'
+                      ? 'border-rose-400/50 bg-gradient-to-r from-rose-500/10 to-white/98'
+                      : 'border-rose-500/30 bg-gradient-to-r from-rose-950/20 to-[#070913]/95'
+                    : ''
                 }`}
               >
                 {/* Accent line on left */}
-                <div className={`absolute top-0 bottom-0 left-0 w-1 rounded-l-xl ${
-                  toast.type === 'milestone' ? 'bg-amber-500' : toast.type === 'owl' ? 'bg-indigo-500' : toast.type === 'rage' ? 'bg-rose-500' : 'bg-slate-700'
+                <div className={`absolute top-0 bottom-0 left-0 w-1.5 rounded-l-xl ${
+                  toast.type === 'milestone' ? 'bg-amber-500' : toast.type === 'owl' ? 'bg-indigo-500' : toast.type === 'rage' ? 'bg-rose-500' : 'bg-slate-400'
                 }`} />
 
                 {toast.emoji && (
@@ -3463,11 +3475,19 @@ export default function App() {
 
                 <div className="flex-1 font-sans pr-4">
                   <h5 className={`text-xs font-bold font-mono tracking-wider uppercase mb-1 ${
-                    toast.type === 'milestone' ? 'text-amber-400' : toast.type === 'owl' ? 'text-indigo-400' : toast.type === 'rage' ? 'text-rose-400' : 'text-slate-300'
+                    toast.type === 'milestone'
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : toast.type === 'owl'
+                      ? 'text-indigo-600 dark:text-indigo-400'
+                      : toast.type === 'rage'
+                      ? 'text-rose-600 dark:text-rose-400'
+                      : (theme === 'light' ? 'text-slate-700' : 'text-slate-300')
                   }`}>
                     {toast.title}
                   </h5>
-                  <p className="text-[11px] text-slate-300 leading-relaxed font-sans font-medium whitespace-pre-line">
+                  <p className={`text-[11px] leading-relaxed font-sans font-medium whitespace-pre-line ${
+                    theme === 'light' ? 'text-slate-600' : 'text-slate-300'
+                  }`}>
                     {toast.message}
                   </p>
                 </div>
@@ -3475,7 +3495,9 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}
-                  className="text-slate-500 hover:text-slate-300 cursor-pointer absolute top-3 right-3 p-1 rounded-lg transition-all"
+                  className={`absolute top-3 right-3 p-1 rounded-lg transition-all cursor-pointer ${
+                    theme === 'light' ? 'text-slate-400 hover:text-slate-700 hover:bg-slate-100' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900/40'
+                  }`}
                   title="Dismiss alert"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
