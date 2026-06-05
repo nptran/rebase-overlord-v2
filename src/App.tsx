@@ -52,6 +52,7 @@ import BranchPanel from './components/BranchPanel';
 import TerminalPanel from './components/TerminalPanel';
 import ConflictSolver from './components/ConflictSolver';
 import GitVisualizerPanel from './components/GitVisualizerPanel';
+import AiDoctorFloatingChat from './components/AiDoctorFloatingChat';
 import { resolveApiUrl } from './utils/apiResolver';
 
 const sanityLoc: Record<TranslationTone, {
@@ -435,6 +436,21 @@ export default function App() {
     } catch (e) {}
     return true;
   });
+
+  const [showGraphTimeline, setShowGraphTimeline] = React.useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('rebase_overlord_show_graph_timeline');
+      if (saved !== null) return saved === 'true';
+    } catch (e) {}
+    return true;
+  });
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('rebase_overlord_show_graph_timeline', String(showGraphTimeline));
+    } catch (e) {}
+  }, [showGraphTimeline]);
+
 
   // Interactive Commit Graph Controls
   const [zoomScale, setZoomScale] = React.useState<number>(1.0);
@@ -2140,25 +2156,55 @@ export default function App() {
           onSetTone={(t) => {
             setTone(t);
             addLog(`🗣️ Updated translation personality tone to: ${t}`);
+            
+            // Easter egg toasts based on tone
+            if (t === TranslationTone.TOXIC) {
+              triggerToast('rage', '🔥 TOXIC BOSS INBOUND', 'Chế độ Sát Thương Vật Lý lý thuyết đã nạp! Chuẩn bị màng nhĩ nhận sát thương mỉa mai cực gắt nhé!', '💀');
+            } else if (t === TranslationTone.JOKE) {
+              triggerToast('owl', '🎭 HỀ CŨNG CÓ GIA PHẢ', 'Ní vừa khởi động Rạp xiếc trung ương. Nhớ mang theo bỏng ngô và trà sữa nha sếp!', '🤡');
+            } else if (t === TranslationTone.PROFESSIONAL) {
+              triggerToast('success', '💼 QUÝ TỘC CÔNG SỞ', 'Tác phong chuẩn ISO-9001 và mẫu mực gãy gọn như senior 10 năm kinh nghiệm!', '🤵');
+            } else if (t === TranslationTone.ENGLISH) {
+              triggerToast('info', '🇬🇧 ENTERPRISE COMPLIANCE', 'You have engaged absolute compliance with standard elite international protocols.', '🇬🇧');
+            }
           }}
           onToggleEmoji={() => {
             setUseEmoji(!useEmoji);
             addLog(useEmoji ? '🤪 Emoji layout deactivated.' : '🤪 Emoji display active!');
+            triggerToast('info', useEmoji ? 'Plain Mode' : 'Emoji Overload', useEmoji ? 'Giao diện truyền thống nghiêm túc' : 'Bão táp emoji đổ bộ giao diện!', '🤪');
           }}
           onToggleSimulation={(val) => {
             setIsSimulation(val);
             addLog(`🤖 Mode toggled. Simulation Playground: ${val ? 'ACTIVE' : 'OFF'}`);
             handleRefresh(val);
+            
+            if (val) {
+              triggerToast('milestone', '⚡ SIMULATION RUNTIME', 'Vùng cát mô phỏng an toàn đã kích hoạt. Đập phá, commit láo thoải mái không sợ sập server!', '🧪');
+            } else {
+              triggerToast('warn', '🔌 REAL GIT CONNECTED', 'Chú ý: Đã chuyển ngữ trực tiếp vào tệp tin và Repo thật trên ổ đĩa máy chủ!', '⚠️');
+            }
           }}
           onToggleAi={() => {
             const newVal = !isAiEnabled;
             setIsAiEnabled(newVal);
             addLog(newVal ? '🤖 Gemini API Enabled (Full AI Features activated)' : '🤖 Gemini API Disabled (Cost saved - falling back to offline mode)');
+            
+            if (newVal) {
+              triggerToast('success', '🧠 BRAIN EXTENSION ENABLED', 'Đã nhồi thêm hàng tỷ nơ-ron từ mô hình sinh mẫu Gemini 3.5 Flash siêu cấp!', '🤖');
+            } else {
+              triggerToast('warn', '🔌 COMPUTE COST SAVER', 'Bác sĩ Git đã chuyển sang chẩn đoán ngoại tuyến (Offline rules) để tiết kiệm bill của bạn.', '🔌');
+            }
           }}
           onToggleTheme={() => {
             const nextTheme = theme === 'light' ? 'dark' : 'light';
             setTheme(nextTheme);
             addLog(nextTheme === 'light' ? '🔆 Theme set to Light Mode.' : '🌙 Theme set to Dark Mode.');
+            
+            if (nextTheme === 'light') {
+              triggerToast('info', '🔆 FLASHBANG INBOUND', 'Flashbang sáng loà! Đôi mắt cú đêm của lập trình viên đang khóc thét.', '😎');
+            } else {
+              triggerToast('owl', '🌙 SHADOWS OF REBASE', 'Đã về với bóng đêm sâu thẳm. Bảo vệ đôi mắt, thắp sáng dòng code.', '🦉');
+            }
           }}
           onUpdateRepoPath={handleUpdateRepoPath}
           onCloneRepo={handleCloneRepo}
@@ -2278,11 +2324,44 @@ export default function App() {
           <div className="lg:col-span-8 flex flex-col gap-5">
             
             {/* Real-time Visual Commit Squashing Timeline Graph */}
-            <div id="live-git-visualization" className={`border rounded-xl p-5 shadow-lg transition-all duration-200 ${theme === 'light' ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0f172a] border-slate-800 text-slate-100'}`}>
-              <h3 className={`text-xs font-bold uppercase font-mono tracking-wider mb-4 flex items-center gap-1.5 ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
-                <History className="w-4 h-4 text-emerald-400" />
-                <span>{sloc.visualTimelineTitle}</span>
-              </h3>
+            {!showGraphTimeline ? (
+              <div id="live-git-visualization-collapsed" className={`border rounded-xl p-3 flex justify-between items-center transition-all duration-200 ${theme === 'light' ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0f172a] border-slate-900 text-slate-305'}`}>
+                <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
+                  <History className="w-4 h-4 text-emerald-400" />
+                  <span className="font-bold uppercase tracking-wider">{sloc.visualTimelineTitle}</span>
+                  <span className="text-[10px] text-slate-500 opacity-60">
+                    ({tone === TranslationTone.ENGLISH ? 'Hidden' : 'Đang ẩn'})
+                  </span>
+                </div>
+                <button
+                  onClick={() => setShowGraphTimeline(true)}
+                  className={`text-xs font-mono flex items-center gap-1 px-2.5 py-1 rounded cursor-pointer border ${
+                    theme === 'light'
+                      ? 'bg-emerald-50 border-emerald-250 text-emerald-700 hover:bg-emerald-100'
+                      : 'bg-[#1e293b] border-slate-750 text-emerald-400 hover:text-emerald-303'
+                  }`}
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>{tone === TranslationTone.ENGLISH ? 'Show' : 'Hiển thị'}</span>
+                </button>
+              </div>
+            ) : (
+              <div id="live-git-visualization" className={`border rounded-xl p-5 shadow-lg transition-all duration-200 ${theme === 'light' ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0f172a] border-slate-800 text-slate-100'}`}>
+                <div className="flex justify-between items-center w-full mb-4">
+                  <h3 className={`text-xs font-bold uppercase font-mono tracking-wider flex items-center gap-1.5 ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+                    <History className="w-4 h-4 text-emerald-400" />
+                    <span>{sloc.visualTimelineTitle}</span>
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowGraphTimeline(false)}
+                    className="p-1.5 rounded hover:bg-slate-800/10 text-slate-500 hover:text-slate-350 transition-all text-xs font-mono flex items-center gap-1 cursor-pointer"
+                    title={tone === TranslationTone.ENGLISH ? 'Collapse Panel' : 'Thu gọn Panel'}
+                  >
+                    <EyeOff className="w-3.5 h-3.5 shrink-0" />
+                  </button>
+                </div>
+
 
               {/* INTERACTIVE CONTROLS DOCK */}
               <div className={`p-3 rounded-lg border mb-4 flex flex-wrap gap-4 items-center justify-between text-xs font-mono select-none ${
@@ -2726,6 +2805,7 @@ export default function App() {
                 </motion.div>
               </div>
             </div>
+            )}
 
             {/* Dynamic Active Git Operational Visualizer */}
             <GitVisualizerPanel tone={tone} wizard={wizard} theme={theme} />
@@ -3358,6 +3438,19 @@ export default function App() {
             ))}
           </AnimatePresence>
         </div>
+
+        {/* Interactive Deep-context Git Doctor Messenger Chatbot */}
+        <AiDoctorFloatingChat
+          repoState={repoState}
+          tone={tone}
+          isAiEnabled={isAiEnabled}
+          onToggleAi={() => {
+            const newVal = !isAiEnabled;
+            setIsAiEnabled(newVal);
+            addLog(newVal ? '🤖 Gemini API Enabled (Full AI Features activated)' : '🤖 Gemini API Disabled (Cost saved - falling back to offline mode)');
+          }}
+          theme={theme}
+        />
 
       </div>
     </div>

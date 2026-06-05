@@ -79,3 +79,11 @@ export interface SessionStats {
   firstRun: string;
   lastRun?: string;
 }
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'model';
+  content: string;
+  timestamp: string;
+}
+

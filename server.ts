@@ -963,6 +963,96 @@ Bạn cần:
   return res.json(offlineResult);
 });
 
+// AI-powered contextual helper chat using Gemini 3.5 Flash
+app.post('/api/ai-chat', async (req, res) => {
+  const { messages, repoContext, tone } = req.body;
+  if (!messages || !Array.isArray(messages)) {
+    return res.status(400).json({ error: 'Messages are required.' });
+  }
+
+  // Fallback offline responses if API key is missing or calls fail
+  const lastUserMessage = messages[messages.length - 1]?.content || "";
+  const lastUserLower = lastUserMessage.toLowerCase();
+
+  let offlineReply = "Tôi là trợ lý ảo Git Overlord Doctor. Hãy bật AI trong bảng Settings và cấu hình GEMINI_API_KEY để trò chuyện trực tiếp nhé!";
+  if (tone === 'vn_joke') {
+    offlineReply = "Chào ní! Em đang chạy offline vì chưa thấy GEMINI_API_KEY đâu cả á. Hãy kích hoạt nút AI trong cài đặt nha sếp!";
+  } else if (tone === 'vn_toxic') {
+    offlineReply = "Này thằng khờ, không lắp GEMINI_API_KEY thì tao hoạt động bằng niềm tin à? Điền key vào Settings > Secrets hộ tao cái!";
+  } else if (tone === 'en_pro') {
+    offlineReply = "I am the Git Overlord Doctor. Please enable AI in Settings and configure GEMINI_API_KEY to start the live consultation.";
+  }
+
+  if (lastUserLower.includes('conflict') || lastUserLower.includes('xung đột')) {
+    offlineReply = "🔧 **[Sơ cứu Xung đột - Offline mode]**:\n- Sử dụng công cụ Conflict Solver để lựa chọn giữ code Our (local) hoặc Their (remote).\n- Sau đó ấn Save và gõ `git rebase --continue` để tiếp tục hành trình gộp nhánh.";
+  } else if (lastUserLower.includes('diverge') || lastUserLower.includes('lệch') || lastUserLower.includes('pha')) {
+    offlineReply = "🌊 **[Sơ cứu Diverge - Offline mode]**:\n- Nhánh của bạn bị lệch số so với remote server.\n- Thử chạy `git pull --rebase origin <branch_name>` để gộp commits êm ái.\n- Hoặc nếu chắc chắn local chuẩn nhất, có thể đè lên server bằng `git push --force-with-lease`.";
+  } else if (lastUserLower.includes('mất code') || lastUserLower.includes('lost code') || lastUserLower.includes('reflog') || lastUserLower.includes('cứu')) {
+    offlineReply = "🩹 **[Cứu cánh Mất code - Offline mode]**:\n- Đừng hoảng loạn! Git không bao giờ xoá lịch sử thực sự nếu commit đã được tạo.\n- Hãy sử dụng lệnh cứu hộ vĩ đại: **`git reflog`**.\n- Tìm dòng commit có tên trước lúc bị hỏng (ví dụ `commit: feat: add billing`).\n- Lưu SHA của commit đó rồi hồi sinh bằng lệnh: **`git checkout -b rescue-branch <SHA_COMMIT>`** hoặc **`git reset --hard <SHA_COMMIT>`**!";
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (apiKey) {
+    try {
+      const ai = getGeminiClient();
+
+      // Formulate system instructions based on Repo context and tone.
+      let docContext = `Bạn là Trợ lý Giáo sư Git 'Rebase Overlord Doctor' thông thái vô song. 
+Bạn đang hỗ trợ người dùng vận hành một repository Git tại đường dẫn: "${repoContext?.repoPath || activeRepoPath}".
+Dưới đây là trạng thái hiện tại của Repository mà bạn cần hiểu rõ để đưa ra chẩn đoán chính xác:
+- Nhánh hiện tại (Current Branch): "${repoContext?.currentBranch || 'unknown'}"
+- Nhánh cơ sở (Base Branch): "${repoContext?.baseBranch || 'master'}"
+- Có thay đổi chưa lưu (isDirty): ${repoContext?.isDirty ? 'CÓ (True)' : 'KHÔNG (False)'}. Danh sách file đang sửa đổi: ${JSON.stringify(repoContext?.dirtyFiles || [])}
+- Rebase đang diễn ra (rebaseInProgress): ${repoContext?.rebaseInProgress ? 'CÓ (True)' : 'KHÔNG (False)'}
+- Merge đang diễn ra (mergeInProgress): ${repoContext?.mergeInProgress ? 'CÓ (True)' : 'KHÔNG (False)'}
+- Các xung đột bấp bênh (conflicts): ${JSON.stringify(repoContext?.conflicts || [])}
+- Danh sách 5 commit gần nhất: ${JSON.stringify((repoContext?.commits || []).slice(0, 5))}
+
+HƯỚNG DẪN BẮT BỆNH VÀ CỨU HỘ:
+1. Khi user gặp lỗi "Diverged Branch" (nhánh bị lệch pha): Hãy hướng dẫn họ cách gộp lịch sử an toàn bằng pull --rebase thay vì pull thường để tránh tạo nút merge xấu.
+2. Khi user gặp "Conflict" (xử lý xung đột): Hướng dẫn họ dùng bảng Conflict Solver hoặc giải thích ý nghĩa của các file xung đột và cách gõ lệnh test / continue đúng chuẩn.
+3. Khi user gào khóc "Bị mất code" hoặc "Rebase lỗi xóa mất commits": Đây là trường hợp khẩn cấp nhất! Hãy trấn an và giải thích thần chú cứu sinh 'git reflog'. Cho họ thấy cách tìm SHA từ reflog và tạo nhánh cứu mạng: 'git checkout -b rescue-branch <SHA>' để lấy lại toàn bộ code đã mất!
+4. Giữ câu trả lời súc tích, định dạng Markdown đẹp mắt, phân tách các dòng chỉ dẫn rõ ràng.`;
+
+      if (tone === 'vn_pro') {
+        docContext += `\nTập trung trả lời bằng tiếng Việt cực kỳ chuyên nghiệp, lịch sự, chuẩn mực mực thước gãy gọn của một kỹ sư kỳ cựu.`;
+      } else if (tone === 'vn_joke') {
+        docContext += `\nHãy trả lời bằng tiếng Việt tấu hài cực lầy lội, xưng hô sếp/ní hoặc xưng em/tớ. Sử dụng meme, câu chế vui nhộn của giới lập trình (toang, bay màu, khóc ròng, sầu đời, combat, gánh tạ, gỡ tơ vò).`;
+      } else if (tone === 'vn_toxic') {
+        docContext += `\nHãy trả lời bằng phong cách 'Toxic Boss' chửi xéo mỉa mai tục tĩu hài hước nhưng bổ ích của Việt Nam. Gọi user là 'thằng ngáo', 'lập trình viên gà mờ', 'thầy dạy khói'. Cà khịa thói ngớ ngẩn gây lỗi nhưng vẫn chỉ cách giải quyết và các lệnh cứu mạng chính xác 100% để huấn luyện họ giỏi lên!`;
+      } else if (tone === 'en_pro') {
+        docContext += `\nPlease respond strictly in English as a highly skilled, supportive, and professional Git Solution Architect. Maintain clear formatting and technical precision.`;
+      }
+
+      // Format messages history into the proper structure for GoogleGenAI SDK
+      const formattedContents = messages.map(msg => ({
+        role: msg.role === 'model' ? ('model' as const) : ('user' as const),
+        parts: [{ text: msg.content }]
+      }));
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.5-flash',
+        contents: formattedContents,
+        config: {
+          systemInstruction: docContext,
+          temperature: 0.85,
+        }
+      });
+
+      const replyText = response.text || "Xin lỗi, tôi gặp trục trặc khi trích xuất câu trả lời.";
+      return res.json({ role: 'model', content: replyText });
+
+    } catch (err: any) {
+      console.error("Gemini AI Chat execution error:", err);
+      // Fallback on error
+      return res.json({ role: 'model', content: `[AI Error Exception] ${err.message}. Fallback reply:\n\n${offlineReply}` });
+    }
+  }
+
+  // Key missing fallback
+  return res.json({ role: 'model', content: offlineReply });
+});
+
 // Execute custom git CLI commands (read only/safe simulator elements)
 app.post('/api/execute-command', async (req, res) => {
   const { command } = req.body;
