@@ -215,6 +215,17 @@ export default function RepoHeader({
   const [updateError, setUpdateError] = React.useState<string | null>(null);
   const [successCheckMsg, setSuccessCheckMsg] = React.useState<string | null>(null);
 
+  const pollingIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+  const applyingUpdateRef = React.useRef<boolean>(false);
+
+  React.useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+      }
+    };
+  }, []);
+
   React.useEffect(() => {
     const probeVersion = async () => {
       try {
@@ -262,6 +273,11 @@ export default function RepoHeader({
     setDownloadingUpdate(true);
     setUpdateError(null);
     setDownloadProgressValue(0);
+    applyingUpdateRef.current = false;
+
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+    }
 
     try {
       const url = resolveApiUrl('/api/update/download');
@@ -274,26 +290,49 @@ export default function RepoHeader({
       });
       if (!res.ok) throw new Error('Download request rejected by server.');
 
+      let consecutiveFailures = 0;
       const interval = setInterval(async () => {
         try {
           const progressRes = await fetch(resolveApiUrl('/api/update/progress'));
           if (progressRes.ok) {
+            consecutiveFailures = 0; // Reset on success
             const progressData = await progressRes.json();
             setDownloadProgressValue(progressData.percent);
             if (progressData.error) {
               setUpdateError(progressData.error);
               clearInterval(interval);
+              pollingIntervalRef.current = null;
               setDownloadingUpdate(false);
             }
             if (progressData.percent >= 100 && !progressData.isDownloading) {
               clearInterval(interval);
+              pollingIntervalRef.current = null;
               handleApplyUpdate();
+            }
+          } else {
+            consecutiveFailures++;
+            if (consecutiveFailures >= 6) {
+              clearInterval(interval);
+              pollingIntervalRef.current = null;
+              setDownloadingUpdate(false);
+              setUpdateError('Không thể lấy tiến trình từ máy chủ. Vui lòng kiểm tra lại kết nối!');
             }
           }
         } catch (pollErr) {
-          console.error('Error polling download progress:', pollErr);
+          consecutiveFailures++;
+          if (consecutiveFailures >= 6) {
+            clearInterval(interval);
+            pollingIntervalRef.current = null;
+            setDownloadingUpdate(false);
+            // If we are applying updates, the server gracefully exiting is fully expected, so silent normal exit
+            if (!applyingUpdateRef.current) {
+              setUpdateError('Mất kết nối với máy chủ cập nhật.');
+            }
+          }
         }
       }, 300);
+
+      pollingIntervalRef.current = interval;
 
     } catch (err: any) {
       setUpdateError(err.message || 'Download failed.');
@@ -303,6 +342,7 @@ export default function RepoHeader({
 
   const handleApplyUpdate = async () => {
     setApplyingUpdate(true);
+    applyingUpdateRef.current = true;
     try {
       const url = resolveApiUrl('/api/update/apply');
       const res = await fetch(url, {
@@ -321,6 +361,7 @@ export default function RepoHeader({
     } catch (err: any) {
       setUpdateError(err.message || 'Launching installer failed.');
       setApplyingUpdate(false);
+      applyingUpdateRef.current = false;
     }
   };
 
