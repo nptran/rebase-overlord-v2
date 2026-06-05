@@ -29,7 +29,10 @@ import {
   HelpCircle as QuestionIcon,
   RefreshCw,
   Eye,
-  EyeOff
+  EyeOff,
+  ZoomIn,
+  ZoomOut,
+  Move
 } from 'lucide-react';
 import { TranslationTone, WizardState, GitRepoState } from '../types';
 
@@ -509,6 +512,61 @@ export default function GitVisualizerPanel({
   repoState?: GitRepoState;
 }) {
   const isLight = theme === 'light';
+  const [visScale, setVisScale] = useState<number>(1.0);
+  const [resetKey, setResetKey] = useState<number>(0);
+
+  const stageContainerRef = useRef<HTMLDivElement>(null);
+  const touchStartDist = useRef<number | null>(null);
+  const touchStartScl = useRef<number>(1.0);
+
+  // Wheel zoom handling with passive event listener support to prevent scrolling
+  useEffect(() => {
+    const element = stageContainerRef.current;
+    if (!element) return;
+
+    const handleWheelEvent = (e: WheelEvent) => {
+      e.preventDefault();
+      const zoomStep = 0.05;
+      setVisScale(prev => {
+        const next = prev + (e.deltaY < 0 ? zoomStep : -zoomStep);
+        return Math.min(2.0, Math.max(0.4, Math.round(next * 100) / 100));
+      });
+    };
+
+    element.addEventListener('wheel', handleWheelEvent, { passive: false });
+    return () => {
+      element.removeEventListener('wheel', handleWheelEvent);
+    };
+  }, []);
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length === 2) {
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      touchStartDist.current = dist;
+      touchStartScl.current = visScale;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length === 2 && touchStartDist.current !== null) {
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      const ratio = dist / touchStartDist.current;
+      const targetScale = Math.min(2.0, Math.max(0.4, touchStartScl.current * ratio));
+      setVisScale(Math.round(targetScale * 100) / 100);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    touchStartDist.current = null;
+  };
+
   const [activeAction, setActiveAction] = useState<VisualActionType>('rebase');
   const [currentStep, setCurrentStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -1927,24 +1985,102 @@ export default function GitVisualizerPanel({
         }`}>
           
           {/* Active play indicators */}
-          <div className="absolute top-3 left-3 flex items-center gap-2 select-none">
-            <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
-            <span className={`text-[9px] font-mono font-bold uppercase tracking-widest px-2 py-0.5 border rounded ${
-              isLight ? 'text-slate-600 bg-white border-slate-200' : 'text-slate-400 bg-slate-900/80 border-slate-800'
+          <div className="absolute top-3 left-3 flex flex-col gap-1.5 select-none z-20">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
+              <span className={`text-[9px] font-mono font-bold uppercase tracking-widest px-2 py-0.5 border rounded ${
+                isLight ? 'text-slate-600 bg-white border-slate-200' : 'text-slate-400 bg-slate-900/80 border-slate-800'
+              }`}>
+                {loc.opLabels[activeAction]}
+              </span>
+            </div>
+            <div className={`text-[8px] font-medium font-sans flex items-center gap-1 px-1.5 py-0.5 rounded border ${
+              isLight ? 'text-slate-500 bg-slate-50/80 border-slate-200' : 'text-slate-400 bg-slate-900/40 border-slate-900/60'
             }`}>
-              {loc.opLabels[activeAction]}
-            </span>
+              <Move className="w-2.5 h-2.5 text-indigo-400 shrink-0" />
+              <span>{tone === TranslationTone.ENGLISH ? 'Drag workspace to pan' : 'Kéo màn hình để di chuyển'}</span>
+            </div>
           </div>
 
-          <div className={`absolute top-3 right-3 flex items-center gap-1.5 select-none text-[8.5px] font-mono font-bold border rounded px-2 py-0.5 ${
+          <div className={`absolute top-3 right-3 flex items-center gap-1.5 select-none text-[8.5px] font-mono font-bold border rounded px-2 py-0.5 z-20 ${
             isLight ? 'text-slate-600 bg-white border-slate-200' : 'text-slate-400 bg-slate-900/80 border-slate-800'
           }`}>
             <span>STEP {currentStep + 1} / {totalSteps}</span>
           </div>
 
           {/* Active SVG dynamic stage area */}
-          <div className="flex-1 flex items-center justify-center pt-5 pb-2">
-            {renderVisualStage()}
+          <div 
+            ref={stageContainerRef}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            className="flex-1 w-full h-full min-h-[190px] overflow-hidden relative flex items-center justify-center pt-8 pb-2 cursor-grab active:cursor-grabbing"
+          >
+            <motion.div
+              key={`vis-board-${resetKey}`}
+              drag
+              dragConstraints={false}
+              dragElastic={0.15}
+              dragMomentum={true}
+              style={{
+                scale: visScale,
+                transformOrigin: "center center"
+              }}
+              className="w-full h-full flex items-center justify-center touch-none select-none"
+            >
+              {renderVisualStage()}
+            </motion.div>
+          </div>
+
+          {/* Vertical map-style Pan/Zoom Controls securely anchored at top right under the step badge to prevent any element overlapping */}
+          <div className="absolute top-[34px] right-3 flex flex-col items-center gap-1.5 z-25 select-none animate-fade-in animate-duration-300">
+            <div className={`p-1 py-1.5 rounded-lg border flex flex-col items-center gap-1.5 shadow-xl ${
+              isLight ? 'bg-white border-slate-200' : 'bg-[#0a0d18]/95 border-slate-800'
+            }`}>
+              <button
+                type="button"
+                onClick={() => setVisScale(s => Math.min(2.0, Math.round((s + 0.1) * 10) / 10))}
+                className={`p-1 rounded transition-all cursor-pointer hover:scale-105 active:scale-95 ${
+                  isLight ? 'hover:bg-slate-100 text-slate-600' : 'hover:bg-slate-900 text-slate-450 hover:text-slate-200'
+                }`}
+                title="Phóng to (+)"
+              >
+                <ZoomIn className="w-3.5 h-3.5 text-emerald-400" />
+              </button>
+              
+              <span className={`text-[8px] font-bold font-mono px-0.5 text-center min-w-[28px] ${
+                isLight ? 'text-slate-700' : 'text-slate-300'
+              }`}>
+                {Math.round(visScale * 100)}%
+              </span>
+
+              <button
+                type="button"
+                onClick={() => setVisScale(s => Math.max(0.4, Math.round((s - 0.1) * 10) / 10))}
+                className={`p-1 rounded transition-all cursor-pointer hover:scale-105 active:scale-95 ${
+                  isLight ? 'hover:bg-slate-100 text-slate-600' : 'hover:bg-slate-900 text-slate-450 hover:text-slate-200'
+                }`}
+                title="Thu nhỏ (-)"
+              >
+                <ZoomOut className="w-3.5 h-3.5 text-rose-400" />
+              </button>
+
+              <div className={`w-3.5 h-[1px] ${isLight ? 'bg-slate-150' : 'bg-slate-800/80'}`} />
+
+              <button
+                type="button"
+                onClick={() => {
+                  setVisScale(1.0);
+                  setResetKey(prev => prev + 1);
+                }}
+                className={`p-1 rounded transition-all cursor-pointer flex items-center justify-center hover:scale-105 active:scale-95 text-indigo-400 hover:text-indigo-300 ${
+                  isLight ? 'hover:bg-slate-100 text-slate-600' : 'hover:bg-slate-900'
+                }`}
+                title="Đặt lại vị trí (Reset Workspace)"
+              >
+                <RefreshCw className="w-3.5 h-3.5 animate-spin-hover" />
+              </button>
+            </div>
           </div>
 
           {/* Differentiate local & remote-tracking branches legend */}

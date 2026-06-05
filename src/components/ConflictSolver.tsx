@@ -525,7 +525,7 @@ export default function ConflictSolver({
         },
         body: JSON.stringify({
           filepath: selectedFile.filepath,
-          content: editorText, // Pass current code text with markers inside
+          content: activeContent, // Pass original raw content with conflict markers intact
           tone: tone
         })
       });
