@@ -555,7 +555,7 @@ export default function RepoHeader({
             <span>Emoji Mode: {useEmoji ? 'ON' : 'OFF'}</span>
           </button>
 
-          {/* Gemini API toggle for cost saving */}
+          {/* AI API toggle for cost saving */}
           <button
             id="toggle-gemini-ai-btn"
             onClick={onToggleAi}
@@ -566,13 +566,13 @@ export default function RepoHeader({
                 ? 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
                 : 'bg-slate-950 border-slate-850 text-slate-500 hover:text-slate-400'
             }`}
-            title={tone === TranslationTone.ENGLISH ? "Enable/Disable Gemini AI model processing to save API costs" : "Bật/tắt xử lý API Gemini để tiết kiệm chi phí dịch vụ"}
+            title={tone === TranslationTone.ENGLISH ? "Enable/Disable Assistant AI processing to save API costs" : "Bật/tắt xử lý Trợ lý AI để tiết kiệm chi phí dịch vụ"}
           >
             <Bot className={`w-3.5 h-3.5 ${isAiEnabled ? 'text-violet-400 animate-pulse' : 'text-slate-600'}`} />
             <span>
               {isAiEnabled
-                ? (tone === TranslationTone.ENGLISH ? 'Gemini AI: ON' : tone === TranslationTone.TOXIC ? 'Gemini AI: GÁY TO' : tone === TranslationTone.JOKE ? 'Gemini AI: MỞ BÁT' : 'Gemini AI: BẬT')
-                : (tone === TranslationTone.ENGLISH ? 'Gemini AI: Cost Saved' : tone === TranslationTone.TOXIC ? 'Gemini AI: NÍN (Tiết kiệm)' : tone === TranslationTone.JOKE ? 'Gemini AI: HẾT SÈNG' : 'Gemini AI: TẮT')}
+                ? (tone === TranslationTone.ENGLISH ? 'AI Mode: ON' : tone === TranslationTone.TOXIC ? 'Trợ lý AI: GÁY TO' : tone === TranslationTone.JOKE ? 'Trợ lý AI: MỞ BÁT' : 'Trợ lý AI: BẬT')
+                : (tone === TranslationTone.ENGLISH ? 'AI Mode: Cost Saved' : tone === TranslationTone.TOXIC ? 'Trợ lý AI: NÍN (Tiết kiệm)' : tone === TranslationTone.JOKE ? 'Trợ lý AI: HẾT SÈNG' : 'Trợ lý AI: TẮT')}
             </span>
           </button>
 
@@ -606,33 +606,31 @@ export default function RepoHeader({
             </div>
           )}
 
-          {/* Core Simulator / Real Workspace toggle */}
-          <div className={`flex items-center gap-1 border rounded-lg p-1 text-xs ${theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-900 border-slate-800'}`}>
-            <button
-              id="toggle-sim-btn"
-              onClick={() => onToggleSimulation(true)}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded transition-all cursor-pointer ${
-                isSimulation 
-                  ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-white font-medium shadow-md' 
-                  : theme === 'light' ? 'text-slate-500 hover:text-slate-800' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Playground</span>
-            </button>
-            <button
-              id="toggle-real-btn"
-              onClick={() => onToggleSimulation(false)}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded transition-all cursor-pointer ${
-                !isSimulation 
-                  ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-medium shadow-md' 
-                  : theme === 'light' ? 'text-slate-500 hover:text-slate-800' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Database className="w-3.5 h-3.5" />
-              <span>Real Git Repo</span>
-            </button>
-          </div>
+          {/* Combined Simulator / Real Workspace toggle */}
+          <button
+            id="toggle-sim-unified-btn"
+            onClick={() => onToggleSimulation(!isSimulation)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold font-mono transition-now cursor-pointer select-none active:scale-[0.98] ${
+              isSimulation
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 shadow-sm'
+                : theme === 'light'
+                ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 shadow-sm'
+                : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20 shadow-sm'
+            }`}
+            title={isSimulation ? "Bấm để kết nối lại và đồng bộ với Git thật" : "Bấm để chuyển sang chế độ Sa bàn Mô phỏng"}
+          >
+            {isSimulation ? (
+              <>
+                <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                <span>{tone === TranslationTone.ENGLISH ? '🧪 Simulation Active' : '🧪 Chế độ Giả lập: BẬT'}</span>
+              </>
+            ) : (
+              <>
+                <Database className="w-3.5 h-3.5 text-indigo-400" />
+                <span>{tone === TranslationTone.ENGLISH ? '🔌 Real Git Connected' : '🔗 Đồng bộ Git thật'}</span>
+              </>
+            )}
+          </button>
         </div>
       </div>
 

@@ -180,7 +180,7 @@ export default function DirectoryBrowserModal({
               disabled={!parentPath}
               onClick={handleGoUp}
               title="Lên một thư mục cha"
-              className={`p-2 transition-all border rounded-lg shrink-0 cursor-pointer ${theme === 'light' ? (parentPath ? 'bg-white border-slate-200 text-slate-705 hover:bg-slate-105 hover:border-slate-305' : 'bg-slate-50 border-slate-150 text-slate-300 cursor-not-allowed') : (parentPath ? 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300 hover:text-white' : 'bg-slate-950 border-slate-950 text-slate-650 cursor-not-allowed')}`}
+              className={`p-2 transition-all border rounded-lg shrink-0 cursor-pointer ${theme === 'light' ? (parentPath ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100 hover:border-slate-300' : 'bg-slate-50 border-slate-150 text-slate-300 cursor-not-allowed') : (parentPath ? 'bg-slate-900 hover:bg-slate-800 border-slate-800 text-slate-300 hover:text-white' : 'bg-slate-950 border-slate-950 text-slate-650 cursor-not-allowed')}`}
             >
               <ArrowLeft className="w-3.5 h-3.5" />
             </button>
@@ -191,7 +191,7 @@ export default function DirectoryBrowserModal({
                 value={manualPath}
                 onChange={(e) => setManualPath(e.target.value)}
                 placeholder="Đường dẫn tuyệt đối (Ví dụ: /Users/anh/projects/...)"
-                className={`w-full px-3 py-1.5 text-xs font-mono rounded-lg outline-none border ${theme === 'light' ? 'bg-white border-slate-200 text-slate-800 focus:border-slate-400 focus:ring-slate-200/50' : 'bg-slate-950 border-slate-850 text-slate-300 focus:border-slate-605 focus:ring-indigo-500/20'}`}
+                className={`w-full px-3 py-1.5 text-xs font-mono rounded-lg outline-none border ${theme === 'light' ? 'bg-white border-slate-200 text-slate-800 focus:border-slate-400 focus:ring-slate-200/50' : 'bg-slate-950 border-slate-850 text-slate-300 focus:border-indigo-500 focus:ring-indigo-500/20'}`}
               />
             </div>
 
@@ -283,7 +283,7 @@ export default function DirectoryBrowserModal({
                       manualPath === dir.path 
                         ? theme === 'light'
                           ? 'bg-indigo-50 border-indigo-500 text-indigo-700 font-bold'
-                          : 'bg-indigo-600/15 border-indigo-505 text-white font-bold' 
+                          : 'bg-indigo-600/15 border-indigo-500 text-white font-bold' 
                         : theme === 'light'
                         ? 'border-transparent text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
                         : 'border-transparent text-slate-400 hover:bg-slate-900/40 hover:text-slate-200'

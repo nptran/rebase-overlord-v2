@@ -32,7 +32,9 @@ import {
   EyeOff,
   ZoomIn,
   ZoomOut,
-  Move
+  Move,
+  Link,
+  FlaskConical
 } from 'lucide-react';
 import { TranslationTone, WizardState, GitRepoState } from '../types';
 
@@ -504,12 +506,16 @@ export default function GitVisualizerPanel({
   tone, 
   wizard,
   theme = 'dark',
-  repoState
+  repoState,
+  isSimulation = false,
+  onToggleSimulation
 }: { 
   tone: TranslationTone; 
   wizard?: WizardState; 
   theme?: 'light' | 'dark';
   repoState?: GitRepoState;
+  isSimulation?: boolean;
+  onToggleSimulation?: (val: boolean) => void;
 }) {
   const isLight = theme === 'light';
   const [visScale, setVisScale] = useState<number>(1.0);
@@ -517,13 +523,21 @@ export default function GitVisualizerPanel({
 
   const stageContainerRef = useRef<HTMLDivElement>(null);
   const cleanupVisWheelRef = useRef<(() => void) | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const touchStartDist = useRef<number | null>(null);
   const touchStartScl = useRef<number>(1.0);
+
+  const [containerWidth, setContainerWidth] = useState<number>(600);
+  const [containerHeight, setContainerHeight] = useState<number>(230);
 
   const setStageContainerRef = useCallback((node: HTMLDivElement | null) => {
     if (cleanupVisWheelRef.current) {
       cleanupVisWheelRef.current();
       cleanupVisWheelRef.current = null;
+    }
+    if (resizeObserverRef.current) {
+      resizeObserverRef.current.disconnect();
+      resizeObserverRef.current = null;
     }
     
     (stageContainerRef as any).current = node;
@@ -540,9 +554,31 @@ export default function GitVisualizerPanel({
 
       node.addEventListener('wheel', handleWheelEvent, { passive: false });
       cleanupVisWheelRef.current = () => {
-        node.removeEventListener('wheel', handleWheelEvent);
+        if (node) {
+          node.removeEventListener('wheel', handleWheelEvent);
+        }
       };
+
+      let debounceTimeout: any;
+      const observer = new ResizeObserver((entries) => {
+        if (!entries || entries.length === 0) return;
+        const rect = entries[0].contentRect;
+        clearTimeout(debounceTimeout);
+        debounceTimeout = setTimeout(() => {
+          if (rect.width > 0) setContainerWidth(rect.width);
+          if (rect.height > 0) setContainerHeight(rect.height);
+        }, 50);
+      });
+      observer.observe(node);
+      resizeObserverRef.current = observer;
     }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (cleanupVisWheelRef.current) cleanupVisWheelRef.current();
+      if (resizeObserverRef.current) resizeObserverRef.current.disconnect();
+    };
   }, []);
 
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
@@ -576,9 +612,16 @@ export default function GitVisualizerPanel({
   const [activeAction, setActiveAction] = useState<VisualActionType>('rebase');
   const [currentStep, setCurrentStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isSyncedWithWizard, setIsSyncedWithWizard] = useState(true);
+  const [isSyncedWithWizard, setIsSyncedWithWizard] = useState(!isSimulation);
   const [hoveredCommitSha, setHoveredCommitSha] = useState<string | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    setIsSyncedWithWizard(!isSimulation);
+    if (!isSimulation) {
+      setIsPlaying(false);
+    }
+  }, [isSimulation]);
 
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
     try {
@@ -608,7 +651,11 @@ export default function GitVisualizerPanel({
     setActiveAction(action);
     setCurrentStep(0);
     setIsPlaying(false);
-    setIsSyncedWithWizard(false); // Disable sync on manual tabs interaction
+    if (onToggleSimulation) {
+      onToggleSimulation(true);
+    } else {
+      setIsSyncedWithWizard(false); // Disable sync on manual tabs interaction
+    }
   };
 
   // Synchronize with Wizard step changes
@@ -677,14 +724,30 @@ export default function GitVisualizerPanel({
     };
   }, [isPlaying, currentStep, totalSteps]);
 
-  const togglePlay = () => {
-    if (currentStep >= totalSteps - 1) {
-      setCurrentStep(0);
+  const handleToggleUnified = () => {
+    const nextSimulation = !isSimulation;
+    if (onToggleSimulation) {
+      onToggleSimulation(nextSimulation);
+    } else {
+      setIsSyncedWithWizard(!nextSimulation);
     }
-    setIsPlaying(!isPlaying);
+    
+    if (nextSimulation) {
+      if (currentStep >= totalSteps - 1) {
+        setCurrentStep(0);
+      }
+      setIsPlaying(true);
+    } else {
+      setIsPlaying(false);
+    }
   };
 
   const handleNextStep = () => {
+    if (isSyncedWithWizard && onToggleSimulation) {
+      onToggleSimulation(true);
+    } else {
+      setIsSyncedWithWizard(false);
+    }
     setIsPlaying(false);
     if (currentStep < totalSteps - 1) {
       setCurrentStep(currentStep + 1);
@@ -692,6 +755,11 @@ export default function GitVisualizerPanel({
   };
 
   const handlePrevStep = () => {
+    if (isSyncedWithWizard && onToggleSimulation) {
+      onToggleSimulation(true);
+    } else {
+      setIsSyncedWithWizard(false);
+    }
     setIsPlaying(false);
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
@@ -699,6 +767,11 @@ export default function GitVisualizerPanel({
   };
 
   const handleReset = () => {
+    if (isSyncedWithWizard && onToggleSimulation) {
+      onToggleSimulation(true);
+    } else {
+      setIsSyncedWithWizard(false);
+    }
     setIsPlaying(false);
     setCurrentStep(0);
   };
@@ -757,14 +830,45 @@ export default function GitVisualizerPanel({
     const currentBranchName = repoState.currentBranch || 'feature';
 
     return (
-      <div className="relative w-full h-full flex items-center justify-center" id="real-git-tree-viewport">
-        {/* SVG Container with direct styles to avoid being scaled down and cramped */}
-        <svg 
-          className="font-mono select-none" 
-          viewBox={`0 0 ${w} ${h}`} 
-          referrerPolicy="no-referrer" 
-          style={{ width: `${w}px`, height: `${h}px`, minWidth: `${w}px`, minHeight: `${h}px` }}
-        >
+      <div className="relative w-full h-full flex flex-col" id="real-git-tree-viewport">
+        {repoState.rebaseInProgress && repoState.rebaseState && (
+          <div className={`w-full px-4 py-2 text-[10px] font-mono flex items-center justify-between border-b shrink-0 ${
+            isLight ? 'bg-amber-50/90 border-amber-200 text-amber-900 animate-pulse' : 'bg-slate-900/90 border-amber-950/40 text-amber-300'
+          }`}>
+            <div className="flex items-center gap-1.5">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+              </span>
+              <span>
+                <strong>{tone === TranslationTone.ENGLISH ? 'REAL-TIME REBASE:' : 'TIẾN TRÌNH REBASE THỰC TẾ:'}</strong>{' '}
+                {tone === TranslationTone.ENGLISH ? 'Step' : 'Bước'} {repoState.rebaseState.currentStep}/{repoState.rebaseState.totalSteps}
+              </span>
+              <span className={`px-1.5 py-0.2 rounded text-[8.5px] uppercase font-bold ${
+                repoState.conflicts && repoState.conflicts.length > 0
+                  ? 'bg-rose-500/15 text-rose-400 border border-rose-500/20'
+                  : 'bg-emerald-500/15 text-emerald-400'
+              }`}>
+                {repoState.conflicts && repoState.conflicts.length > 0
+                  ? (tone === TranslationTone.ENGLISH ? 'Stopped at Conflict' : 'Đang tạm dừng sửa xung đột')
+                  : (tone === TranslationTone.ENGLISH ? 'Replaying' : 'Đang áp dụng')}
+              </span>
+            </div>
+            {repoState.rebaseState.stoppedSha && (
+              <div className="text-[9px] opacity-90 flex items-center gap-1">
+                <span>{tone === TranslationTone.ENGLISH ? 'Active SHA:' : 'SHA Hiện tại:'}</span>
+                <span className="font-bold underline text-amber-400">{repoState.rebaseState.stoppedSha}</span>
+              </div>
+            )}
+          </div>
+        )}
+        <div className="relative w-full flex-1 overflow-auto flex items-center justify-center">
+          <svg 
+            className="font-mono select-none" 
+            viewBox={`0 0 ${w} ${h}`} 
+            referrerPolicy="no-referrer" 
+            style={{ width: `${w}px`, height: `${h}px`, minWidth: `${w}px`, minHeight: `${h}px` }}
+          >
           {/* Defs for arrowheads and gradients */}
           <defs>
             <marker id="real-arrow" viewBox="0 0 10 10" refX="18" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -790,10 +894,33 @@ export default function GitVisualizerPanel({
               if (!parentCoords) return null;
 
               const isSameTrack = Math.abs(parentCoords.y - childCoords.y) < 5;
-              const pathColor = isLight ? 'stroke-slate-300' : 'stroke-slate-700';
+              let pathColor = isLight ? 'stroke-slate-300' : 'stroke-slate-700';
+              let isDashed = c.isMergeCommit;
+
+              if (c.pending) {
+                pathColor = 'stroke-amber-500/40';
+                isDashed = true;
+              } else if (c.isConflicting) {
+                pathColor = 'stroke-rose-500/50';
+                isDashed = true;
+              }
 
               if (isSameTrack) {
                 // Flat horizontal connection
+                if (isDashed) {
+                  return (
+                    <line
+                      key={`${parentSha}-${c.sha}`}
+                      x1={parentCoords.x}
+                      y1={parentCoords.y}
+                      x2={childCoords.x}
+                      y2={childCoords.y}
+                      className={`${pathColor} stroke-2 stroke-dashed`}
+                      strokeDasharray="3 3"
+                      markerEnd="url(#real-arrow)"
+                    />
+                  );
+                }
                 return (
                   <line
                     key={`${parentSha}-${c.sha}`}
@@ -819,7 +946,7 @@ export default function GitVisualizerPanel({
                     fill="none"
                     className={`${pathColor} stroke-2`}
                     markerEnd="url(#real-arrow)"
-                    strokeDasharray={c.isMergeCommit ? '3 3' : undefined}
+                    strokeDasharray={isDashed ? '3 3' : undefined}
                   />
                 );
               }
@@ -863,13 +990,23 @@ export default function GitVisualizerPanel({
             // Is hovered?
             const isHovered = hoveredCommitSha === c.sha;
 
+            const isConflicting = !!c.isConflicting;
+
             // Color palette depending on track
             const trackVal = typeof c.track === 'number' ? c.track : 0;
             let nodeColorClass = 'stroke-indigo-400';
             let fillColorClass = isLight ? 'fill-indigo-50/90' : 'fill-slate-950';
             let textTextColorClass = 'fill-indigo-300';
 
-            if (trackVal === 0) {
+            if (c.isConflicting) {
+              nodeColorClass = 'stroke-rose-500 stroke-3 animate-pulse';
+              fillColorClass = isLight ? 'fill-rose-50' : 'fill-rose-950/20';
+              textTextColorClass = 'fill-rose-400 font-extrabold';
+            } else if (c.pending) {
+              nodeColorClass = 'stroke-amber-400/80 stroke-2';
+              fillColorClass = isLight ? 'fill-stone-50/40' : 'fill-slate-950/20';
+              textTextColorClass = 'fill-amber-400/60';
+            } else if (trackVal === 0) {
               nodeColorClass = 'stroke-emerald-400';
               textTextColorClass = 'fill-emerald-400';
               if (isLight) fillColorClass = 'fill-emerald-50/90';
@@ -883,7 +1020,7 @@ export default function GitVisualizerPanel({
               if (isLight) fillColorClass = 'fill-amber-50/90';
             }
 
-            if (isSelected) {
+            if (isSelected && !c.isConflicting && !c.pending) {
               nodeColorClass = 'stroke-amber-500 stroke-3';
               fillColorClass = isLight ? 'fill-amber-50' : 'fill-amber-950/20';
             }
@@ -904,12 +1041,18 @@ export default function GitVisualizerPanel({
                   <circle cx={coords.x} cy={coords.y} r="18" className="fill-indigo-400/10 stroke-none" />
                 )}
 
+                {/* Conflict hotspot halo */}
+                {c.isConflicting && (
+                  <circle cx={coords.x} cy={coords.y} r="17" className="fill-none stroke-rose-500/20 stroke-2 animate-ping" />
+                )}
+
                 {/* Main commit node circle */}
                 <circle 
                   cx={coords.x} 
                   cy={coords.y} 
                   r={isHovered ? "14" : "12"} 
                   className={`transition-all duration-150 ${nodeColorClass} ${fillColorClass} stroke-2`}
+                  strokeDasharray={c.pending ? "3 3" : undefined}
                   filter={isHovered || isSelected ? "url(#glow-effect)" : undefined}
                 />
 
@@ -918,7 +1061,7 @@ export default function GitVisualizerPanel({
                   x={coords.x} 
                   y={coords.y + 3} 
                   textAnchor="middle" 
-                  className={`text-[7.5px] font-bold font-mono ${isLight ? 'fill-slate-700' : textTextColorClass}`}
+                  className={`text-[7.5px] font-bold font-mono ${isConflicting ? 'fill-rose-500 font-black' : isLight ? 'fill-slate-700' : textTextColorClass}`}
                 >
                   {c.sha.slice(0, 4)}
                 </text>
@@ -928,7 +1071,7 @@ export default function GitVisualizerPanel({
                   x={coords.x} 
                   y={showLabelAbove ? coords.y - 18 : coords.y + 22} 
                   textAnchor="middle" 
-                  className={`text-[7px] font-medium font-sans ${isLight ? 'fill-slate-600' : 'fill-slate-400'}`}
+                  className={`text-[7px] font-medium font-sans ${isConflicting ? 'fill-rose-400 font-bold' : isLight ? 'fill-slate-600' : 'fill-slate-400'}`}
                 >
                   {truncatedMessage}
                 </text>
@@ -1022,6 +1165,7 @@ export default function GitVisualizerPanel({
             });
           })}
         </svg>
+      </div>
 
         {/* 6. Interactive Floating Details Card on Node Hover */}
         {hoveredCommitSha && (() => {
@@ -1064,10 +1208,25 @@ export default function GitVisualizerPanel({
     );
   };
 
+  // Track default aspect-ratio safe sizes
+  const getStageDimensions = () => {
+    if (isSyncedWithWizard && repoState && repoState.commits && repoState.commits.length > 0) {
+      const count = repoState.commits.length;
+      const minSpacing = 85;
+      const computedW = count > 1 ? Math.max(600, 130 + (count - 1) * minSpacing) : 600;
+      return { w: computedW, h: 220 };
+    }
+    return { w: 600, h: 180 };
+  };
+
+  const { w: stageW, h: stageH } = getStageDimensions();
+  // Compute fitting scale factor bounded to avoid pixelation on ultra-wide
+  const autoFitScale = containerWidth ? Math.min(1.2, (containerWidth - 16) / stageW) : 1.0;
+
   // Render nodes based on step and action type
   const renderVisualStage = () => {
-    const width = 600;
-    const height = 180;
+    const width = stageW;
+    const height = stageH;
 
     // Standard Real Git Tree synchronization if active
     if (isSyncedWithWizard && repoState && repoState.commits && repoState.commits.length > 0) {
@@ -1258,7 +1417,7 @@ export default function GitVisualizerPanel({
     }
 
     return (
-      <div className="w-full h-full relative" id="stash-stage">
+      <div className="relative overflow-hidden" style={{ width: `${w}px`, height: `${h}px` }} id="stash-stage">
         {/* Working Sandbox area */}
         <div className="absolute left-6 top-8 w-[280px] h-[110px] rounded-xl border border-dashed border-slate-800 flex flex-col justify-between p-3 bg-slate-950/30 select-none">
           <div className="text-[9px] font-mono font-bold tracking-wider text-slate-500 uppercase">LOCAL TREE WORKSPACE</div>
@@ -1467,7 +1626,7 @@ export default function GitVisualizerPanel({
     let fileColor = currentStep === 1 ? "bg-emerald-500/20 border-emerald-400 text-emerald-300" : "bg-slate-800/40 border-slate-700 text-slate-300";
 
     return (
-      <div className="w-full h-full relative" id="commit-stage">
+      <div className="relative overflow-hidden" style={{ width: `${w}px`, height: `${h}px` }} id="commit-stage">
         {/* Staging Index Queue */}
         <div className="absolute left-[30px] top-[15px] w-[260px] h-[55px] border border-dashed border-slate-800 rounded-lg p-2 flex flex-col justify-between bg-slate-950/20">
           <span className="text-[8px] font-mono text-slate-500 block uppercase font-bold tracking-wider">Staging Area Index (Index)</span>
@@ -1550,7 +1709,7 @@ export default function GitVisualizerPanel({
     const isPackaging = currentStep === 1;
 
     return (
-      <div className="w-full h-full relative" id="push-stage">
+      <div className="relative overflow-hidden" style={{ width: `${w}px`, height: `${h}px` }} id="push-stage">
         {/* Local Area & Remote Area Side-by-Side Grid */}
         <div className="grid grid-cols-2 gap-4 h-full relative p-2">
           {/* Local Machine Dashboard */}
@@ -1887,14 +2046,14 @@ export default function GitVisualizerPanel({
         </div>
         <button
           onClick={toggleCollapse}
-          className={`text-xs font-mono flex items-center gap-1 px-2.5 py-1 rounded cursor-pointer border ${
+          className={`p-1.5 rounded cursor-pointer border shrink-0 flex items-center justify-center transition-all ${
             isLight
               ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
-              : 'bg-[#1e293b] border-indigo-500/20 text-indigo-400 hover:text-indigo-303'
+              : 'bg-[#1e293b] border-indigo-505/20 text-indigo-400 hover:text-indigo-303'
           }`}
+          title={tone === TranslationTone.ENGLISH ? 'Show' : 'Hiển thị'}
         >
           <Eye className="w-3.5 h-3.5" />
-          <span>{tone === TranslationTone.ENGLISH ? 'Show' : 'Hiển thị'}</span>
         </button>
       </div>
     );
@@ -1932,33 +2091,52 @@ export default function GitVisualizerPanel({
           </div>
         </div>
 
-        {/* Action Selector and Wizard sync toggle */}
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+        {/* Action Selector */}
+        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
           {wizard && (
-            <button
-              id="btn-vis-sync-wizard"
-              onClick={() => {
-                setIsSyncedWithWizard(!isSyncedWithWizard);
-              }}
-              className={`px-2.5 py-1 text-[9.5px] font-mono font-bold rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
-                isSyncedWithWizard
-                  ? isLight
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700 animate-pulse'
-                    : 'bg-emerald-600/20 border-emerald-500/40 text-emerald-300 animate-pulse'
-                  : isLight
-                    ? 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                    : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
-              }`}
-              title={loc.syncToggleLabel}
-            >
-              <RefreshCw className={`w-3 h-3 ${isSyncedWithWizard ? 'animate-spin' : ''}`} style={{ animationDuration: isSyncedWithWizard ? '5s' : '0s' }} />
-              <span>{isSyncedWithWizard ? loc.syncToggleActive : loc.syncToggleLabel}</span>
-            </button>
+            <div className={`p-0.5 rounded-lg border flex items-center shadow-sm select-none ${isLight ? 'bg-slate-100 border-slate-205' : 'bg-slate-900 border-slate-800'}`}>
+              {/* Real Git Sync Toggle Button */}
+              <button
+                type="button"
+                id="btn-vis-sync-toggle-header"
+                onClick={() => {
+                  if (isSimulation) handleToggleUnified();
+                }}
+                className={`p-1.5 px-2 rounded-md transition-all cursor-pointer flex items-center justify-center ${
+                  !isSimulation
+                    ? isLight
+                      ? 'bg-white text-indigo-600 shadow-sm border border-slate-200 font-semibold'
+                      : 'bg-indigo-600/35 text-indigo-300 border border-indigo-500/25'
+                    : 'text-slate-400 hover:text-indigo-400'
+                }`}
+                title={tone === TranslationTone.ENGLISH ? 'Sync with Real Git' : 'Đồng bộ với Git thật'}
+              >
+                <Link className="w-3.5 h-3.5" />
+              </button>
+              {/* Simulate Mode Toggle Button */}
+              <button
+                type="button"
+                id="btn-vis-simulate-toggle-header"
+                onClick={() => {
+                  if (!isSimulation) handleToggleUnified();
+                }}
+                className={`p-1.5 px-2 rounded-md transition-all cursor-pointer flex items-center justify-center ${
+                  isSimulation
+                    ? isLight
+                      ? 'bg-white text-emerald-600 shadow-sm border border-slate-200 font-semibold'
+                      : 'bg-emerald-600/35 text-emerald-300 border border-emerald-500/25'
+                    : 'text-slate-400 hover:text-emerald-400'
+                }`}
+                title={tone === TranslationTone.ENGLISH ? 'Playground Simulation' : 'Sa bàn Giả lập'}
+              >
+                <FlaskConical className="w-3.5 h-3.5" />
+              </button>
+            </div>
           )}
 
           <div className="flex flex-wrap gap-1 w-full md:w-auto">
             {(['rebase', 'stash', 'merge', 'commit', 'push', 'diverge', 'fast-forward'] as VisualActionType[]).map((action) => {
-              const isSelected = activeAction === action;
+              const isSelected = activeAction === action && isSimulation;
               return (
                 <button
                   key={action}
@@ -1966,11 +2144,12 @@ export default function GitVisualizerPanel({
                   onClick={() => handleActionChange(action)}
                   className={`px-2.5 py-1 text-[9.5px] font-mono font-bold rounded-lg border transition-all cursor-pointer ${
                     isSelected 
-                      ? 'bg-indigo-605 border-indigo-600 text-white shadow-md shadow-indigo-600/10' 
+                      ? 'bg-indigo-650 border-indigo-500 text-white shadow-md shadow-indigo-605/20' 
                       : isLight
-                        ? 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                        ? 'bg-slate-50 border-slate-200 text-slate-650 hover:bg-slate-100 hover:text-slate-800'
                         : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
-                  }`}
+                  } ${!isSimulation ? 'opacity-50 hover:opacity-100' : ''}`}
+                  title={!isSimulation ? (tone === TranslationTone.ENGLISH ? 'Click to switch to simulation mode for this diagram' : 'Click để chuyển sang chế độ giả lập xem sơ đồ này') : ''}
                 >
                   {loc.opLabels[action]}
                 </button>
@@ -2040,10 +2219,12 @@ export default function GitVisualizerPanel({
               dragElastic={0.15}
               dragMomentum={true}
               style={{
-                scale: visScale,
+                scale: visScale * autoFitScale,
+                width: `${stageW}px`,
+                height: `${stageH}px`,
                 transformOrigin: "center center"
               }}
-              className="w-full h-full flex items-center justify-center touch-none select-none"
+              className="flex items-center justify-center touch-none select-none shrink-0"
             >
               {renderVisualStage()}
             </motion.div>
@@ -2080,6 +2261,29 @@ export default function GitVisualizerPanel({
                 title="Thu nhỏ (-)"
               >
                 <ZoomOut className="w-3.5 h-3.5 text-rose-400" />
+              </button>
+
+              <div className={`w-3.5 h-[1px] ${isLight ? 'bg-slate-150' : 'bg-slate-800/80'}`} />
+
+              {/* Autoplay / Pause & Continue Control */}
+              <button
+                type="button"
+                id="btn-vis-play-pause-floating"
+                onClick={() => {
+                  if (!isSimulation) {
+                    handleToggleUnified();
+                  } else {
+                    setIsPlaying(p => !p);
+                  }
+                }}
+                className={`p-1.5 rounded transition-all cursor-pointer hover:scale-110 active:scale-90 flex items-center justify-center ${
+                  isPlaying
+                    ? 'text-amber-505 hover:text-amber-400'
+                    : 'text-emerald-505 hover:text-emerald-400'
+                } ${isLight ? 'hover:bg-slate-100' : 'hover:bg-slate-900'}`}
+                title={isPlaying ? (tone === TranslationTone.ENGLISH ? "Pause simulation" : "Tạm dừng giả lập") : (tone === TranslationTone.ENGLISH ? "Continue simulation" : "Tiếp tục chạy giả lập")}
+              >
+                {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />}
               </button>
 
               <div className={`w-3.5 h-[1px] ${isLight ? 'bg-slate-150' : 'bg-slate-800/80'}`} />
@@ -2151,24 +2355,53 @@ export default function GitVisualizerPanel({
               </button>
             </div>
 
-            <div className="flex items-center gap-1.5">
-              <button
-                id="btn-vis-play"
-                onClick={togglePlay}
-                className={`p-1.5 px-3 rounded-lg border text-[10px] font-bold font-mono transition-all flex items-center gap-1.5 cursor-pointer ${
-                  isPlaying 
-                    ? 'bg-amber-600/20 border-amber-500/30 text-amber-300 hover:bg-amber-600/30' 
-                    : 'bg-indigo-650 border-indigo-500 hover:bg-indigo-550 text-white'
-                }`}
-              >
-                {isPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3 fill-current" />}
-                <span>{isPlaying ? loc.pauseBtn : loc.playBtn}</span>
-              </button>
+            <div className="flex items-center gap-1.5 animate-fade-in">
+              {wizard && (
+                <div className={`p-0.5 rounded-lg border flex items-center shadow-sm select-none ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-900 border-slate-800'}`}>
+                  {/* Real Git Sync Toggle Button */}
+                  <button
+                    type="button"
+                    id="btn-vis-sync-toggle-footer"
+                    onClick={() => {
+                      if (isSimulation) handleToggleUnified();
+                    }}
+                    className={`p-1.5 px-2.5 rounded-md transition-all cursor-pointer flex items-center justify-center ${
+                      !isSimulation
+                        ? isLight
+                          ? 'bg-white text-indigo-650 shadow-sm border border-slate-250/50 font-semibold'
+                          : 'bg-indigo-600/35 text-indigo-300 border border-indigo-500/25'
+                        : 'text-slate-400 hover:text-indigo-400'
+                    }`}
+                    title={tone === TranslationTone.ENGLISH ? 'Sync with Real Git' : 'Đồng bộ với Git thực tế'}
+                  >
+                    <Link className="w-3.5 h-3.5" />
+                  </button>
+                  {/* Simulate Mode Toggle Button */}
+                  <button
+                    type="button"
+                    id="btn-vis-simulate-toggle-footer"
+                    onClick={() => {
+                      if (!isSimulation) handleToggleUnified();
+                    }}
+                    className={`p-1.5 px-2.5 rounded-md transition-all cursor-pointer flex items-center justify-center ${
+                      isSimulation
+                        ? isLight
+                          ? 'bg-white text-emerald-650 shadow-sm border border-slate-250/50 font-semibold'
+                          : 'bg-emerald-600/35 text-emerald-300 border border-emerald-500/25'
+                        : 'text-slate-400 hover:text-emerald-400'
+                    }`}
+                    title={tone === TranslationTone.ENGLISH ? 'Playground Simulation' : 'Sa bàn Giả lập'}
+                  >
+                    <FlaskConical className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
 
               <button
                 id="btn-vis-reset"
                 onClick={handleReset}
-                className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                disabled={!isSimulation}
+                className={`p-1.5 rounded-lg border transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${
                   isLight 
                     ? 'bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-800 border-slate-200' 
                     : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border-slate-800'

@@ -8,6 +8,85 @@
   --animate-spin-slow: spin 12s linear infinite;
   --animate-spin-reverse: spin-reverse 8s linear infinite;
   --animate-fade-in: fade-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+
+  --color-slate-105: #f1f5f9;
+  --color-slate-250: #e2e8f0;
+  --color-slate-305: #cbd5e1;
+  --color-slate-355: #cbd5e1;
+  --color-slate-430: #94a3b8;
+  --color-slate-450: #94a3b8;
+  --color-slate-650: #475569;
+  --color-slate-802: #1e293b;
+  --color-slate-805: #1e293b;
+  --color-slate-880: #0f172a;
+  
+  --color-indigo-505: #6366f1;
+  --color-indigo-605: #4f46e5;
+  --color-indigo-750: #3730a3;
+  
+  --color-emerald-250: #10b981;
+  --color-emerald-303: #10b981;
+  
+  --color-rose-405: #ef4444;
+}
+
+/* --- RESPONSIVE TYPOGRAPHY SCALING FOR High-Res & 2K/4K DISPLAYS --- */
+html {
+  font-size: 15px;
+}
+
+@media (min-width: 640px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+/* 2K Screens / High-Density Displays */
+@media (min-width: 1920px) {
+  html {
+    font-size: 18px; /* Gracefully scale all rem-based layout & text sizes */
+  }
+  [class*="text-[9.5px]"] {
+    font-size: 11px !important;
+  }
+  [class*="text-[10px]"] {
+    font-size: 11.5px !important;
+  }
+  [class*="text-[11px]"] {
+    font-size: 12.5px !important;
+  }
+}
+
+/* Ultra-wide / Studio Displays */
+@media (min-width: 2560px) {
+  html {
+    font-size: 20px;
+  }
+  [class*="text-[9.5px]"] {
+    font-size: 12.5px !important;
+  }
+  [class*="text-[10px]"] {
+    font-size: 13px !important;
+  }
+  [class*="text-[11px]"] {
+    font-size: 14px !important;
+  }
+}
+
+/* 4K Screens */
+@media (min-width: 3840px) {
+  html {
+    font-size: 23px;
+  }
+  [class*="text-[9.5px]"] {
+    font-size: 14.5px !important;
+  }
+  [class*="text-[10px]"] {
+    font-size: 15px !important;
+  }
+  [class*="text-[11px]"] {
+    font-size: 16px !important;
+  }
 }
 
 @keyframes spin-reverse {
@@ -20,27 +99,240 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Customized thin dark scrollbars */
+/* Customized thin scrollbars based on current theme mode */
 .scrollbar-thin::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.4);
+  background: rgba(15, 20, 32, 0.45);
   border-radius: 9999px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.2);
+  background: rgba(115, 125, 150, 0.25);
   border-radius: 9999px;
 }
 
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.4);
+  background: rgba(115, 125, 150, 0.45);
 }
 
-/* --- LIGHT MODE BEAUTIFICATION ENHANCEMENTS (GOOGLE MATERIAL DESIGN 3 THEME) --- */
+/* =========================================================================
+   === DARK MODE UNIFICATION (GOOGLE MATERIAL DESIGN 3 DARK SPECIFICATION) ===
+   ========================================================================= */
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background-color: #0c0d15 !important; /* Material 3 Slate Dark Canvas Surface */
+  color: #e3e2e6 !important; /* On Surface standard neutral text */
+}
+
+/* Override default backgrounds to Google Material 3 Dark System values */
+#rebase-overlord-app {
+  background-color: #0c0d15 !important;
+  color: #e3e2e6 !important;
+}
+
+/* Primary level containers (Surfaces, Main panels, Core cards) */
+[class*="bg-[#0f172a]"],
+[class*="bg-[#0b0f19]"],
+[class*="bg-[#0a0c1a]"],
+[class*="bg-[#0b0f24]"],
+[class*="bg-[#0c122c]"],
+[class*="bg-[#090d22]"],
+[class*="bg-[#15161a]"],
+[class*="bg-[#14151a]"],
+[class*="bg-[#1c1d22]"],
+[class*="bg-[#17181c]"],
+[class*="bg-[#1b1c25]"],
+[class*="bg-[#1c1d21]"],
+[class*="bg-[#1e2026]"],
+[class*="bg-[#02040d]"],
+.bg-slate-950,
+.bg-slate-950/95,
+#repo-header-container,
+#rebase-wizard-card,
+#interactive-git-flow-visualizer {
+  background-color: #111320 !important; /* Material 3 Dark Surface Container Low */
+  color: #e3e2e6 !important;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.02) !important;
+}
+
+/* Secondary Panels, Sub-cards, Toolbars and helper groups */
+[class*="bg-[#141a36]"],
+[class*="bg-[#0f1430]"],
+[class*="bg-[#0b0f19]/40]"],
+[class*="bg-[#0b0f19]/80]"],
+[class*="bg-[#070b13]"],
+[class*="bg-[#080d16]"],
+[class*="bg-[#14151b]"],
+.bg-slate-950/20,
+.bg-slate-950/30,
+.bg-slate-950/40,
+.bg-slate-950/50,
+.bg-slate-950/60,
+.bg-slate-950/70,
+.bg-slate-950/80,
+.bg-slate-950/90,
+.bg-slate-900,
+.bg-slate-900/40,
+.bg-slate-900/60,
+.bg-slate-900/70,
+.bg-slate-900/80,
+.bg-slate-850,
+#dir-modal-toolbar,
+#dir-modal-footer {
+  background-color: #161a29 !important; /* Material 3 Dark Surface Container */
+  color: #e3e2e6 !important;
+}
+
+/* Inside items, terminal logs, interactive widgets, gutters */
+[class*="bg-[#0d1324]/50]"],
+[class*="bg-[#070b15]/40]"],
+[class*="bg-[#090e1f]/20]"],
+[class*="bg-[#0c1329]"],
+[class*="bg-[#0b0c15]"],
+[class*="bg-[#07080f]"],
+[class*="bg-[#111219]"],
+[class*="bg-[#252632]"],
+[class*="bg-[#2d2f3c]/20]"],
+[class*="bg-[#16171d]"],
+[class*="bg-[#111217]"],
+[class*="bg-[#0f1013]"],
+[class*="bg-[#0e0f12]"],
+[class*="bg-[#18191f]"] {
+  background-color: #1c2035 !important; /* Material 3 Dark Surface Container High */
+  color: #f4f3f7 !important;
+}
+
+/* Material Outlines for Dark Mode */
+.border-slate-800,
+.border-slate-850,
+.border-slate-900,
+.border-slate-950,
+[class*="border-[#2d2f3c]"],
+.border-indigo-900,
+.border-violet-500/30,
+.border-slate-755,
+.border-slate-750,
+.border-slate-700 {
+  border-color: #24273c !important; /* Google Dark Outline Variant */
+}
+
+/* Text readability scaling in Dark Mode */
+.text-slate-100,
+.text-slate-200,
+.text-white {
+  color: #e3e2e6 !important; /* On Surface */
+}
+
+.text-slate-300,
+.text-slate-305 {
+  color: #f4f3f7 !important; /* Brightest labels */
+}
+
+.text-slate-400,
+.text-slate-450 {
+  color: #c7c5d0 !important; /* On Surface Variant */
+}
+
+.text-slate-500 {
+  color: #91909a !important; /* Outline Standard Gray */
+}
+
+.text-slate-600,
+.text-slate-650 {
+  color: #777680 !important; /* Secondary Disabled Caption */
+}
+
+/* Status Alert colors optimized for dark Material aesthetics */
+.text-indigo-400,
+.text-indigo-300 {
+  color: #a8b0ff !important; /* Modern Google Blue Accent */
+}
+
+.text-teal-400,
+.text-teal-303,
+.text-teal-300 {
+  color: #80cbc4 !important; /* Dark Mint Teal */
+}
+
+.text-emerald-400,
+.text-emerald-303,
+.text-emerald-300 {
+  color: #a5d6a7 !important; /* Dark Meadow Green */
+}
+
+.text-sky-400,
+.text-sky-303,
+.text-sky-300 {
+  color: #90caf9 !important; /* Material Standard Light Sky Blue */
+}
+
+.text-violet-400,
+.text-violet-303,
+.text-violet-300 {
+  color: #d0bcff !important; /* Material Violet Accent */
+}
+
+.text-amber-400,
+.text-amber-303,
+.text-amber-300 {
+  color: #ffe082 !important; /* Material Soft Gold Warning */
+}
+
+.text-rose-400,
+.text-rose-455,
+.text-rose-303,
+.text-rose-300 {
+  color: #f2b8b5 !important; /* Google Coral Red Danger */
+}
+
+/* Dark Tonal Highlight boxes */
+.bg-indigo-950/20,
+.bg-indigo-950/40,
+[class*="bg-[#1d2333]"],
+[class*="bg-[#111219]"] {
+  background-color: #2b304c !important; /* Indigo tonal container */
+  border-color: #3f4460 !important;
+  color: #d0bcff !important;
+}
+
+.bg-teal-500/10 {
+  background-color: #1e3332 !important; /* Teal tonal container */
+  border-color: #2e4d4b !important;
+  color: #80cbc4 !important;
+}
+
+.bg-emerald-950/15,
+.bg-emerald-950/20,
+[class*="bg-[#1b3425]"] {
+  background-color: #203527 !important; /* Green tonal container */
+  border-color: #2e4d37 !important;
+  color: #a5d6a7 !important;
+}
+
+.bg-rose-950/15,
+.bg-rose-950/30,
+[class*="bg-[#18120b]/40]"] {
+  background-color: #3b2222 !important; /* Red tonal container */
+  border-color: #5d3535 !important;
+  color: #f2b8b5 !important;
+}
+
+[class*="bg-[#332615]"] {
+  background-color: #42301c !important; /* Amber tonal container */
+  border-color: #634a2e !important;
+  color: #ffe082 !important;
+}
+
+/* =========================================================================
+   === LIGHT MODE UNIFICATION (GOOGLE MATERIAL DESIGN 3 LIGHT SPECIFICATION)===
+   ========================================================================= */
 .light {
   color-scheme: light;
 }
@@ -72,7 +364,7 @@ html.light, body.light {
 .light [class*="bg-[#1e2026]"],
 .light [class*="bg-[#02040d]"],
 .light .bg-slate-950,
-.light .bg-slate-950\/95,
+.light .bg-slate-950/95,
 .light #repo-header-container,
 .light #rebase-wizard-card,
 .light #interactive-git-flow-visualizer {
@@ -90,19 +382,19 @@ html.light, body.light {
 .light [class*="bg-[#070b13]"],
 .light [class*="bg-[#080d16]"],
 .light [class*="bg-[#14151b]"],
-.light .bg-slate-950\/20,
-.light .bg-slate-950\/30,
-.light .bg-slate-950\/40,
-.light .bg-slate-950\/50,
-.light .bg-slate-950\/60,
-.light .bg-slate-950\/70,
-.light .bg-slate-950\/80,
-.light .bg-slate-950\/90,
+.light .bg-slate-950/20,
+.light .bg-slate-950/30,
+.light .bg-slate-950/40,
+.light .bg-slate-950/50,
+.light .bg-slate-950/60,
+.light .bg-slate-950/70,
+.light .bg-slate-950/80,
+.light .bg-slate-950/90,
 .light .bg-slate-900,
-.light .bg-slate-900\/40,
-.light .bg-slate-900\/60,
-.light .bg-slate-900\/70,
-.light .bg-slate-900\/80,
+.light .bg-slate-900/40,
+.light .bg-slate-900/60,
+.light .bg-slate-900/70,
+.light .bg-slate-900/80,
 .light .bg-slate-850,
 .light #dir-modal-toolbar,
 .light #dir-modal-footer {
@@ -136,36 +428,38 @@ html.light, body.light {
 .light .border-slate-950,
 .light [class*="border-[#2d2f3c]"],
 .light .border-indigo-900,
-.light .border-violet-500\/30,
+.light .border-violet-500/30,
+.light .border-slate-755,
 .light .border-slate-750,
 .light .border-slate-700 {
   border-color: #e1e2ec !important; /* Material standard outline variant */
 }
 
-/* Glow effects / neon shadow suppression for clean light look */
+/* Glow effects / clean shadow styling */
 .light .shadow-2xl,
 .light .shadow-lg,
 .light .shadow-md {
   box-shadow: 0 10px 15px -3px rgba(103, 80, 164, 0.02), 0 4px 6px -4px rgba(103, 80, 164, 0.02), 0 0 0 1px rgba(103, 80, 164, 0.03) !important;
 }
 
-/* Standard text replacement for Legibility */
+/* Standard text replacement for Legibility in Light Mode */
 .light .text-slate-100,
 .light .text-slate-200,
 .light .text-slate-300,
-.light .text-slate-100\/90,
-.light .text-slate-200\/90,
-.light .text-white {
+.light .text-slate-305,
+.light .text-slate-100/90,
+.light .text-slate-200/90 {
   color: #1c1b1f !important; /* Near-black On-Surface */
 }
 
 .light .text-slate-400,
-.light .text-slate-400\/90 {
+.light .text-slate-450,
+.light .text-slate-400/90 {
   color: #49454f !important; /* Slate-750 / On-Surface Variant */
 }
 
 .light .text-slate-500,
-.light .text-slate-500\/90 {
+.light .text-slate-500/90 {
   color: #5d5e66 !important; /* Medium Grey / Outline */
 }
 
@@ -184,75 +478,83 @@ html.light, body.light {
 
 /* Google Material Tonal Color replacements inside Light Mode */
 .light .text-indigo-400,
+.light .text-indigo-303,
 .light .text-indigo-300 {
   color: #4f46e5 !important; /* Indigo primary */
 }
 
 .light .text-teal-400,
+.light .text-teal-303,
 .light .text-teal-300 {
   color: #00796b !important; /* Teal primary */
 }
 
 .light .text-emerald-400,
+.light .text-emerald-303,
 .light .text-emerald-300 {
   color: #2e7d32 !important; /* Material green-800 */
 }
 
-.light .text-sky-450,
 .light .text-sky-400,
+.light .text-sky-303,
 .light .text-sky-300 {
   color: #0277bd !important; /* Sky-800 */
 }
 
 .light .text-violet-400,
+.light .text-violet-303,
 .light .text-violet-300 {
   color: #6750a4 !important; /* Material Amethyst Purple */
 }
 
 .light .text-amber-400,
+.light .text-amber-303,
 .light .text-amber-300,
 .light .text-amber-500 {
   color: #ef6c00 !important; /* Material Amber-800 */
 }
 
 .light .text-rose-400,
+.light .text-rose-455,
+.light .text-rose-303,
 .light .text-rose-300,
 .light .text-rose-500 {
   color: #c62828 !important; /* Material Crimson-800 */
 }
 
-/* Background Highlight Plates - Google Material Tonal Containers */
-.light .bg-indigo-950\/20,
-.light .bg-indigo-950\/40,
+/* Background Highlight Plates - Google Material Tonal Containers (Light) */
+.light .bg-indigo-950/20,
+.light .bg-indigo-950/40,
+.light [class*="bg-[#1d2333]"],
 .light [class*="bg-[#111219]"] {
   background-color: #e8eaf6 !important; /* Indigo tonal container */
   border-color: #c5cae9 !important;
   color: #1a237e !important;
 }
 
-.light .bg-teal-500\/10 {
+.light .bg-teal-500/10 {
   background-color: #e0f2f1 !important; /* Teal tonal container */
   border-color: #b2dfdb !important;
   color: #004d40 !important;
 }
 
-.light .bg-emerald-950\/15,
-.light .bg-emerald-950\/20,
+.light .bg-emerald-950/15,
+.light .bg-emerald-950/20,
 .light [class*="bg-[#1b3425]"] {
   background-color: #e8f5e9 !important; /* Green tonal container */
   border-color: #c8e6c9 !important;
   color: #1b5e20 !important;
 }
 
-.light .bg-rose-950\/15,
-.light .bg-rose-950\/30 {
+.light .bg-rose-950/15,
+.light .bg-rose-950/30,
+.light [class*="bg-[#18120b]/40]"] {
   background-color: #ffebee !important; /* Red tonal container */
   border-color: #ffcdd2 !important;
   color: #b71c1c !important;
 }
 
-.light .bg-amber-950\/20,
-.light .bg-amber-950\/30 {
+.light [class*="bg-[#332615]"] {
   background-color: #fff8e1 !important; /* Gold tonal container */
   border-color: #ffecb3 !important;
   color: #ff6f00 !important;
@@ -307,7 +609,7 @@ html.light, body.light {
   color: #909199 !important;
 }
 
-/* Scrollbar behaviors */
+/* Scrollbar behaviors for Light Mode */
 .light .scrollbar-thin::-webkit-scrollbar-track {
   background: rgba(241, 245, 249, 0.6) !important;
 }

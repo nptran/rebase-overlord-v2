@@ -200,7 +200,11 @@ export default function ReflogRescuePanel({
                 <span className="text-amber-500 font-bold">{entry.sha}</span>
                 <span className="text-slate-500">({entry.selector})</span>
                 <span className={`text-[8px] font-bold px-1 py-0.2 rounded uppercase ${
-                  entry.type.includes('commit') ? 'bg-indigo-500/10 text-indigo-400' : 'bg-slate-800 text-slate-400'
+                  entry.type.includes('commit') 
+                    ? 'bg-indigo-500/10 text-indigo-400' 
+                    : theme === 'light'
+                      ? 'bg-slate-100 border-slate-205 border text-slate-500'
+                      : 'bg-slate-800 text-slate-400'
                 }`}>
                   {entry.type}
                 </span>
@@ -223,7 +227,9 @@ export default function ReflogRescuePanel({
               className={`shrink-0 px-3 py-1.5 font-bold rounded flex items-center gap-1 cursor-pointer transition-all active:scale-95 text-[10px] ${
                 entry.isDangling
                   ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 shadow-md font-bold'
-                  : 'bg-slate-800/40 border-slate-800 border text-slate-500 cursor-not-allowed'
+                  : theme === 'light'
+                    ? 'bg-slate-100 border-slate-200 border text-slate-400 cursor-not-allowed'
+                    : 'bg-slate-800/40 border-slate-800 border text-slate-500 cursor-not-allowed'
               }`}
             >
               <RotateCcw className="w-3 h-3" />

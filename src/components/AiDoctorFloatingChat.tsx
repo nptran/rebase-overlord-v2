@@ -67,18 +67,13 @@ const FormattedAiMessage: React.FC<FormattedMessageProps> = ({ content, theme })
                 <span>{firstLine || 'code'}</span>
                 <button 
                   onClick={() => handleCopy(codeLines)}
-                  className="flex items-center gap-1 hover:text-white transition-colors"
+                  className="flex items-center justify-center p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer"
+                  title={isCopied ? "Copied" : "Copy code"}
                 >
                   {isCopied ? (
-                    <>
-                      <Check className="w-3 h-3 text-emerald-400" />
-                      <span className="text-emerald-400">Copied</span>
-                    </>
+                    <Check className="w-3 h-3 text-emerald-400" />
                   ) : (
-                    <>
-                      <Copy className="w-3 h-3" />
-                      <span>Copy</span>
-                    </>
+                    <Copy className="w-3 h-3" />
                   )}
                 </button>
               </div>
@@ -263,7 +258,7 @@ export default function AiDoctorFloatingChat({
         } else if (tone === 'en_pro') {
           greetText += "\n\n*(Please note: Since AI is disabled, I am operating in Offline first-aid mode. Responses will use structured static local diagnostic rules only.)*";
         } else {
-          greetText += "\n\n*(Lưu ý: Bạn đang tắt Gemini AI. Doctor sẽ giải đáp nhanh dưới dạng các quy tắc sơ cứu / phao thông tin ngoại tuyến đã ghi nhớ.)*";
+          greetText += "\n\n*(Lưu ý: Bạn đang tắt Trợ lý AI. Doctor sẽ giải đáp nhanh dưới dạng các quy tắc sơ cứu / phao thông tin ngoại tuyến đã ghi nhớ.)*";
         }
       }
 
@@ -332,8 +327,8 @@ export default function AiDoctorFloatingChat({
         id: `err_${Date.now()}`,
         role: 'model',
         content: tone === 'en_pro'
-          ? "⚠️ Sorry, there was an issue communicating with the Gemini engine. Please check your internet connection and active key settings in the secrets panel."
-          : "⚠️ Xin lỗi sếp, em bị mất liên lạc tạm thời với máy chủ Oracle AI. Sếp vui lòng kiểm tra khoá GEMINI_API_KEY trong Cài đặt hoặc thử lại nha!",
+          ? "⚠️ Sorry, there was an issue communicating with the AI engine. Please check your internet connection and active key settings in the secrets panel."
+          : "⚠️ Xin lỗi sếp, em bị mất liên lạc tạm thời với máy chủ Trợ lý AI. Sếp vui lòng kiểm tra khoá API trong Cài đặt hoặc thử lại nha!",
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }]);
     } finally {

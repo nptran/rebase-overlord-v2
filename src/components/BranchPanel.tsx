@@ -16,7 +16,10 @@ import {
   GitPullRequest,
   RefreshCw,
   Eye,
-  EyeOff
+  EyeOff,
+  ArrowDownLeft,
+  ArrowDown,
+  ArrowUp
 } from 'lucide-react';
 import { GitBranch as GitBranchType, TranslationTone } from '../types';
 import { translate } from '../i18n';
@@ -40,7 +43,11 @@ const branchLoc = {
     previewLabel: "Tên nhánh hoàn thiện",
     cancelBtn: "Hủy bỏ",
     invalidSuffix: "Tên nhánh không hợp lệ. Vui lòng chỉ dùng ký tự chữ, số, gạch ngang và không để trống.",
-    duplicateBranch: "Tên nhánh này đã tồn tại trong repository."
+    duplicateBranch: "Tên nhánh này đã tồn tại trong repository.",
+    fetchBtn: "Fetch",
+    fetchTooltip: "Lấy các thay đổi mới nhất từ tất cả các nhánh trên remote",
+    pullTooltip: (n: number) => `Kéo ${n} commit mới từ remote về nhánh local này`,
+    pushTooltip: (n: number) => `Đẩy ${n} commit mới từ local này lên remote`
   },
   [TranslationTone.JOKE]: {
     newBranch: "Phun nhánh mới 🌿",
@@ -60,7 +67,11 @@ const branchLoc = {
     previewLabel: "Dáng dấp nhánh tương lai",
     cancelBtn: "Thôi cút",
     invalidSuffix: "Nhập tên cho đàng hoàng chữ số thôi sếp ơi, đừng chế cháo ký tự lạ.",
-    duplicateBranch: "Nhánh này bị trùng gốc rồi nha sếp."
+    duplicateBranch: "Nhánh này bị trùng gốc rồi nha sếp.",
+    fetchBtn: "Fetch",
+    fetchTooltip: "Hóng hớt xem server có biến gì mới chưa sếp ơi",
+    pullTooltip: (n: number) => `Kéo liền ${n} quà xịn xò từ remote về sếp ơi`,
+    pushTooltip: (n: number) => `Đẩy ${n} phát kiến vĩ đại lên remote đi ní`
   },
   [TranslationTone.TOXIC]: {
     newBranch: "Đẻ nhánh mới lẹ lên!",
@@ -80,7 +91,11 @@ const branchLoc = {
     previewLabel: "Hình dáng sản phẩm lỗi sắp đẻ",
     cancelBtn: "Hủy cút",
     invalidSuffix: "Tên rác quá, đéo hợp lệ rồi. Nhập chữ cái, số, gạch ngang thôi thằng ngu!",
-    duplicateBranch: "Nhánh này có rồi mày đẻ lắm thế!"
+    duplicateBranch: "Nhánh này có rồi mày đẻ lắm thế!",
+    fetchBtn: "Fetch",
+    fetchTooltip: "Dò la xem đồng nghiệp nó có đè code rác lên không chứ gì nữa",
+    pullTooltip: (n: number) => `Hốt ${n} đống rác mới nhất trên remote về máy đi`,
+    pushTooltip: (n: number) => `Đẩy ${n} đống phân code rác rưởi của mày lên remote đi`
   },
   [TranslationTone.ENGLISH]: {
     newBranch: "New Branch",
@@ -100,7 +115,11 @@ const branchLoc = {
     previewLabel: "Resulting branch name",
     cancelBtn: "Cancel",
     invalidSuffix: "Invalid branch suffix. Please use letters, numbers, hyphens or underscores only.",
-    duplicateBranch: "This branch already exists in the repository."
+    duplicateBranch: "This branch already exists in the repository.",
+    fetchBtn: "Fetch",
+    fetchTooltip: "Fetch latest updates from all remote branches",
+    pullTooltip: (n: number) => `Pull ${n} new commit${n > 1 ? 's' : ''} from remote`,
+    pushTooltip: (n: number) => `Push ${n} new commit${n > 1 ? 's' : ''} to remote`
   }
 };
 
@@ -124,6 +143,10 @@ interface BranchPanelProps {
   onCheckout: (branchName: string) => void;
   onCreateBranch: (branchName: string, baseBranch?: string) => void;
   onDeleteBranch: (branchName: string) => void;
+  onFetch: () => void;
+  onPullBranch: (branchName: string) => void;
+  onPushBranch: (branchName: string) => void;
+  isFetchingGlobal?: boolean;
 }
 
 export default function BranchPanel({
@@ -135,7 +158,11 @@ export default function BranchPanel({
   checkingOutBranch = null,
   onCheckout,
   onCreateBranch,
-  onDeleteBranch
+  onDeleteBranch,
+  onFetch,
+  onPullBranch,
+  onPushBranch,
+  isFetchingGlobal = false
 }: BranchPanelProps) {
   const [search, setSearch] = React.useState('');
   const [branchToDelete, setBranchToDelete] = React.useState<string | null>(null);
@@ -253,14 +280,14 @@ export default function BranchPanel({
         </div>
         <button
           onClick={toggleCollapse}
-          className={`text-xs font-mono flex items-center gap-1 px-2.5 py-1 rounded cursor-pointer border ${
+          className={`p-1.5 rounded cursor-pointer border shrink-0 flex items-center justify-center transition-all ${
             isLight
               ? 'bg-sky-50 border-sky-200 text-sky-700 hover:bg-sky-100'
-              : 'bg-[#1e293b] border-slate-750 text-sky-400 hover:text-sky-303'
+              : 'bg-[#1e293b] border-slate-755 text-sky-400 hover:text-sky-303'
           }`}
+          title={tone === TranslationTone.ENGLISH ? 'Show' : 'Hiển thị'}
         >
           <Eye className="w-3.5 h-3.5" />
-          <span>{tone === TranslationTone.ENGLISH ? 'Show' : 'Hiển thị'}</span>
         </button>
       </div>
     );
@@ -275,6 +302,25 @@ export default function BranchPanel({
         </h2>
         
         <div className="flex items-center gap-2">
+          {/* Fetch remote button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onFetch();
+            }}
+            disabled={isFetchingGlobal}
+            title={loc.fetchTooltip}
+            className={`p-1.5 rounded border transition-all text-xs flex items-center justify-center shrink-0 cursor-pointer active:scale-95 ${
+              isFetchingGlobal ? 'animate-pulse opacity-50 cursor-not-allowed' : ''
+            } ${
+              isLight 
+                ? 'bg-indigo-50 border-indigo-200 text-indigo-750 hover:bg-indigo-100 hover:text-indigo-900' 
+                : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400 hover:text-indigo-300'
+            }`}
+          >
+            <ArrowDownLeft className={`w-4 h-4 ${isFetchingGlobal ? 'animate-spin' : ''}`} />
+          </button>
+
           {/* Branch Create button */}
           <button
             onClick={openCreateModal}
@@ -405,8 +451,42 @@ export default function BranchPanel({
 
                 {/* Operations Right */}
                 <div className="flex items-center gap-1.5 shrink-0">
+                  {/* Pull Button */}
+                  {branch.isLocal && typeof branch.behindCount === 'number' && branch.behindCount > 0 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onPullBranch(branch.name);
+                      }}
+                      className={`p-1 rounded border border-transparent transition-all active:scale-90 cursor-pointer flex items-center gap-0.5 text-emerald-500 font-mono text-[10px] ${
+                        isLight ? 'hover:bg-emerald-50 hover:border-emerald-200' : 'hover:bg-emerald-500/10 hover:border-emerald-500/20'
+                      }`}
+                      title={loc.pullTooltip(branch.behindCount)}
+                    >
+                      <ArrowDown className="w-3.5 h-3.5" />
+                      <span className="font-bold">{branch.behindCount}</span>
+                    </button>
+                  )}
+
+                  {/* Push Button */}
+                  {branch.isLocal && typeof branch.aheadCount === 'number' && branch.aheadCount > 0 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onPushBranch(branch.name);
+                      }}
+                      className={`p-1 rounded border border-transparent transition-all active:scale-90 cursor-pointer flex items-center gap-0.5 text-sky-500 font-mono text-[10px] ${
+                        isLight ? 'hover:bg-sky-50 hover:border-sky-200' : 'hover:bg-sky-500/10 hover:border-sky-500/20'
+                      }`}
+                      title={loc.pushTooltip(branch.aheadCount)}
+                    >
+                      <ArrowUp className="w-3.5 h-3.5" />
+                      <span className="font-bold">{branch.aheadCount}</span>
+                    </button>
+                  )}
+
                   {/* Deletion protection */}
-                  {!isCurrent && !branch.isBase && !isAnyCheckingOut && (
+                  {!isCurrent && branch.isLocal && !isAnyCheckingOut && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation(); // Avoid triggering double click checkout
@@ -527,55 +607,68 @@ export default function BranchPanel({
               </div>
             </div>
 
-            <form onSubmit={handleModalSubmit} className="space-y-4">
-              {/* Base Branch Selection */}
-              <div>
-                <label className={`block text-[10px] uppercase font-bold tracking-wider mb-1.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                  {loc.baseBranchLabel}
-                </label>
-                <select
-                  value={baseBranch}
-                  onChange={(e) => {
-                    setBaseBranch(e.target.value);
-                    setModalError(null);
-                  }}
-                  className={`w-full px-3 py-2 text-xs font-mono rounded border outline-none cursor-pointer focus:border-sky-500 transition-colors ${
-                    isLight 
-                      ? 'bg-white border-slate-250 text-slate-800 focus:ring-1 focus:ring-sky-200' 
-                      : 'bg-slate-900 border-slate-800 text-slate-200 focus:ring-1 focus:ring-sky-950'
-                  }`}
-                >
-                  {Array.from(new Set(branches.map(b => b.name)))
-                    .filter(bName => bName !== 'origin' && !bName.includes('HEAD') && !bName.includes('->'))
-                    .map(bName => (
-                      <option key={bName} value={bName}>{bName}</option>
-                    ))}
-                </select>
-              </div>
+            <form onSubmit={handleModalSubmit} className="space-y-4 text-left">
+              <div className="grid grid-cols-12 gap-x-3.5 gap-y-4">
+                {/* Base Branch Selection */}
+                <div className="col-span-12">
+                  <label className={`block text-[10px] uppercase font-bold tracking-wider mb-1.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                    {loc.baseBranchLabel}
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={baseBranch}
+                      onChange={(e) => {
+                        setBaseBranch(e.target.value);
+                        setModalError(null);
+                      }}
+                      className={`w-full px-3 py-2 pr-8 text-xs font-mono rounded border outline-none cursor-pointer appearance-none focus:border-sky-500 transition-colors ${
+                        isLight 
+                          ? 'bg-white border-slate-250 text-slate-800 focus:ring-1 focus:ring-sky-200' 
+                          : 'bg-slate-900 border-slate-800 text-slate-200 focus:ring-1 focus:ring-sky-950'
+                      }`}
+                    >
+                      {Array.from(new Set(branches.map(b => b.name)))
+                        .filter(bName => bName !== 'origin' && !bName.includes('HEAD') && !bName.includes('->'))
+                        .map(bName => (
+                          <option key={bName} value={bName}>{bName}</option>
+                        ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-slate-400">
+                      <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                        <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                      </svg>
+                    </div>
+                  </div>
+                </div>
 
-              {/* Prefix and Suffix side by side */}
-              <div className="grid grid-cols-12 gap-3">
                 {/* Prefix Select */}
                 <div className="col-span-5">
                   <label className={`block text-[10px] uppercase font-bold tracking-wider mb-1.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                     {loc.prefixLabel}
                   </label>
-                  <select
-                    value={selectedPrefix}
-                    onChange={(e) => {
-                      setSelectedPrefix(e.target.value);
-                      setModalError(null);
-                    }}
-                    className={`w-full px-2 py-2 text-xs font-mono rounded border outline-none cursor-pointer focus:border-sky-500 transition-colors ${
-                      isLight 
-                        ? 'bg-white border-slate-250 text-slate-800 focus:ring-1 focus:ring-sky-200' 
-                        : 'bg-slate-900 border-slate-800 text-slate-200 focus:ring-1 focus:ring-sky-950'
-                    }`}
-                  >
-                    {STANDARD_PREFIXES.map(p => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={selectedPrefix}
+                      onChange={(e) => {
+                        setSelectedPrefix(e.target.value);
+                        setModalError(null);
+                      }}
+                      className={`w-full px-2.5 py-2 pr-8 text-xs font-mono rounded border outline-none cursor-pointer appearance-none focus:border-sky-500 transition-colors ${
+                        isLight 
+                          ? 'bg-white border-slate-250 text-slate-800 focus:ring-1 focus:ring-sky-200' 
+                          : 'bg-slate-900 border-slate-800 text-slate-200 focus:ring-1 focus:ring-sky-950'
+                      }`}
+                    >
+                      {STANDARD_PREFIXES.map(p => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
+                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                      <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                        <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                      </svg>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Suffix Input */}

@@ -18,7 +18,7 @@ const termLoc: Record<string, Record<string, string>> = {
     placeholder: "Gõ lệnh Git bất kỳ (ví dụ: git checkout develop, git restore file)...",
     analyzing: "Đang phân tích...",
     explainSuggest: "Giải thích & Gợi ý",
-    aiTitle: "PHÂN TÍCH LỆNH GIT BẰNG GEMINI AI",
+    aiTitle: "PHÂN TÍCH LỆNH GIT BẰNG TRỢ LÝ AI",
     offlineTitle: "PHÂN TÍCH LỆNH GIT (CHẾ ĐỘ TIẾT KIỆM)",
     cancel: "Huỷ bỏ",
     dangerousTitle: "Lệnh Nguy Hiểm!",
@@ -51,7 +51,7 @@ const termLoc: Record<string, Record<string, string>> = {
     placeholder: "Múa phím Git dạo đi nào sếp ơi...",
     analyzing: "Đang bấm quẻ...",
     explainSuggest: "Xin Quẻ & Gợi Ý",
-    aiTitle: "GEMINI AI KHAI THÔNG PHÁN LUYỆN 🔮",
+    aiTitle: "TRỢ LÝ AI KHAI THÔNG PHÁN LUYỆN 🔮",
     offlineTitle: "ĐỘC SÁCH TRANH THỦ (CHẾ ĐỘ THẤP COI)",
     cancel: "Tha cho sếp",
     dangerousTitle: "Nghịch Dại Phát Hiện!",
@@ -84,7 +84,7 @@ const termLoc: Record<string, Record<string, string>> = {
     placeholder: "Gõ bừa bãi cái gì vào đây đi cụ ơi...",
     analyzing: "Gõ láo à đợi tí đang rà soát...",
     explainSuggest: "Gáy to lên AI giải thích",
-    aiTitle: "QUÁI VẬT GEMINI AI ĐANG SĂN LỖI",
+    aiTitle: "QUÁI VẬT AI ĐANG SĂN LỖI",
     offlineTitle: "BỘ NÃO GIẤY OFFLINE TỰ TUY ĐOÁN",
     cancel: "Hèn thế từ bỏ à",
     dangerousTitle: "Tính Chuồn À?! (Lệnh Đốt Nhà)",
@@ -117,7 +117,7 @@ const termLoc: Record<string, Record<string, string>> = {
     placeholder: "Type any Git command (e.g. git checkout develop, git restore file)...",
     analyzing: "Analyzing...",
     explainSuggest: "Explain & Suggest",
-    aiTitle: "GIT ANALYSIS BY GEMINI AI",
+    aiTitle: "GIT ANALYSIS BY AI ASSISTANT",
     offlineTitle: "GIT ANALYSIS (COST-SAVING OFFLINE MODE)",
     cancel: "Cancel",
     dangerousTitle: "Dangerous Command!",
@@ -724,10 +724,10 @@ export default function TerminalPanel({
     }
 
     const genericExplanation = {
-      [TranslationTone.ENGLISH]: `[OFFLINE - Gemini Disabled] This command represents a Git execution sequence. When AI mode is off, details are provided as reference: "${cmd}".`,
-      [TranslationTone.PROFESSIONAL]: `[Chế độ Tiết kiệm - Đã tắt Gemini] Lệnh Git này dùng để thao tác với bộ lưu trữ: "${cmd}". Để nhận phân tích nâng cao, hãy bật lại Gemini trên Header.`,
-      [TranslationTone.TOXIC]: `[OFFLINE - Đã tắt Gemini] Lại gõ lệnh gì linh tinh thế này cưng ơi: "${cmd}"? Bật Gemini lên tao vả cho tỉnh người nhé!`,
-      [TranslationTone.JOKE]: `[OFFLINE - Gemini bận đi ngủ] Lệnh "${cmd}" nghe có vẻ chuyên nghiệp đấy nhưng Gemini đang tắt rồi, bật lên để mình bói quẻ cho nha!`
+      [TranslationTone.ENGLISH]: `[OFFLINE - AI Disabled] This command represents a Git execution sequence. When AI mode is off, details are provided as reference: "${cmd}".`,
+      [TranslationTone.PROFESSIONAL]: `[Chế độ Tiết kiệm - Đã tắt Trợ lý AI] Lệnh Git này dùng để thao tác với bộ lưu trữ: "${cmd}". Để nhận phân tích nâng cao, hãy bật lại Trợ lý AI trên Header.`,
+      [TranslationTone.TOXIC]: `[OFFLINE - Đã tắt Trợ lý AI] Lại gõ lệnh gì linh tinh thế này cưng ơi: "${cmd}"? Bật Trợ lý AI lên tao vả cho tỉnh người nhé!`,
+      [TranslationTone.JOKE]: `[OFFLINE - Trợ lý AI bận đi ngủ] Lệnh "${cmd}" nghe có vẻ chuyên nghiệp đấy nhưng Trợ lý AI đang tắt rồi, bật lên để mình bói quẻ cho nha!`
     };
 
     const genericWarning = {
@@ -738,10 +738,10 @@ export default function TerminalPanel({
     };
 
     const genericSuggestion = {
-      [TranslationTone.ENGLISH]: "View 'git --help' or turn on Gemini AI for fully localized smart command mapping.",
-      [TranslationTone.PROFESSIONAL]: "Gõ 'git --help' hoặc bật công tắc Gemini AI màu tím ở góc trên để nhận hướng dẫn cực kỳ chi tiết từ AI.",
-      [TranslationTone.TOXIC]: "Bật Gemini AI lên đi rồi tao dạy dỗ cho đến nơi đến chốn, tắt đi làm gì!",
-      [TranslationTone.JOKE]: "Quay xe lên Header bật nút Gemini AI lên để khai mở thiên nhãn thôi nào bạn hiền!"
+      [TranslationTone.ENGLISH]: "View 'git --help' or turn on AI Assistant for fully localized smart command mapping.",
+      [TranslationTone.PROFESSIONAL]: "Gõ 'git --help' hoặc bật công tắc Trợ lý AI ở góc trên để nhận hướng dẫn cực kỳ chi tiết từ AI.",
+      [TranslationTone.TOXIC]: "Bật Trợ lý AI lên đi rồi tao dạy dỗ cho đến nơi đến chốn, tắt đi làm gì!",
+      [TranslationTone.JOKE]: "Quay xe lên Header bật nút Trợ lý AI lên để khai mở thiên nhãn thôi nào bạn hiền!"
     };
 
     return {
@@ -1197,13 +1197,14 @@ export default function TerminalPanel({
         </div>
         <button
           onClick={onToggleLogPanel}
-          className={`text-xs font-mono flex items-center gap-1 px-2.5 py-1 rounded cursor-pointer border ${
+          className={`p-1.5 rounded cursor-pointer border shrink-0 flex items-center justify-center transition-all ${
             isLight
               ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
               : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400 hover:text-indigo-300'
           }`}
+          title={loc.showLogs}
         >
-          <Eye className="w-3.5 h-3.5" /> {loc.showLogs}
+          <Eye className="w-3.5 h-3.5" />
         </button>
       </div>
     );
@@ -1235,39 +1236,36 @@ export default function TerminalPanel({
         <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
           <button
             onClick={handleCopy}
-            className={`p-1.5 rounded transition-all text-xs flex items-center gap-1 font-mono cursor-pointer border shrink-0 ${
+            className={`p-1.5 rounded transition-all flex items-center justify-center cursor-pointer border shrink-0 ${
               isLight 
-                ? 'bg-slate-100 border-slate-250 text-slate-650 hover:bg-slate-200 hover:text-slate-900' 
+                ? 'bg-slate-100 border-slate-200 text-slate-650 hover:bg-slate-200 hover:text-slate-900' 
                 : 'bg-slate-950 border border-slate-900 text-slate-500 hover:text-slate-305'
             }`}
-            title={loc.copyLabel}
+            title={copied ? loc.copiedLabel : loc.copyLabel}
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-555 shrink-0" /> : <Copy className="w-3.5 h-3.5 shrink-0" />}
-            <span className="hidden sm:inline">{copied ? loc.copiedLabel : loc.copyLabel}</span>
           </button>
           <button
             onClick={onClearLogs}
-            className={`p-1.5 rounded transition-all text-xs flex items-center gap-1 font-mono cursor-pointer border shrink-0 ${
+            className={`p-1.5 rounded transition-all flex items-center justify-center cursor-pointer border shrink-0 ${
               isLight 
-                ? 'bg-slate-100 border-slate-250 text-slate-650 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200' 
+                ? 'bg-slate-100 border-slate-200 text-slate-650 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200' 
                 : 'bg-slate-950 border border-slate-900 text-slate-500 hover:text-rose-455'
             }`}
             title={loc.clearLabel}
           >
             <Trash2 className="w-3.5 h-3.5 shrink-0" />
-            <span className="hidden sm:inline">{loc.clearLabel}</span>
           </button>
           <button
             onClick={onToggleLogPanel}
-            className={`p-1.5 rounded transition-all text-xs flex items-center gap-1 font-mono cursor-pointer border shrink-0 ${
+            className={`p-1.5 rounded transition-all flex items-center justify-center cursor-pointer border shrink-0 ${
               isLight 
-                ? 'bg-slate-100 border-slate-250 text-slate-650 hover:bg-slate-200 hover:text-slate-900' 
+                ? 'bg-slate-100 border-slate-200 text-slate-650 hover:bg-slate-200 hover:text-slate-900' 
                 : 'bg-slate-950 border border-slate-900 text-slate-500 hover:text-slate-305'
             }`}
             title={loc.hideLabel}
           >
             <EyeOff className="w-3.5 h-3.5 shrink-0" />
-            <span className="hidden sm:inline">{loc.hideLabel}</span>
           </button>
         </div>
       </div>

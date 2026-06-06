@@ -131,13 +131,13 @@ app.get('/api/git-status', async (req, res) => {
     }
 
     const branchesList = [
-      { name: 'develop', isLocal: true, isRemote: true, isCurrent: false, isBase: true },
-      { name: 'main', isLocal: true, isRemote: true, isCurrent: false, isBase: true },
+      { name: 'develop', isLocal: true, isRemote: true, isCurrent: false, isBase: true, aheadCount: 2, behindCount: 0 },
+      { name: 'main', isLocal: true, isRemote: true, isCurrent: false, isBase: true, aheadCount: 0, behindCount: 0 },
       { name: 'feature/payment-linear', isLocal: true, isRemote: false, isCurrent: scenario === 'linear', isBase: false },
       { name: 'feature/payment-nonlinear', isLocal: true, isRemote: false, isCurrent: scenario === 'nonlinear', isBase: false },
       { name: 'feature/payment-diverged-rewrite', isLocal: true, isRemote: false, isCurrent: scenario === 'rewrite', isBase: false },
       { name: 'feature/payment-stale-base', isLocal: true, isRemote: false, isCurrent: scenario === 'stale', isBase: false },
-      { name: 'feature/auth-oauth', isLocal: true, isRemote: true, isCurrent: false, isBase: false },
+      { name: 'feature/auth-oauth', isLocal: true, isRemote: true, isCurrent: false, isBase: false, aheadCount: 0, behindCount: 3 },
       { name: 'bugfix/typo-header', isLocal: true, isRemote: false, isCurrent: false, isBase: false }
     ];
 
@@ -209,37 +209,251 @@ app.get('/api/git-status', async (req, res) => {
       .map(b => b.trim())
       .filter(b => b.length > 0 && b !== 'origin' && !b.includes('->') && !b.includes('HEAD'));
     
-    const branches = Array.from(new Set(
-      rawBranchList
-        .map(b => b.replace(/^remotes\//, '').replace(/^origin\//, '').trim())
-        .filter(b => b.length > 0 && b !== 'origin' && !b.includes('HEAD') && !b.includes('->'))
-    ))
-      .map(bName => ({
-        name: bName,
-        isLocal: rawBranchList.includes(bName) || rawBranchList.includes(`heads/${bName}`),
-        isRemote: rawBranchList.includes(`origin/${bName}`) || rawBranchList.includes(`remotes/origin/${bName}`),
-        isCurrent: bName === currBranch,
-        isBase: ['main', 'master', 'develop', 'dev'].includes(bName)
-      }));
+    const branches = await Promise.all(
+      Array.from(new Set(
+        rawBranchList
+          .map(b => b.replace(/^remotes\//, '').replace(/^origin\//, '').trim())
+          .filter(b => b.length > 0 && b !== 'origin' && !b.includes('HEAD') && !b.includes('->'))
+      ))
+        .map(async bName => {
+          const isLocal = rawBranchList.includes(bName) || rawBranchList.includes(`heads/${bName}`);
+          const isRemote = rawBranchList.includes(`origin/${bName}`) || rawBranchList.includes(`remotes/origin/${bName}`);
+          let aheadCount = 0;
+          let behindCount = 0;
 
-    // 5. Load last 20 commits
-    const logRes = await runCmd('git log --pretty="format:%h|%an|%ar|%s" -n 20', activeRepoPath);
-    const commits = logRes.stdout.split('\n')
-      .map(line => {
-        const parts = line.split('|');
-        if (parts.length < 4) return null;
-        const [sha, author, date, message] = parts;
-        
-        let type = 'other';
-        if (message.startsWith('feat:')) type = 'feat';
-        else if (message.startsWith('fix:')) type = 'fix';
-        else if (message.startsWith('refactor:')) type = 'refactor';
-        else if (message.startsWith('docs:')) type = 'docs';
-        else if (message.startsWith('chore:')) type = 'chore';
+          if (isLocal && isRemote) {
+            try {
+              const revRes = await runCmd(`git rev-list --left-right --count ${bName}...origin/${bName}`, activeRepoPath);
+              const parts = revRes.stdout.trim().split(/\s+/);
+              if (parts.length === 2) {
+                aheadCount = parseInt(parts[0], 10) || 0;
+                behindCount = parseInt(parts[1], 10) || 0;
+              }
+            } catch (err) {
+              // ignore rev-list lookup failures
+            }
+          }
 
-        return { sha, author, date, message, type, selected: true };
-      })
-      .filter(Boolean);
+          return {
+            name: bName,
+            isLocal,
+            isRemote,
+            isCurrent: bName === currBranch,
+            isBase: ['main', 'master', 'develop', 'dev'].includes(bName),
+            aheadCount,
+            behindCount
+          };
+        })
+    );
+
+     // 5. Load last 25 commits with dual-branch & rebase state awareness
+    const baseBranchName = branches.find(b => b.isBase)?.name || 'develop';
+    const baseCommitShas = new Set<string>();
+    try {
+      const baseLog = await runCmd(`git rev-list --abbrev-commit -n 100 ${baseBranchName}`, activeRepoPath);
+      baseLog.stdout.split('\n').map(s => s.trim()).filter(Boolean).forEach(s => baseCommitShas.add(s));
+    } catch (e) {
+      // Fallback: search common base branches
+      for (const fallback of ['develop', 'main', 'master', 'dev']) {
+        if (fallback !== currBranch) {
+          try {
+            const baseLog = await runCmd(`git rev-list --abbrev-commit -n 100 ${fallback}`, activeRepoPath);
+            baseLog.stdout.split('\n').map(s => s.trim()).filter(Boolean).forEach(s => baseCommitShas.add(s));
+            if (baseCommitShas.size > 0) break;
+          } catch (e2) {}
+        }
+      }
+    }
+
+    let rebaseState: any = null;
+    let ontoShas = new Set<string>();
+    let rebaseOrigCommits: any[] = [];
+    let stoppedSha = '';
+    let currentStepNum = 0;
+    let totalStepsNum = 0;
+
+    if (rebaseInProgress) {
+      const rebaseMergeDir = path.join(gitDir, 'rebase-merge');
+      const rebaseApplyDir = path.join(gitDir, 'rebase-apply');
+      let rebaseDir = '';
+      if (fs.existsSync(rebaseMergeDir)) {
+        rebaseDir = rebaseMergeDir;
+      } else if (fs.existsSync(rebaseApplyDir)) {
+        rebaseDir = rebaseApplyDir;
+      }
+
+      if (rebaseDir) {
+        try {
+          const onto = fs.existsSync(path.join(rebaseDir, 'onto')) 
+            ? fs.readFileSync(path.join(rebaseDir, 'onto'), 'utf-8').trim().slice(0, 7) 
+            : '';
+          const origHead = fs.existsSync(path.join(rebaseDir, 'orig-head'))
+            ? fs.readFileSync(path.join(rebaseDir, 'orig-head'), 'utf-8').trim().slice(0, 7)
+            : '';
+          const headName = fs.existsSync(path.join(rebaseDir, 'head-name'))
+            ? fs.readFileSync(path.join(rebaseDir, 'head-name'), 'utf-8').trim().replace('refs/heads/', '')
+            : '';
+          const msgnumStr = fs.existsSync(path.join(rebaseDir, 'msgnum'))
+            ? fs.readFileSync(path.join(rebaseDir, 'msgnum'), 'utf-8').trim()
+            : '0';
+          const endStr = fs.existsSync(path.join(rebaseDir, 'end'))
+            ? fs.readFileSync(path.join(rebaseDir, 'end'), 'utf-8').trim()
+            : '0';
+          stoppedSha = fs.existsSync(path.join(rebaseDir, 'stopped-sha'))
+            ? fs.readFileSync(path.join(rebaseDir, 'stopped-sha'), 'utf-8').trim().slice(0, 7)
+            : '';
+
+          currentStepNum = parseInt(msgnumStr, 10) || 0;
+          totalStepsNum = parseInt(endStr, 10) || 0;
+
+          if (onto) {
+            try {
+              const ontoLog = await runCmd(`git rev-list --abbrev-commit -n 100 ${onto}`, activeRepoPath);
+              ontoLog.stdout.split('\n').map(s => s.trim()).filter(Boolean).forEach(s => ontoShas.add(s));
+            } catch (e) {}
+          }
+
+          if (origHead) {
+            try {
+              const origLogRes = await runCmd(`git log --pretty="format:%h|%an|%ar|%s|%p" -n 25 ${origHead}`, activeRepoPath);
+              const origCommitsParsed = origLogRes.stdout.split('\n')
+                .map(line => {
+                  const parts = line.split('|');
+                  if (parts.length < 4) return null;
+                  const [sha, author, date, message, parentsRaw] = parts;
+                  const parents = parentsRaw ? parentsRaw.trim().split(/\s+/).filter(Boolean) : [];
+                  
+                  let type = 'other';
+                  if (message.startsWith('feat:')) type = 'feat';
+                  else if (message.startsWith('fix:')) type = 'fix';
+                  else if (message.startsWith('refactor:')) type = 'refactor';
+                  else if (message.startsWith('docs:')) type = 'docs';
+                  else if (message.startsWith('chore:')) type = 'chore';
+
+                  return { 
+                    sha, 
+                    author, 
+                    date, 
+                    message, 
+                    type, 
+                    parents, 
+                    isMergeCommit: parents.length > 1,
+                    track: 1, 
+                    selected: true,
+                    isOriginalPending: true 
+                  };
+                })
+                .filter(Boolean);
+
+              rebaseOrigCommits = origCommitsParsed.filter(c => c && !ontoShas.has(c.sha));
+            } catch (e) {
+              console.error('Failed to parse original rebase commits:', e);
+            }
+          }
+
+          rebaseState = {
+            onto,
+            origHead,
+            headName,
+            currentStep: currentStepNum,
+            totalSteps: totalStepsNum,
+            stoppedSha
+          };
+        } catch (err) {
+          console.error('Error reading rebase folder details:', err);
+        }
+      }
+    }
+
+    let commits: any[] = [];
+    if (rebaseInProgress) {
+      // Fetch currently applied commits under detached HEAD/rebase state
+      const currentLogRes = await runCmd('git log --pretty="format:%h|%an|%ar|%s|%p" -n 25', activeRepoPath);
+      const currentCommits = currentLogRes.stdout.split('\n')
+        .map(line => {
+          const parts = line.split('|');
+          if (parts.length < 4) return null;
+          const [sha, author, date, message, parentsRaw] = parts;
+          const parents = parentsRaw ? parentsRaw.trim().split(/\s+/).filter(Boolean) : [];
+          
+          let type = 'other';
+          if (message.startsWith('feat:')) type = 'feat';
+          else if (message.startsWith('fix:')) type = 'fix';
+          else if (message.startsWith('refactor:')) type = 'refactor';
+          else if (message.startsWith('docs:')) type = 'docs';
+          else if (message.startsWith('chore:')) type = 'chore';
+
+          const isBase = ontoShas.has(sha) || baseCommitShas.has(sha);
+          // Highlight conflicting commit
+          const isConflicting = sha === stoppedSha || (stoppedSha && message.includes(stoppedSha));
+
+          return { 
+            sha, 
+            author, 
+            date, 
+            message, 
+            type, 
+            parents, 
+            isMergeCommit: parents.length > 1,
+            track: isBase ? 0 : 0, // Draw on mainline once they land or are applied
+            isConflicting,
+            selected: true 
+          };
+        })
+        .filter(Boolean);
+
+      const replayedMessages = new Set(currentCommits.map(c => c!.message.trim()));
+      const mergedCommits = [...currentCommits];
+
+      rebaseOrigCommits.forEach(orig => {
+        const alreadyReplayed = replayedMessages.has(orig.message.trim());
+        if (!alreadyReplayed) {
+          const isConflicting = orig.sha === stoppedSha || (stoppedSha && orig.message.includes(stoppedSha));
+          mergedCommits.unshift({
+            ...orig,
+            track: 1,
+            pending: true,
+            isConflicting,
+            status: 'pending'
+          });
+        }
+      });
+
+      commits = mergedCommits;
+    } else {
+      // Standard non-rebase case: fetch last 25 commits of HEAD
+      const logRes = await runCmd('git log --pretty="format:%h|%an|%ar|%s|%p" -n 25', activeRepoPath);
+      commits = logRes.stdout.split('\n')
+        .map(line => {
+          const parts = line.split('|');
+          if (parts.length < 4) return null;
+          const [sha, author, date, message, parentsRaw] = parts;
+          const parents = parentsRaw ? parentsRaw.trim().split(/\s+/).filter(Boolean) : [];
+          
+          let type = 'other';
+          if (message.startsWith('feat:')) type = 'feat';
+          else if (message.startsWith('fix:')) type = 'fix';
+          else if (message.startsWith('refactor:')) type = 'refactor';
+          else if (message.startsWith('docs:')) type = 'docs';
+          else if (message.startsWith('chore:')) type = 'chore';
+
+          const isBaseCommit = baseCommitShas.has(sha);
+          const track = isBaseCommit ? 0 : 1;
+
+          return { 
+            sha, 
+            author, 
+            date, 
+            message, 
+            type, 
+            parents, 
+            isMergeCommit: parents.length > 1,
+            track, 
+            selected: true 
+          };
+        })
+        .filter(Boolean);
+    }
 
     // 6. Inspect rebase conflict files if rebase is in progress
     const conflictedFiles: any[] = [];
@@ -283,10 +497,11 @@ app.get('/api/git-status', async (req, res) => {
       commits,
       rebaseInProgress,
       mergeInProgress,
+      rebaseState,
       conflicts: conflictedFiles,
       ghAvailable,
       ghErrorKey: ghAvailable ? '' : 'no_gh_err',
-      commandHistory: ['git status', 'git branch', 'git log -n 20']
+      commandHistory: ['git status', 'git branch', 'git log -n 25']
     });
 
   } catch (error: any) {

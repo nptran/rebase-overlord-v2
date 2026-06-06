@@ -20,6 +20,10 @@ export interface Commit {
   isMergeCommit?: boolean;
   parents?: string[];
   track?: number;
+  pending?: boolean;
+  status?: string;
+  isConflicting?: boolean;
+  isOriginalPending?: boolean;
 }
 
 export interface GitBranch {
@@ -28,6 +32,8 @@ export interface GitBranch {
   isRemote: boolean;
   isCurrent: boolean;
   isBase?: boolean;
+  aheadCount?: number;
+  behindCount?: number;
 }
 
 export interface ConflictFile {
@@ -51,6 +57,7 @@ export interface GitRepoState {
   commits: Commit[];
   rebaseInProgress: boolean;
   mergeInProgress: boolean;
+  rebaseState?: any;
   conflicts: ConflictFile[];
   ghAvailable: boolean;
   ghErrorKey: string;

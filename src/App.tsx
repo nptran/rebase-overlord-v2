@@ -145,7 +145,7 @@ const sanityLoc: Record<TranslationTone, {
     staleBaseDesc: "Nhánh base '{0}' bị chậm nhịp so với Remote.",
     cleanAllClearTitle: "✓ HỆ THỐNG TRƠN TRU KHỎE MẠNH",
     cleanAllClearDesc: "Thư mục làm việc hoàn toàn sạch sẽ. Các chỉ mục Git đều hoạt động hài hòa và sẵn sàng bùng nổ tiến trình Rebase!",
-    doctorRep: "🏥 PHÁC ĐỒ CHẨN TRỊ TỪ GEMINI AI",
+    doctorRep: "🏥 PHÁC ĐỒ CHẨN TRỊ TỪ TRỢ LÝ AI",
     doctorExplanation: "🔍 LÝ DO BẤT THƯỜNG (EXPLANATION):",
     doctorMitigation: "💊 PHƯƠNG ÁN ĐIỀU TRỊ (MITIGATION):",
     doctorApplyStash: "Áp dụng: git stash",
@@ -203,7 +203,7 @@ const sanityLoc: Record<TranslationTone, {
     staleBaseDesc: "Nhánh gốc '{0}' đang mốc meo so với trên mây rồi.",
     cleanAllClearTitle: "✓ TRỜI QUANG MÂY TẢNH KHÔNG BỆNH TẬT",
     cleanAllClearDesc: "Sạch sẽ láng o như chưa từng code hỏng, quẩy thôi sếp ơi!",
-    doctorRep: "🏥 QUẺ PHÁN BỆNH TỪ THẦY GEMINI",
+    doctorRep: "🏥 QUẺ PHÁN BỆNH TỪ THẦY AI",
     doctorExplanation: "🔍 CAO NHÂN CHỈ ĐIỂM (EXPLANATION):",
     doctorMitigation: "💊 PHÉP MÀU KHẮC PHỤC (MITIGATION):",
     doctorApplyStash: "Triển ngay: git stash",
@@ -319,7 +319,7 @@ const sanityLoc: Record<TranslationTone, {
     staleBaseDesc: "Base branch '{0}' is outdated compared to the remote.",
     cleanAllClearTitle: "✓ ALL CLEAR (NO ISSUES)",
     cleanAllClearDesc: "Your working tree is completely clean. All Git parameters are aligned and ready for a smooth Rebase replay!",
-    doctorRep: "🏥 DYNAMIC BACTERIA REPORT BY GEMINI AI",
+    doctorRep: "🏥 DYNAMIC BACTERIA REPORT BY AI ASSISTANT",
     doctorExplanation: "🔍 ANOMALY EXPLANATION (EXPLANATION):",
     doctorMitigation: "💊 ACTION PLAN (MITIGATION):",
     doctorApplyStash: "Apply: git stash",
@@ -464,6 +464,7 @@ export default function App() {
   const [resetKey, setResetKey] = React.useState<number>(0);
 
   const [isCloning, setIsCloning] = React.useState<boolean>(false);
+  const [isFetchingGlobal, setIsFetchingGlobal] = React.useState<boolean>(false);
 
   // Easter Eggs Toast system
   interface ActiveToast {
@@ -1877,45 +1878,45 @@ export default function App() {
     });
   };
 
-  // Offline diagnostic helpers to bypass Gemini API calls and save cost
+  // Offline diagnostic helpers to bypass AI API calls and save cost
   const offlineAnomalies = {
     dirty_working_tree: {
       english: {
-        explanation: "[OFFLINE Fallback - Gemini API is Disabled (Cost Saved)] Local working tree contains modifications that have not been tracked or committed. This locks important branch moves or rebase replays which require a clean tree register.",
+        explanation: "[OFFLINE Fallback - AI Assistant is Disabled (Cost Saved)] Local working tree contains modifications that have not been tracked or committed. This locks important branch moves or rebase replays which require a clean tree register.",
         mitigation: "Either stash away your temporary changes using 'git stash' or discard all uncommitted edits via 'git checkout . && git clean -fd'."
       },
       vietnamese: {
-        explanation: "[Chế độ Tiết kiệm - Đã tắt Gemini] Có các tệp tin trong thư mục làm việc đã bị sửa đổi nhưng chưa được lưu trữ (commit hoặc stash). Điều này ngăn cản quá trình chuyển nhánh hoặc Rebase Git an toàn.",
+        explanation: "[Chế độ Tiết kiệm - Đã tắt Trợ lý AI] Có các tệp tin trong thư mục làm việc đã bị sửa đổi nhưng chưa được lưu trữ (commit hoặc stash). Điều này ngăn cản quá trình chuyển nhánh hoặc Rebase Git an toàn.",
         mitigation: "Sơ cứu nhanh: Chạy 'git stash' để cất giữ tạm thời, hoặc chạy 'git checkout . && git clean -fd' để dọn dẹp sạch sẽ toàn bộ thay đổi chưa commit."
       }
     },
     diverged_branch: {
       english: {
-        explanation: "[OFFLINE Fallback - Gemini API is Disabled (Cost Saved)] Your local branch and the remote origin tracking branch have diverged. Both contain independent commits that do not exist on the other.",
+        explanation: "[OFFLINE Fallback - AI Assistant is Disabled (Cost Saved)] Your local branch and the remote origin tracking branch have diverged. Both contain independent commits that do not exist on the other.",
         mitigation: "Use 'git pull --rebase' to fetch remote commits and place your local commits nicely on top, or do a 'git push --force-with-lease' if you are sure your local branch is the source of truth."
       },
       vietnamese: {
-        explanation: "[Chế độ Tiết kiệm - Đã tắt Gemini] Nhánh của bạn ở máy tính của bạn và ở máy chủ (remote server) đang bị 'lệch pha chéo' (diverged). Cả hai đều có commit mới riêng.",
+        explanation: "[Chế độ Tiết kiệm - Đã tắt Trợ lý AI] Nhánh của bạn ở máy tính của bạn và ở máy chủ (remote server) đang bị 'lệch pha chéo' (diverged). Cả hai đều có commit mới riêng.",
         mitigation: "Giải pháp: Chạy 'git pull --rebase' để kéo dồn commit máy chủ và phát lại commit local lên đầu; hoặc bấm 'force push' nếu bạn tuyệt đối tin tưởng code dưới máy."
       }
     },
     detached_head: {
       english: {
-        explanation: "[OFFLINE Fallback - Gemini API is Disabled (Cost Saved)] You are in a 'Detached HEAD' state. You are pointing directly to a specific commit timeline hash instead of an active branch container.",
+        explanation: "[OFFLINE Fallback - AI Assistant is Disabled (Cost Saved)] You are in a 'Detached HEAD' state. You are pointing directly to a specific commit timeline hash instead of an active branch container.",
         mitigation: "Create a temporary safety rescue branch via 'git checkout -b recovery/detached-rescue' to preserve any new commits you write from being pruned by Git's garbage collection."
       },
       vietnamese: {
-        explanation: "[Chế độ Tiết kiệm - Đã tắt Gemini] Bạn đang rơi vào trạng thái 'Detached HEAD' (đầu rời neo). Bạn đang trỏ trực tiếp vào một mã băm commit cụ thể thay vì một nhánh.",
+        explanation: "[Chế độ Tiết kiệm - Đã tắt Trợ lý AI] Bạn đang rơi vào trạng thái 'Detached HEAD' (đầu rời neo). Bạn đang trỏ trực tiếp vào một mã băm commit cụ thể thay vì một nhánh.",
         mitigation: "Biện pháp cấp cứu: Tạo một nhánh mới an toàn ngay bằng lệnh 'git checkout -b recovery/detached-rescue' để bảo tồn các thử nghiệm mới viết."
       }
     },
     stale_base_branch: {
       english: {
-        explanation: "[OFFLINE Fallback - Gemini API is Disabled (Cost Saved)] Your reference base branch (e.g. develop or master) on your local computer is outdated compared to the remote origin registry.",
+        explanation: "[OFFLINE Fallback - AI Assistant is Disabled (Cost Saved)] Your reference base branch (e.g. develop or master) on your local computer is outdated compared to the remote origin registry.",
         mitigation: "Trigger a remote synchronization fetch and pull updates using 'git fetch origin && git checkout <base> && git pull origin <base>' to avoid massive rebasing conflicts on stale roots."
       },
       vietnamese: {
-        explanation: "[Chế độ Tiết kiệm - Đã tắt Gemini] Nhánh gốc tham chiếu của bạn ở local nằm tụt lại quá sâu so với remote server. Rebase trên nền một nhánh mốc meo lỗi thời sẽ gây ra xung đột cực lớn.",
+        explanation: "[Chế độ Tiết kiệm - Đã tắt Trợ lý AI] Nhánh gốc tham chiếu của bạn ở local nằm tụt lại quá sâu so với remote server. Rebase trên nền một nhánh mốc meo lỗi thời sẽ gây ra xung đột cực lớn.",
         mitigation: "Sơ cứu khẩn cấp: Đồng bộ và cập nhật nhánh base bằng chuỗi lệnh 'git fetch origin && git checkout base && git pull origin base' để lấy cập nhật mới nhất từ nhánh gốc."
       }
     }
@@ -1966,10 +1967,10 @@ export default function App() {
           let mitigation = rawMitigation;
 
           if (tone === TranslationTone.TOXIC) {
-            explanation = `[OFFLINE - ĐÃ TẮT GEMINI TIẾT KIỆM TIỀN] ${rawExplanation.replace("[Chế độ Tiết kiệm - Đã tắt Gemini] ", "")} Code lỗi tèm lem thế này chần chừ gì nữa hả nhóc!`;
+            explanation = `[OFFLINE - ĐÃ TẮT TRỢ LÝ AI TIẾT KIỆM TIỀN] ${rawExplanation.replace("[Chế độ Tiết kiệm - Đã tắt Trợ lý AI] ", "")} Code lỗi tèm lem thế này chần chừ gì nữa hả nhóc!`;
             mitigation = `${rawMitigation} Fix lẹ đi đừng chần chừ!`;
           } else if (tone === TranslationTone.JOKE) {
-            explanation = `[OFFLINE - GEMINI ĐANG TẬP YOGA] ${rawExplanation.replace("[Chế độ Tiết kiệm - Đã tắt Gemini] ", "")} Quẻ phán lỗi này rebase siêu sập tiệm á haha!`;
+            explanation = `[OFFLINE - TRỢ LÝ AI ĐANG TẬP YOGA] ${rawExplanation.replace("[Chế độ Tiết kiệm - Đã tắt Trợ lý AI] ", "")} Quẻ phán lỗi này rebase siêu sập tiệm á haha!`;
             mitigation = `${rawMitigation} Làm lẹ giải hạn đi bạn hiền bớ người ta!`;
           }
 
@@ -1979,7 +1980,7 @@ export default function App() {
           });
         } else {
           setDoctorDiagnosis({
-            explanation: isEnglish ? "Offline generic anomaly alert. Gemini is disabled." : "Cảnh báo bất thường cục bộ hệ thống. API Gemini đang tắt.",
+            explanation: isEnglish ? "Offline generic anomaly alert. AI is disabled." : "Cảnh báo bất thường cục bộ hệ thống. Trợ lý AI đang tắt.",
             mitigation: isEnglish ? "Proceed with manual fixes." : "Thực hiện xử lý thủ công các nhánh Git."
           });
         }
@@ -2254,13 +2255,149 @@ export default function App() {
     }
   };
 
-  const handleDeleteBranch = (branchName: string) => {
+  const handleDeleteBranch = async (branchName: string) => {
     addLog(`$ git branch -D ${branchName}`);
-    setRepoState(prev => ({
-      ...prev,
-      branches: prev.branches.filter(b => b.name !== branchName)
-    }));
-    addLog(`✓ Deleted local and remote tracking of ${branchName}`);
+    if (isSimulation) {
+      setRepoState(prev => ({
+        ...prev,
+        branches: prev.branches.filter(b => b.name !== branchName)
+      }));
+      addLog(`✓ Deleted local branch ${branchName} (Simulated)`);
+    } else {
+      try {
+        const res = await fetch(resolveApiUrl('/api/execute-command'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command: `git branch -D ${branchName}` })
+        });
+        if (res.ok) {
+          addLog(`✓ Deleted local branch: ${branchName}`);
+          handleRefresh();
+        } else {
+          const errMsg = await safeParseError(res, 'Unknown error deleting branch');
+          addLog(`! Error deleting branch: ${errMsg}`);
+        }
+      } catch (err: any) {
+        addLog(`! Network timeout deleting branch: ${err.message}`);
+      }
+    }
+  };
+
+  const handleFetch = async () => {
+    setIsFetchingGlobal(true);
+    addLog(`$ git fetch origin --prune`);
+    if (isSimulation) {
+      await new Promise(resolve => setTimeout(resolve, 800));
+      if (tone === TranslationTone.ENGLISH) {
+        addLog(`✓ Successfully fetched latest references from remote (Simulated).`);
+      } else if (tone === TranslationTone.TOXIC) {
+        addLog(`✓ Fetch xong rồi thằng lười! Nhìn đống thay đổi gớm giếc của đồng nghiệp kìa (Simulated).`);
+      } else if (tone === TranslationTone.JOKE) {
+        addLog(`✓ Hóng hớt remote thành công sếp ơi! Có cập nhật mới rồi nhé (Simulated).`);
+      } else {
+        addLog(`✓ Thành công lấy các tham chiếu mới nhất từ remote (Simulated).`);
+      }
+      setRepoState(prev => {
+        const updated = prev.branches.map(b => {
+          if (b.name === 'develop') {
+            return { ...b, aheadCount: 3, behindCount: 2 };
+          }
+          if (b.name === 'feature/auth-oauth') {
+            return { ...b, aheadCount: 0, behindCount: 5 };
+          }
+          return b;
+        });
+        return { ...prev, branches: updated };
+      });
+    } else {
+      try {
+        const res = await fetch(resolveApiUrl('/api/execute-command'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command: 'git fetch origin --prune' })
+        });
+        if (res.ok) {
+          addLog(`✓ Successfully fetched latest references from remote.`);
+          handleRefresh();
+        } else {
+          const errMsg = await safeParseError(res, 'Unknown error executing fetch');
+          addLog(`! Error running git fetch: ${errMsg}`);
+        }
+      } catch (err: any) {
+        addLog(`! Network timeout fetching: ${err.message}`);
+      }
+    }
+    setIsFetchingGlobal(false);
+  };
+
+  const handlePullBranch = async (branchName: string) => {
+    const isCurrent = repoState.currentBranch === branchName;
+    const command = isCurrent ? `git pull origin ${branchName}` : `git checkout ${branchName} && git pull origin ${branchName}`;
+    addLog(`$ ${command}`);
+    if (isSimulation) {
+      await new Promise(resolve => setTimeout(resolve, 800));
+      setRepoState(prev => {
+        const updated = prev.branches.map(b => {
+          if (b.name === branchName) {
+            return { ...b, behindCount: 0 };
+          }
+          return b;
+        });
+        return { ...prev, currentBranch: branchName, branches: updated };
+      });
+      addLog(`✓ Successfully pulled and merged latest commits for [${branchName}] (Simulated).`);
+    } else {
+      try {
+        const res = await fetch(resolveApiUrl('/api/execute-command'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command })
+        });
+        if (res.ok) {
+          addLog(`✓ Pulled and updated [${branchName}] successfully.`);
+          handleRefresh();
+        } else {
+          const errMsg = await safeParseError(res, 'Pull command failed');
+          addLog(`! Pull error: ${errMsg}`);
+        }
+      } catch (err: any) {
+        addLog(`! Network timeout pulling: ${err.message}`);
+      }
+    }
+  };
+
+  const handlePushBranch = async (branchName: string) => {
+    addLog(`$ git push origin ${branchName}`);
+    if (isSimulation) {
+      await new Promise(resolve => setTimeout(resolve, 800));
+      setRepoState(prev => {
+        const updated = prev.branches.map(b => {
+          if (b.name === branchName) {
+            return { ...b, aheadCount: 0 };
+          }
+          return b;
+        });
+        return { ...prev, branches: updated };
+      });
+      addLog(`✓ Successfully pushed local branch [${branchName}] to origin remote repository (Simulated).`);
+    } else {
+      try {
+        const res = await fetch(resolveApiUrl('/api/execute-command'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command: `git push origin ${branchName}` })
+        });
+        if (res.ok) {
+          addLog(`✓ Brand new commits of [${branchName}] pushed cleanly.`);
+          handleRefresh();
+        } else {
+          const errMsg = await safeParseError(res, 'Push command failed');
+          addLog(`! Push error: ${errMsg}`);
+        }
+      } catch (err: any) {
+        addLog(`! Network timeout pushing: ${err.message}`);
+      }
+    }
   };
 
   const handleCloneRepo = async (repoUrl: string, token: string) => {
@@ -2367,12 +2504,12 @@ export default function App() {
           onToggleAi={() => {
             const newVal = !isAiEnabled;
             setIsAiEnabled(newVal);
-            addLog(newVal ? '🤖 Gemini API Enabled (Full AI Features activated)' : '🤖 Gemini API Disabled (Cost saved - falling back to offline mode)');
+            addLog(newVal ? '🤖 AI Engine Enabled (Full AI Features activated)' : '🤖 AI Engine Disabled (Cost saved - falling back to offline mode)');
             
             if (newVal) {
-              triggerToast('success', '🧠 BRAIN EXTENSION ENABLED', 'Đã nhồi thêm hàng tỷ nơ-ron từ mô hình sinh mẫu Gemini 3.5 Flash siêu cấp!', '🤖');
+              triggerToast('success', '🧠 BRAIN EXTENSION ENABLED', 'Đã nhồi thêm hàng tỷ nơ-ron từ mô hình sinh mẫu trợ lý trí tuệ nhân tạo thông minh!', '🤖');
             } else {
-              triggerToast('warn', '🔌 COMPUTE COST SAVER', 'Bác sĩ Git đã chuyển sang chẩn đoán ngoại tuyến (Offline rules) để tiết kiệm bill của bạn.', '🔌');
+              triggerToast('warn', '🔌 COMPUTE COST SAVER', 'Trợ lý AI đã chuyển sang chẩn đoán ngoại tuyến (Offline rules) để tiết kiệm chi phí cho bạn.', '🔌');
             }
           }}
           onToggleTheme={() => {
@@ -2515,14 +2652,14 @@ export default function App() {
                 </div>
                 <button
                   onClick={() => setShowGraphTimeline(true)}
-                  className={`text-xs font-mono flex items-center gap-1 px-2.5 py-1 rounded cursor-pointer border ${
+                  className={`p-1.5 rounded cursor-pointer border shrink-0 flex items-center justify-center transition-all ${
                     theme === 'light'
                       ? 'bg-emerald-50 border-emerald-250 text-emerald-700 hover:bg-emerald-100'
-                      : 'bg-[#1e293b] border-slate-750 text-emerald-400 hover:text-emerald-303'
+                      : 'bg-[#1e293b] border-slate-755 text-emerald-400 hover:text-emerald-303'
                   }`}
+                  title={tone === TranslationTone.ENGLISH ? 'Show' : 'Hiển thị'}
                 >
                   <Eye className="w-3.5 h-3.5" />
-                  <span>{tone === TranslationTone.ENGLISH ? 'Show' : 'Hiển thị'}</span>
                 </button>
               </div>
             ) : (
@@ -2548,40 +2685,36 @@ export default function App() {
                 theme === 'light' ? 'bg-slate-50/80 border-slate-200/60' : 'bg-[#131b2e] border-slate-800/80'
               }`}>
                 {/* Mode Selector */}
-                <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-900/60 p-1 rounded-md">
-                  <button
-                    onClick={() => {
-                      if (!isMobile) setActiveTool('dragNode');
-                    }}
-                    disabled={isMobile}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded transition-all ${
-                      isMobile
-                        ? 'opacity-40 cursor-not-allowed text-slate-500'
-                        : activeTool === 'dragNode'
-                          ? 'bg-indigo-600 text-white shadow font-semibold cursor-pointer'
-                          : theme === 'light' ? 'text-slate-600 hover:bg-slate-100 cursor-pointer' : 'text-slate-400 hover:bg-slate-800/50 cursor-pointer'
-                    }`}
-                    title={isMobile 
-                      ? (tone === TranslationTone.ENGLISH ? 'Drag Nodes (PC & Tablet Only)' : tone === TranslationTone.TOXIC ? 'Kéo ô (Chỉ PC/Tablet)' : 'Kéo ô (Chỉ PC/Tablet)')
-                      : sloc.dragNodeModeLabel
-                    }
-                  >
-                    <MousePointer className="w-3.5 h-3.5" />
-                    <span>{isMobile ? (tone === TranslationTone.ENGLISH ? 'Drag (PC/Tablet Only)' : 'Kéo ô (PC/Tablet)') : sloc.dragNodeModeLabel}</span>
-                  </button>
-                  <button
-                    onClick={() => setActiveTool('pan')}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded transition-all cursor-pointer ${
-                      activeTool === 'pan'
-                        ? 'bg-indigo-600 text-white shadow font-semibold'
-                        : theme === 'light' ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400 hover:bg-slate-800/50'
-                    }`}
-                    title={sloc.panModeLabel}
-                  >
-                    <Hand className="w-3.5 h-3.5" />
-                    <span>{sloc.panModeLabel}</span>
-                  </button>
-                </div>
+                {!isMobile && (
+                  <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-900/60 p-1 rounded-md">
+                    <button
+                      onClick={() => {
+                        setActiveTool('dragNode');
+                      }}
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded transition-all cursor-pointer ${
+                        activeTool === 'dragNode'
+                          ? 'bg-indigo-600 text-white shadow font-semibold'
+                          : theme === 'light' ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400 hover:bg-slate-800/50'
+                      }`}
+                      title={sloc.dragNodeModeLabel}
+                    >
+                      <MousePointer className="w-3.5 h-3.5" />
+                      <span>{sloc.dragNodeModeLabel}</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTool('pan')}
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded transition-all cursor-pointer ${
+                        activeTool === 'pan'
+                          ? 'bg-indigo-600 text-white shadow font-semibold'
+                          : theme === 'light' ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400 hover:bg-slate-850'
+                      }`}
+                      title={sloc.panModeLabel}
+                    >
+                      <Hand className="w-3.5 h-3.5" />
+                      <span>{sloc.panModeLabel}</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Left/Right / Rotation layout toggler */}
                 <button
@@ -2609,7 +2742,11 @@ export default function App() {
                     onChange={(e) => setNodeWidth(parseInt(e.target.value))}
                     className="w-24 accent-indigo-500 cursor-ew-resize h-1 bg-slate-300 dark:bg-slate-800 rounded-lg appearance-none"
                   />
-                  <span className="text-[10px] bg-slate-200/60 dark:bg-slate-800 border border-slate-300 dark:border-slate-800 px-1 py-0.5 rounded text-slate-400">
+                  <span className={`text-[10px] px-1 py-0.5 rounded border ${
+                    theme === 'light' 
+                      ? 'bg-slate-100 border-slate-200 text-slate-600' 
+                      : 'bg-slate-800 border-slate-800 text-slate-400'
+                  }`}>
                     {nodeWidth}px
                   </span>
                 </div>
@@ -2659,19 +2796,11 @@ export default function App() {
               </div>
 
               {/* Drag n drop Tip */}
-              <div className="text-[10px] mb-2 font-semibold">
-                {isMobile ? (
-                  <span className="text-amber-500">
-                    {tone === TranslationTone.ENGLISH 
-                      ? "💡 Mobile: Node dragging is disabled for performance. You can still pan/zoom the whole board!" 
-                      : tone === TranslationTone.TOXIC 
-                        ? "💡 Khoá kéo thả ô commit trên Mobile cho đỡ lác. Vẫn kéo vuốt di dời sơ đồ vô tư nhé!"
-                        : "💡 Trên Mobile: Tắt kéo thả ô để chạy mượt hơn. Sếp vẫn có thể vuốt và zoom sơ đồ!"}
-                  </span>
-                ) : (
+              {!isMobile && (
+                <div className="text-[10px] mb-2 font-semibold">
                   <span className="text-indigo-400">{sloc.dragTip}</span>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* Graphical representation of the Rebase squash action (Board Viewport) */}
               <div 
@@ -2687,7 +2816,11 @@ export default function App() {
                 }`}
               >
                 {/* Active Tool Overlay Badge */}
-                <div className="absolute top-3 left-3 z-10 px-2.5 py-1 bg-slate-900/80 text-white rounded-full text-[10px] font-mono border border-slate-850 uppercase flex items-center gap-1">
+                <div className={`absolute top-3 left-3 z-10 px-2.5 py-1 rounded-full text-[10px] font-mono border uppercase flex items-center gap-1 ${
+                  theme === 'light' 
+                    ? 'bg-white text-slate-800 border-slate-200 shadow-sm' 
+                    : 'bg-slate-900/80 text-white border-slate-850'
+                }`}>
                   {activeTool === 'pan' ? (
                     <>
                       <Hand className="w-3 h-3 text-sky-400" />
@@ -3018,7 +3151,24 @@ export default function App() {
             )}
 
             {/* Dynamic Active Git Operational Visualizer */}
-            <GitVisualizerPanel tone={tone} wizard={wizard} theme={theme} repoState={repoState} />
+            <GitVisualizerPanel 
+              tone={tone} 
+              wizard={wizard} 
+              theme={theme} 
+              repoState={repoState} 
+              isSimulation={isSimulation}
+              onToggleSimulation={(val) => {
+                setIsSimulation(val);
+                addLog(`🤖 Mode toggled from Sa bàn. Simulation Playground: ${val ? 'ACTIVE' : 'OFF'}`);
+                handleRefresh(val);
+                
+                if (val) {
+                  triggerToast('milestone', '⚡ SIMULATION RUNTIME', 'Vùng cát mô phỏng an toàn đã kích hoạt. Đập phá, commit láo thoải mái không sợ sập server!', '🧪');
+                } else {
+                  triggerToast('warn', '🔌 REAL GIT CONNECTED', 'Chú ý: Đã chuyển ngữ trực tiếp vào tệp tin và Repo thật trên ổ đĩa máy chủ!', '⚠️');
+                }
+              }}
+            />
 
             {/* Core Wizard state dashboard */}
             <WizardPanel
@@ -3061,6 +3211,10 @@ export default function App() {
               onCheckout={handleCheckoutBranch}
               onCreateBranch={handleCreateBranch}
               onDeleteBranch={handleDeleteBranch}
+              onFetch={handleFetch}
+              onPullBranch={handlePullBranch}
+              onPushBranch={handlePushBranch}
+              isFetchingGlobal={isFetchingGlobal}
             />
 
             {/* Simulated Live Diagnostic Warnings Panel with AI Git Doctor Integration */}
@@ -3075,14 +3229,14 @@ export default function App() {
                 </div>
                 <button
                   onClick={() => setShowWarningsPanel(true)}
-                  className={`text-xs font-mono flex items-center gap-1 px-2.5 py-1 rounded cursor-pointer border ${
+                  className={`p-1.5 rounded cursor-pointer border shrink-0 flex items-center justify-center transition-all ${
                     theme === 'light'
                       ? 'bg-violet-50 border-violet-200 text-violet-750 hover:bg-violet-100'
-                      : 'bg-violet-500/10 border-violet-500/20 text-violet-400 hover:text-violet-303'
+                      : 'bg-[#1e293b] border-violet-505/20 text-violet-400 hover:text-violet-303'
                   }`}
+                  title={tone === TranslationTone.ENGLISH ? 'Show' : 'Hiển thị'}
                 >
                   <Eye className="w-3.5 h-3.5" />
-                  <span>{tone === TranslationTone.ENGLISH ? 'Show' : 'Hiển thị'}</span>
                 </button>
               </div>
             ) : (
@@ -3693,7 +3847,7 @@ export default function App() {
           onToggleAi={() => {
             const newVal = !isAiEnabled;
             setIsAiEnabled(newVal);
-            addLog(newVal ? '🤖 Gemini API Enabled (Full AI Features activated)' : '🤖 Gemini API Disabled (Cost saved - falling back to offline mode)');
+            addLog(newVal ? '🤖 AI Engine Enabled (Full AI Features activated)' : '🤖 AI Engine Disabled (Cost saved - falling back to offline mode)');
           }}
           theme={theme}
           appVersion={appVersion}

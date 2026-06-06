@@ -894,14 +894,14 @@ export default function WizardPanel({
         </div>
         <button
           onClick={toggleCollapse}
-          className={`text-xs font-mono flex items-center gap-1 px-2.5 py-1 rounded cursor-pointer border ${
+          className={`p-1.5 rounded cursor-pointer border shrink-0 flex items-center justify-center transition-all ${
             isLight
               ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
-              : 'bg-[#1e293b] border-indigo-500/20 text-indigo-400 hover:text-indigo-303'
+              : 'bg-[#1e293b] border-indigo-505/20 text-indigo-400 hover:text-indigo-303'
           }`}
+          title={tone === TranslationTone.ENGLISH ? 'Show' : 'Hiển thị'}
         >
           <Eye className="w-3.5 h-3.5" />
-          <span>{tone === TranslationTone.ENGLISH ? 'Show' : 'Hiển thị'}</span>
         </button>
       </div>
     );
@@ -942,7 +942,7 @@ export default function WizardPanel({
             onClick={toggleCollapse}
             className={`p-1.5 rounded transition-all text-xs flex items-center gap-1 font-mono cursor-pointer border shrink-0 ${
               isLight 
-                ? 'bg-slate-100 border-slate-250 text-slate-650 hover:bg-slate-200 hover:text-slate-900' 
+                ? 'bg-slate-100 border-slate-200 text-slate-650 hover:bg-slate-200 hover:text-slate-900' 
                 : 'bg-slate-950 border border-slate-900 text-slate-500 hover:text-slate-305'
               }`}
             title={tone === TranslationTone.ENGLISH ? 'Collapse Panel' : 'Thu gọn Panel'}
@@ -1105,14 +1105,14 @@ export default function WizardPanel({
                 <Tooltip text={tone === TranslationTone.ENGLISH ? "The master integration branch of the project (usually develop or main)." : "Nhánh mẹ dọn dẹp chứa code chung ổn định của cả dự án. Thường là main hoặc develop."}>
                   <span className={`px-2 py-0.5 rounded border transition-colors ${
                     isLight 
-                      ? 'bg-slate-100 text-slate-600 border-slate-250 hover:bg-slate-200' 
+                      ? 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200' 
                       : 'bg-slate-950 text-slate-400 border border-slate-900 hover:text-slate-300'
                   }`}>Base Branch</span>
                 </Tooltip>
                 <Tooltip text={tone === TranslationTone.ENGLISH ? "A snapshot package saving your incremental code updates accompanied by a description statement." : "Một gói lưu lại tiến độ chỉnh sửa code kèm theo lời nhắn tự thuật ngắn gọn."}>
                   <span className={`px-2 py-0.5 rounded border transition-colors ${
                     isLight 
-                      ? 'bg-slate-100 text-slate-600 border-slate-250 hover:bg-slate-200' 
+                      ? 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200' 
                       : 'bg-slate-950 text-slate-400 border border-slate-900 hover:text-slate-300'
                   }`}>Commits</span>
                 </Tooltip>
@@ -1154,7 +1154,7 @@ export default function WizardPanel({
                           ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-bold'
                           : 'bg-indigo-500/15 border-indigo-500/60 text-indigo-300 font-bold'
                         : isLight
-                        ? 'bg-slate-100 border-slate-250 text-slate-600 hover:bg-slate-200'
+                        ? 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200'
                         : 'bg-slate-950 border-slate-900 text-slate-400 hover:text-slate-200'
                     }`}
                   >
@@ -1250,7 +1250,11 @@ export default function WizardPanel({
                   onClick={() => {
                     onUpdateWizard({ selectedCommits: [] });
                   }}
-                  className="px-2.5 py-1 text-[11px] font-semibold rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all cursor-pointer"
+                  className={`px-2.5 py-1 text-[11px] font-semibold rounded transition-all cursor-pointer ${
+                    isLight 
+                      ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200' 
+                      : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                  }`}
                 >
                   {loc.step2.deselectAll}
                 </button>

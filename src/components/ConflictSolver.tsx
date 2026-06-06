@@ -503,13 +503,13 @@ export default function ConflictSolver({
       setTimeout(() => {
         let msg = '';
         if (tone === TranslationTone.ENGLISH) {
-          msg = 'Gemini API is currently turned off to save cost. Please toggle it back on in the top header menu to use AI-Powered conflict resolving!';
+          msg = 'AI Assistant is currently turned off to save cost. Please toggle it back on in the top header menu to use AI-Powered conflict resolving!';
         } else if (tone === TranslationTone.TOXIC) {
-          msg = '🔥 Tiết kiệm từng xu lẻ mà đòi sờ vào Gemini á? Lên cái header bật nút lên đi rồi hãy gõ nhé, nín hộ cái!';
+          msg = '🔥 Tiết kiệm từng xu lẻ mà đòi sờ vào AI á? Lên cái header bật nút lên đi rồi hãy gõ nhé, nín hộ cái!';
         } else if (tone === TranslationTone.JOKE) {
           msg = '⚠️ Cửa tiệm AI đã dán biển: "HẾT TIỀN - TẠM NGHỈ BÁN"! Hãy lượn lên Header búng nhẹ công tắc để cứu rỗi nhân phẩm nhé!';
         } else {
-          msg = 'Tính năng Gemini AI đang tạm tắt để tiết kiệm chi phí. Bạn có thể bật lại trong phần Thiết lập (Header trên cùng) bất cứ lúc nào.';
+          msg = 'Tính năng Trợ lý AI đang tạm tắt để tiết kiệm chi phí. Bạn có thể bật lại trong phần Thiết lập (Header trên cùng) bất cứ lúc nào.';
         }
         setAiError(msg);
         setIsAiLoading(false);
@@ -2190,8 +2190,8 @@ export default function ConflictSolver({
                     switch (tone) {
                       case TranslationTone.JOKE:
                         return {
-                          title: "🔮 PHÙ THỦY GỠ CONFLICT AI (GEMINI 3.5)",
-                          desc: "Đại ca ơi, code đập nhau sứt đầu mẻ trán rồi kìa! Bấm nút bên dưới để em quăng bùa phép Gemini 3.5 phân xử và gộp sạch sành sanh cho sếp nha!",
+                          title: "🔮 PHÙ THỦY GỠ CONFLICT AI",
+                          desc: "Đại ca ơi, code đập nhau sứt đầu mẻ trán rồi kìa! Bấm nút bên dưới để em quăng bùa phép Trợ lý AI phân xử và gộp sạch sành sanh cho sếp nha!",
                           btnRun: "🔥 Triệu hồi AI dẹp loạn",
                           btnRunLoading: "🔮 Đang múa bùa phép...",
                           btnApply: "🚀 Táng luôn code của AI vào kết quả",
@@ -2201,7 +2201,7 @@ export default function ConflictSolver({
                       case TranslationTone.TOXIC:
                         return {
                           title: "🤬 CỖ MÁY HUỶ DIỆT RÁC CODE BẰNG AI (CHÂN KINH)",
-                          desc: "Xem hai thằng rác tụi mày đè code lên nhau hăm hở chưa kìa. Để tao lấy AI Gemini 3.5 quét và dọn phân cho tụi mày khôn ra nhé. Bấm nhanh rảnh nợ!",
+                          desc: "Xem hai thằng rác tụi mày đè code lên nhau hăm hở chưa kìa. Để tao lấy Trợ lý AI quét và dọn phân cho tụi mày khôn ra nhé. Bấm nhanh rảnh nợ!",
                           btnRun: "💀 Dọn rác code ngu này đi",
                           btnRunLoading: "💩 Đang cào rác, đợi xíu...",
                           btnApply: "🔥 Lắp code AI nắn gân rác của mày",
@@ -2210,8 +2210,8 @@ export default function ConflictSolver({
                         };
                       case TranslationTone.ENGLISH:
                         return {
-                          title: "🧠 GEMINI AI CONFLICT CO-PILOT",
-                          desc: "Harness the server-side intelligence of Gemini 3.5 Flash to automatically interpret semantic changes and propose a production-ready, synthetic merge solution.",
+                          title: "🧠 AI CONFLICT CO-PILOT",
+                          desc: "Harness the server-side intelligence of our advanced AI to automatically interpret semantic changes and propose a production-ready, synthetic merge solution.",
                           btnRun: "💡 Analyze & Propose Merge with AI",
                           btnRunLoading: "🧠 Running AI Synthesis...",
                           btnApply: "⚡ Apply AI Merged Suggestion",
@@ -2221,7 +2221,7 @@ export default function ConflictSolver({
                       case TranslationTone.PROFESSIONAL:
                       default:
                         return {
-                          title: "TRỢ LÝ GIẢI QUYẾT XUNG ĐỘT THÔNG MINH AI (GEMINI)",
+                          title: "TRỢ LÝ GIẢI QUYẾT XUNG ĐỘT THÔNG MINH AI",
                           desc: "Hệ thống AI 'Rebase Overlord Engine' sẽ quét tập tin xung đột, phân tích chi tiết luồng thay đổi của cả hai bên và tiến hành hợp nhất thông minh, bảo toàn logic nghiệp vụ tối đa cho bạn.",
                           btnRun: "💡 Phân tích & Gộp thông minh bằng AI",
                           btnRunLoading: "🔄 Đang phân tích logic...",
@@ -2261,7 +2261,7 @@ export default function ConflictSolver({
                             </span>
                             <span className={`text-[10px] font-mono block sm:inline ${
                               isLight ? 'text-violet-700/85' : 'text-purple-400/70'
-                            }`}>Powered by Gemini 3.5 Flash</span>
+                            }`}>Powered by Advanced AI</span>
                           </div>
                         </div>
 
