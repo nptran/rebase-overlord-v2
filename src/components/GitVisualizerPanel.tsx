@@ -1271,8 +1271,8 @@ export default function GitVisualizerPanel({
       { id: 'M3', x: 300, y: 60, status: 'develop-head', label: 'M3 (Develop Head)' }
     ];
 
-    let f1X = 200, f1Y = 120, f1Color = 'stroke-amber-400 fill-slate-900', f1Label = 'F1';
-    let f2X = 300, f2Y = 120, f2Color = 'stroke-amber-400 fill-slate-900', f2Label = 'F2';
+    let f1X = 200, f1Y = 120, f1Color = isLight ? 'stroke-amber-500 fill-amber-50' : 'stroke-amber-400 fill-slate-900', f1Label = 'F1';
+    let f2X = 300, f2Y = 120, f2Color = isLight ? 'stroke-amber-500 fill-amber-50' : 'stroke-amber-400 fill-slate-900', f2Label = 'F2';
     let f1Opacity = 1;
     let f2Opacity = 1;
     let baseLineEnd = 300;
@@ -1281,8 +1281,8 @@ export default function GitVisualizerPanel({
     let basePointX = 100;
 
     if (currentStep === 1) { // Detach
-      f1Y = 140; f1Opacity = 0.55; f1Color = 'stroke-amber-400/50 fill-slate-900/40 dashed';
-      f2Y = 140; f2Opacity = 0.55; f2Color = 'stroke-amber-400/50 fill-slate-900/40 dashed';
+      f1Y = 140; f1Opacity = 0.55; f1Color = isLight ? 'stroke-amber-550/50 fill-amber-50/40' : 'stroke-amber-400/50 fill-slate-900/40';
+      f2Y = 140; f2Opacity = 0.55; f2Color = isLight ? 'stroke-amber-550/50 fill-amber-50/40' : 'stroke-amber-400/50 fill-slate-900/40';
       showTempLines = false;
     } else if (currentStep === 2) { // Shifting Base
       f1Y = 150; f1Opacity = 0.2;
@@ -1290,14 +1290,14 @@ export default function GitVisualizerPanel({
       showTempLines = false;
       basePointX = 300; // Pointer moves to M3
     } else if (currentStep === 3) { // F1 Reapplied
-      f1X = 400; f1Y = 60; f1Color = 'stroke-indigo-400 fill-indigo-950/40'; f1Label = "F1' (SHA*)";
+      f1X = 400; f1Y = 60; f1Color = isLight ? 'stroke-indigo-500 fill-indigo-100/60' : 'stroke-indigo-400 fill-indigo-950/40'; f1Label = "F1' (SHA*)";
       f2Y = 140; f2Opacity = 0.4;
       showTempLines = false;
       baseLineEnd = 400;
       basePointX = 300;
     } else if (currentStep === 4) { // F2 Reapplied
-      f1X = 400; f1Y = 60; f1Color = 'stroke-indigo-400 fill-indigo-950/40'; f1Label = "F1' (New)";
-      f2X = 500; f2Y = 60; f2Color = 'stroke-indigo-400 fill-indigo-950/40'; f2Label = "F2' (New)";
+      f1X = 400; f1Y = 60; f1Color = isLight ? 'stroke-indigo-500 fill-indigo-100/60' : 'stroke-indigo-400 fill-indigo-950/40'; f1Label = "F1' (New)";
+      f2X = 500; f2Y = 60; f2Color = isLight ? 'stroke-indigo-500 fill-indigo-100/60' : 'stroke-indigo-400 fill-indigo-950/40'; f2Label = "F2' (New)";
       showTempLines = false;
       baseLineEnd = 500;
       basePointX = 300;
@@ -1311,7 +1311,7 @@ export default function GitVisualizerPanel({
         {/* Connection to feature branch old móng base */}
         {showTempLines && (
           <>
-            <path d="M 100 60 Q 150 120 200 120" className="stroke-slate-700 stroke-2 fill-none stroke-dashed" />
+            <path d="M 100 60 Q 150 120 200 120" className={`${isLight ? 'stroke-slate-300' : 'stroke-slate-700'} stroke-2 fill-none stroke-dashed`} />
             <line x1="200" y1="120" x2={featureLineEnd} y2="120" className="stroke-amber-400/60 stroke-2" />
           </>
         )}
@@ -1324,23 +1324,23 @@ export default function GitVisualizerPanel({
         {/* Develop commits */}
         {baseNodes.map((n) => (
           <g key={n.id}>
-            <circle cx={n.x} cy={n.y} r="16" className="stroke-emerald-400 fill-slate-950 stroke-2" />
-            <text x={n.x} y={n.y + 4} textAnchor="middle" className="fill-emerald-300 font-bold font-mono text-[9px]">{n.id}</text>
+            <circle cx={n.x} cy={n.y} r="16" className={`stroke-emerald-400 ${isLight ? 'fill-emerald-50' : 'fill-slate-950'} stroke-2`} />
+            <text x={n.x} y={n.y + 4} textAnchor="middle" className={`${isLight ? 'fill-emerald-800' : 'fill-emerald-300'} font-bold font-mono text-[9px]}`}>{n.id}</text>
             {n.id === 'M3' ? (
               <g>
                 {/* Local develop branch tag */}
                 <g transform="translate(300, -18)" className="opacity-95">
-                  <rect x="-34" y="-5" width="68" height="11" rx="2.5" className="fill-emerald-500/15 stroke stroke-emerald-400" />
-                  <text x="0" y="3.5" textAnchor="middle" className="fill-emerald-300 font-bold text-[7px]">💻 develop</text>
+                  <rect x="-34" y="-5" width="68" height="11" rx="2.5" className={`${isLight ? 'fill-emerald-100/85 stroke-emerald-400' : 'fill-emerald-500/15 stroke-emerald-400'}`} />
+                  <text x="0" y="3.5" textAnchor="middle" className={`${isLight ? 'fill-emerald-800' : 'fill-emerald-300'} font-bold text-[7px]`}>💻 develop</text>
                 </g>
                 {/* Remote tracking develop branch tag */}
                 <g transform="translate(300, -32)" className="opacity-80">
-                  <rect x="-42" y="-5" width="84" height="11" rx="2.5" className="fill-indigo-500/10 stroke stroke-indigo-400/40 stroke-dashed" />
-                  <text x="0" y="3.5" textAnchor="middle" className="fill-indigo-300 text-[6.5px] font-mono">☁️ origin/develop</text>
+                  <rect x="-42" y="-5" width="84" height="11" rx="2.5" className={`${isLight ? 'fill-indigo-100/70 stroke-indigo-405' : 'fill-indigo-500/10 stroke-indigo-400/40'} stroke-dashed`} />
+                  <text x="0" y="3.5" textAnchor="middle" className={`${isLight ? 'fill-indigo-800 font-bold' : 'fill-indigo-300'} text-[6.5px] font-mono`}>☁️ origin/develop</text>
                 </g>
               </g>
             ) : (
-              <text x={n.x} y={n.y - 22} textAnchor="middle" className="fill-slate-500 text-[8px]">{n.label}</text>
+              <text x={n.x} y={n.y - 22} textAnchor="middle" className={`${isLight ? 'fill-slate-400 font-bold' : 'fill-slate-500'} text-[8px]`}>{n.label}</text>
             )}
           </g>
         ))}
@@ -1348,28 +1348,28 @@ export default function GitVisualizerPanel({
         {/* Feature commit F1 */}
         <g opacity={f1Opacity} className="transition-all duration-700">
           <circle cx={f1X} cy={f1Y} r="16" className={`${f1Color} stroke-2`} />
-          <text x={f1X} y={f1Y + 4} textAnchor="middle" className="fill-amber-300 font-bold font-mono text-[9px]">{f1Label}</text>
-          {currentStep < 3 && <text x={f1X} y={f1Y + 26} textAnchor="middle" className="fill-amber-500/60 text-[8px]">feature local commit</text>}
+          <text x={f1X} y={f1Y + 4} textAnchor="middle" className={`font-bold font-mono text-[9px] ${f1Color.includes('indigo') ? (isLight ? 'fill-indigo-800' : 'fill-indigo-350') : (isLight ? 'fill-amber-800' : 'fill-amber-350')}`}>{f1Label}</text>
+          {currentStep < 3 && <text x={f1X} y={f1Y + 26} textAnchor="middle" className={`${isLight ? 'fill-amber-600/70' : 'fill-amber-500/60'} text-[8px]`}>feature local commit</text>}
         </g>
 
         {/* Feature commit F2 */}
         <g opacity={f2Opacity} className="transition-all duration-700">
           <circle cx={f2X} cy={f2Y} r="16" className={`${f2Color} stroke-2`} />
-          <text x={f2X} y={f2Y + 4} textAnchor="middle" className="fill-amber-300 font-bold font-mono text-[9px]">{f2Label}</text>
+          <text x={f2X} y={f2Y + 4} textAnchor="middle" className={`font-bold font-mono text-[9px] ${f2Color.includes('indigo') ? (isLight ? 'fill-indigo-800' : 'fill-indigo-350') : (isLight ? 'fill-amber-800' : 'fill-amber-350')}`}>{f2Label}</text>
         </g>
 
         {/* Pointers & Markers label */}
         {currentStep < 3 ? (
           <g transform={`translate(${f2X}, ${f2Y - 32})`} className="opacity-90">
-            <rect x="-44" y="-6" width="88" height="15" rx="3" className="fill-amber-500/10 stroke stroke-amber-500/30" />
-            <text x="0" y="4" textAnchor="middle" className="fill-amber-400 text-[8.5px] font-bold">💻 feature (local)</text>
-            <line x1="0" y1="9" x2="0" y2="16" className="stroke-amber-400/50" />
+            <rect x="-44" y="-6" width="88" height="15" rx="3" className={`${isLight ? 'fill-amber-100/80 stroke-amber-400' : 'fill-amber-500/10 stroke-amber-500/30'}`} />
+            <text x="0" y="4" textAnchor="middle" className={`text-[8.5px] font-bold ${isLight ? 'fill-amber-800' : 'fill-amber-400'}`}>💻 feature (local)</text>
+            <line x1="0" y1="9" x2="0" y2="16" className={`${isLight ? 'stroke-amber-400/40' : 'stroke-amber-400/50'}`} />
           </g>
         ) : (
           <g transform={`translate(${f2X}, ${f2Y - 32})`} className="opacity-90 transition-all duration-500">
-            <rect x="-48" y="-6" width="96" height="15" rx="3" className="fill-indigo-500/20 stroke stroke-indigo-400" />
-            <text x="0" y="4" textAnchor="middle" className="fill-indigo-300 text-[8.5px] font-bold">💻 feature (local HEAD)</text>
-            <line x1="0" y1="9" x2="0" y2="16" className="stroke-indigo-400/50" />
+            <rect x="-48" y="-6" width="96" height="15" rx="3" className={`${isLight ? 'fill-indigo-100/80 stroke-indigo-405' : 'fill-indigo-500/20 stroke-indigo-400'}`} />
+            <text x="0" y="4" textAnchor="middle" className={`text-[8.5px] font-bold ${isLight ? 'fill-indigo-800' : 'fill-indigo-300'}`}>💻 feature (local HEAD)</text>
+            <line x1="0" y1="9" x2="0" y2="16" className={`${isLight ? 'stroke-indigo-400/30' : 'stroke-indigo-400/50'}`} />
           </g>
         )}
 
@@ -1390,36 +1390,38 @@ export default function GitVisualizerPanel({
     // Step 3: Local working directory turns sparkling clean and shiny (green indicator)
     // Step 4: file pulls back right from Stash drawer into local sandbox
 
-    let file1X = 130, file1Y = 40, file1Opacity = 1, file1Color = 'bg-rose-500/15 border-rose-400 text-rose-300';
-    let file2X = 230, file2Y = 40, file2Opacity = 1, file2Color = 'bg-rose-500/15 border-rose-400 text-rose-300';
-    let cleanIndicatorColor = 'bg-rose-500/20 text-rose-400 border-rose-500/30';
+    let file1X = 130, file1Y = 40, file1Opacity = 1, file1Color = isLight ? 'bg-rose-50 border-rose-300 text-rose-800' : 'bg-rose-500/15 border-rose-400 text-rose-300';
+    let file2X = 230, file2Y = 40, file2Opacity = 1, file2Color = isLight ? 'bg-rose-50 border-rose-300 text-rose-800' : 'bg-rose-500/15 border-rose-400 text-rose-300';
+    let cleanIndicatorColor = isLight ? 'bg-rose-100 border-rose-200 text-rose-800 font-bold' : 'bg-rose-500/20 text-rose-400 border-rose-500/30';
     let cleanText = "DIRTY WORKING DIRECTORY";
-    let stashBoxHighlight = "border-slate-800 bg-[#0d1324]/50";
+    let stashBoxHighlight = isLight ? 'border-slate-250 bg-slate-100/50' : 'border-slate-800 bg-[#0d1324]/50';
 
     if (currentStep === 1) { // Bundled
-      file1Color = 'bg-amber-500/20 border-amber-400 text-amber-300 animate-pulse';
-      file2Color = 'bg-amber-500/20 border-amber-400 text-amber-300 animate-pulse';
+      file1Color = isLight ? 'bg-amber-100/80 border-amber-400 text-amber-800 animate-pulse' : 'bg-amber-500/20 border-amber-400 text-amber-300 animate-pulse';
+      file2Color = isLight ? 'bg-amber-100/80 border-amber-400 text-amber-800 animate-pulse' : 'bg-amber-500/20 border-amber-400 text-amber-300 animate-pulse';
     } else if (currentStep === 2) { // Falling into shelf
-      file1X = 420; file1Y = 100; file1Opacity = 0.3; file1Color = 'bg-indigo-500/20 border-indigo-400 text-indigo-400 scale-75';
-      file2X = 420; file2Y = 120; file2Opacity = 0.3; file2Color = 'bg-indigo-500/20 border-indigo-400 text-indigo-400 scale-75';
-      stashBoxHighlight = "border-indigo-500/50 bg-indigo-950/20 shadow-lg shadow-indigo-500/10";
+      file1X = 420; file1Y = 100; file1Opacity = 0.3; file1Color = isLight ? 'bg-indigo-100 border-indigo-300 text-indigo-800 scale-75' : 'bg-indigo-500/20 border-indigo-400 text-indigo-400 scale-75';
+      file2X = 420; file2Y = 120; file2Opacity = 0.3; file2Color = isLight ? 'bg-indigo-100 border-indigo-300 text-indigo-800 scale-75' : 'bg-indigo-500/20 border-indigo-400 text-indigo-400 scale-75';
+      stashBoxHighlight = isLight ? 'border-indigo-455 bg-indigo-50 shadow-md shadow-indigo-100/50' : 'border-indigo-500/50 bg-indigo-950/20 shadow-lg shadow-indigo-500/10';
     } else if (currentStep === 3) { // Clean working directory
       file1Opacity = 0;
       file2Opacity = 0;
-      cleanIndicatorColor = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+      cleanIndicatorColor = isLight ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
       cleanText = "✓ PRISTINE & CLEAN WORKSPACE";
-      stashBoxHighlight = "border-slate-700 bg-slate-900/60";
+      stashBoxHighlight = isLight ? 'border-slate-300 bg-slate-50' : 'border-slate-700 bg-slate-900/60';
     } else if (currentStep === 4) { // Pop back
-      file1X = 140; file1Y = 50; file1Opacity = 1; file1Color = 'bg-teal-500/20 border-teal-400 text-teal-300 animate-bounce';
+      file1X = 140; file1Y = 50; file1Opacity = 1; file1Color = isLight ? 'bg-teal-50 border-teal-350 text-teal-800 animate-bounce' : 'bg-teal-500/20 border-teal-400 text-teal-300 animate-bounce';
       file2Opacity = 0; // Pop pop single item shown
-      cleanIndicatorColor = 'bg-teal-500/10 text-teal-300 border-teal-500/20';
+      cleanIndicatorColor = isLight ? 'bg-teal-100 text-teal-800 border-teal-200' : 'bg-teal-500/10 text-teal-300 border-teal-500/20';
       cleanText = "STASH POP REAPPLIED";
     }
 
     return (
       <div className="relative overflow-hidden" style={{ width: `${w}px`, height: `${h}px` }} id="stash-stage">
         {/* Working Sandbox area */}
-        <div className="absolute left-6 top-8 w-[280px] h-[110px] rounded-xl border border-dashed border-slate-800 flex flex-col justify-between p-3 bg-slate-950/30 select-none">
+        <div className={`absolute left-6 top-8 w-[280px] h-[110px] rounded-xl border border-dashed flex flex-col justify-between p-3 select-none ${
+          isLight ? 'border-slate-305 bg-slate-100/40' : 'border-slate-800 bg-slate-950/30'
+        }`}>
           <div className="text-[9px] font-mono font-bold tracking-wider text-slate-500 uppercase">LOCAL TREE WORKSPACE</div>
           
           <div className="flex gap-4 items-center justify-center py-2 relative">
@@ -1462,31 +1464,37 @@ export default function GitVisualizerPanel({
         <div className="absolute left-[305px] top-1/2 -translate-y-1/2 text-slate-800 text-lg flex flex-col items-center select-none">
           {currentStep === 2 && <span className="text-indigo-400 font-bold text-[10px] animate-pulse">stashing...</span>}
           <div className="flex items-center gap-1 relative">
-            <ArrowRight className={`w-5 h-5 ${currentStep === 2 ? 'text-indigo-400 animate-bounce' : 'text-slate-800'}`} />
+            <ArrowRight className={`w-5 h-5 ${currentStep === 2 ? 'text-indigo-400 animate-bounce' : (isLight ? 'text-slate-355' : 'text-slate-800')}`} />
           </div>
         </div>
 
         {/* Cabinet shelf represents Stash Stack */}
         <div className={`absolute right-6 top-8 w-[200px] h-[110px] rounded-xl border p-3 flex flex-col justify-between transition-all duration-500 ${stashBoxHighlight}`}>
           <div className="flex items-center justify-between">
-            <span className="text-[9px] font-mono font-bold tracking-wider text-slate-400 uppercase">STASH STACK</span>
-            <span className="text-[8px] font-mono bg-indigo-505/20 text-indigo-400 px-1.5 py-0.2 rounded border border-indigo-500/20 font-bold">refs/stash</span>
+            <span className={`text-[9px] font-mono font-bold tracking-wider uppercase ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>STASH STACK</span>
+            <span className={`text-[8px] font-mono px-1.5 py-0.2 rounded border font-bold ${
+              isLight ? 'bg-indigo-150 text-indigo-805 border-indigo-200' : 'bg-indigo-500/20 text-indigo-400 border-indigo-500/20'
+            }`}>refs/stash</span>
           </div>
 
           {/* Stashed blocks shelf items */}
           <div className="flex flex-col gap-1.5 py-1 select-none">
             {currentStep >= 2 ? (
-              <div className="bg-indigo-500/10 border border-indigo-500/30 rounded p-1 text-[8.5px] text-indigo-300 font-mono flex items-center justify-between shadow-sm">
+              <div className={`border rounded p-1 text-[8.5px] font-mono flex items-center justify-between shadow-sm ${
+                isLight ? 'bg-indigo-50 border-indigo-200 text-indigo-805' : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300'
+              }`}>
                 <span>📦 stash@{"{0}"}: "Work in progress"</span>
-                <span className="text-[7.5px] text-indigo-400 font-semibold px-1 bg-indigo-950/50 rounded font-mono">1 commit</span>
+                <span className={`text-[7.5px] font-semibold px-1 rounded font-mono ${
+                  isLight ? 'bg-indigo-100 text-indigo-900 border border-indigo-200' : 'bg-indigo-950/50 text-indigo-400'
+                }`}>1 commit</span>
               </div>
             ) : (
-              <div className="text-slate-700 text-center text-[9px] py-2 italic font-mono">Empty stash shelf</div>
+              <div className={`${isLight ? 'text-slate-455' : 'text-slate-705'} text-center text-[9px] py-2 italic font-mono`}>Empty stash shelf</div>
             )}
-            <div className="h-0.5 bg-slate-800 w-full mt-1.5 rounded opacity-40"></div>
+            <div className={`h-0.5 w-full mt-1.5 rounded opacity-40 ${isLight ? 'bg-slate-200' : 'bg-slate-800'}`}></div>
           </div>
 
-          <div className="text-[8.5px] font-mono text-slate-500 text-center">
+          <div className={`text-[8.5px] font-mono text-center ${isLight ? 'text-slate-450' : 'text-slate-400'}`}>
             Last-In, First-Out (LIFO) Stack
           </div>
         </div>
@@ -1531,40 +1539,40 @@ export default function GitVisualizerPanel({
 
         {/* M1 node */}
         <g>
-          <circle cx="100" cy="50" r="16" className={`stroke-2 transition-all ${isAncestorHot ? 'stroke-purple-400 fill-purple-950/50 animate-pingScale' : 'stroke-emerald-400 fill-slate-950'}`} />
-          <circle cx="100" cy="50" r="14" className="fill-slate-950 stroke-slate-800" />
-          <text x="100" y="54" textAnchor="middle" className={`font-bold text-[9px] ${isAncestorHot ? 'fill-purple-300' : 'fill-emerald-300'}`}>M1</text>
-          <text x="100" y="24" textAnchor="middle" className="fill-slate-500 text-[8px]">{isAncestorHot ? '🔮 Common Ancestor' : 'M1 Baseline'}</text>
+          <circle cx="100" cy="50" r="16" className={`stroke-2 transition-all ${isAncestorHot ? (isLight ? 'stroke-purple-500 fill-purple-100 animate-pingScale' : 'stroke-purple-400 fill-purple-950/50 animate-pingScale') : (`stroke-emerald-400 ${isLight ? 'fill-emerald-50' : 'fill-slate-950'}`)}`} />
+          <circle cx="100" cy="50" r="14" className={`${isLight ? 'fill-white stroke-slate-200' : 'fill-slate-950 stroke-slate-800'}`} />
+          <text x="100" y="54" textAnchor="middle" className={`font-bold text-[9px] ${isAncestorHot ? (isLight ? 'fill-purple-900 font-extrabold' : 'fill-purple-300') : (isLight ? 'fill-emerald-800' : 'fill-emerald-300')}`}>M1</text>
+          <text x="100" y="24" textAnchor="middle" className={`${isLight ? 'fill-slate-400 font-bold' : 'fill-slate-500'} text-[8px]`}>{isAncestorHot ? '🔮 Common Ancestor' : 'M1 Baseline'}</text>
         </g>
 
         {/* M2 & M3 nodes */}
         <g>
-          <circle cx="200" cy="50" r="14" className="stroke-emerald-400 fill-slate-950 stroke-2" />
-          <text x="200" y="54" textAnchor="middle" className="fill-emerald-300 font-bold text-[9px]">M2</text>
+          <circle cx="200" cy="50" r="14" className={`stroke-emerald-400 ${isLight ? 'fill-emerald-50' : 'fill-slate-950'} stroke-2`} />
+          <text x="200" y="54" textAnchor="middle" className={`${isLight ? 'fill-emerald-800' : 'fill-emerald-300'} font-bold text-[9px]`}>M2</text>
         </g>
         <g>
-          <circle cx="300" cy="50" r="14" className="stroke-emerald-400 fill-slate-950 stroke-2" />
-          <text x="300" y="54" textAnchor="middle" className="fill-emerald-300 font-bold text-[9px]">M3</text>
+          <circle cx="300" cy="50" r="14" className={`stroke-emerald-400 ${isLight ? 'fill-emerald-50' : 'fill-slate-950'} stroke-2`} />
+          <text x="300" y="54" textAnchor="middle" className={`${isLight ? 'fill-emerald-800' : 'fill-emerald-300'} font-bold text-[9px]`}>M3</text>
           
           {currentStep < 3 ? (
             <g>
               {/* Local master pointer tag on M3 */}
               <g transform="translate(300, 16)" className="opacity-95">
-                <rect x="-28" y="-5" width="56" height="11" rx="2.5" className="fill-emerald-500/15 stroke stroke-emerald-400" />
-                <text x="0" y="3.5" textAnchor="middle" className="fill-emerald-350 font-bold text-[7px]">💻 master</text>
+                <rect x="-28" y="-5" width="56" height="11" rx="2.5" className={`${isLight ? 'fill-emerald-100/90 stroke-emerald-400' : 'fill-emerald-500/15 stroke-emerald-400'}`} />
+                <text x="0" y="3.5" textAnchor="middle" className={`${isLight ? 'fill-emerald-800' : 'fill-emerald-350'} font-bold text-[7px]`}>💻 master</text>
               </g>
               {/* Remote tracking origin/master tag on M3 */}
               <g transform="translate(300, -18)" className="opacity-80">
-                <rect x="-38" y="-5" width="76" height="11" rx="2.5" className="fill-indigo-500/10 stroke stroke-indigo-400/40 stroke-dashed" />
-                <text x="0" y="3" textAnchor="middle" className="fill-indigo-300 text-[6.5px] font-mono">☁️ origin/master</text>
+                <rect x="-38" y="-5" width="76" height="11" rx="2.5" className={`${isLight ? 'fill-indigo-100/80 stroke-indigo-405' : 'fill-indigo-500/10 stroke-indigo-400/40'} stroke-dashed`} />
+                <text x="0" y="3" textAnchor="middle" className={`${isLight ? 'fill-indigo-800 font-bold' : 'fill-indigo-300'} text-[6.5px] font-mono`}>☁️ origin/master</text>
               </g>
             </g>
           ) : (
             <g>
               {/* After merge, local master moves to M4 but remote tracker stays at M3! */}
               <g transform="translate(300, 16)" className="opacity-85">
-                <rect x="-38" y="-5" width="76" height="11" rx="2.5" className="fill-indigo-500/10 stroke stroke-indigo-400/40 stroke-dashed" />
-                <text x="0" y="3" textAnchor="middle" className="fill-indigo-300 text-[6.5px] font-mono">☁️ origin/master</text>
+                <rect x="-38" y="-5" width="76" height="11" rx="2.5" className={`${isLight ? 'fill-indigo-100/80 stroke-indigo-405' : 'fill-indigo-500/10 stroke-indigo-400/40'} stroke-dashed`} />
+                <text x="0" y="3" textAnchor="middle" className={`${isLight ? 'fill-indigo-805 font-bold' : 'fill-indigo-300'} text-[6.5px] font-mono`}>☁️ origin/master</text>
               </g>
             </g>
           )}
@@ -1572,31 +1580,31 @@ export default function GitVisualizerPanel({
 
         {/* F1 & F2 nodes */}
         <g>
-          <circle cx="200" cy="130" r="14" className="stroke-amber-400 fill-slate-950 stroke-2" />
-          <text x="200" y="134" textAnchor="middle" className="fill-amber-300 font-bold text-[9px]">F1</text>
+          <circle cx="200" cy="130" r="14" className={`stroke-amber-400 ${isLight ? 'fill-amber-50' : 'fill-slate-950'} stroke-2`} />
+          <text x="200" y="134" textAnchor="middle" className={`${isLight ? 'fill-amber-800' : 'fill-amber-300'} font-bold text-[9px]`}>F1</text>
         </g>
         <g>
-          <circle cx="300" cy="130" r="14" className="stroke-amber-400 fill-slate-950 stroke-2" />
-          <text x="300" y="134" textAnchor="middle" className="fill-amber-300 font-bold text-[9px]">F2</text>
+          <circle cx="300" cy="130" r="14" className={`stroke-amber-400 ${isLight ? 'fill-amber-50' : 'fill-slate-950'} stroke-2`} />
+          <text x="300" y="134" textAnchor="middle" className={`${isLight ? 'fill-amber-800' : 'fill-amber-300'} font-bold text-[9px]`}>F2</text>
           
           {/* Local feature branch pointer tag */}
           <g transform="translate(300, 162)" className="opacity-95">
-            <rect x="-30" y="-5" width="60" height="11" rx="2.5" className="fill-amber-500/15 stroke stroke-amber-500/40" />
-            <text x="0" y="3.5" textAnchor="middle" className="fill-amber-300 font-bold text-[7px]">💻 feature</text>
+            <rect x="-30" y="-5" width="60" height="11" rx="2.5" className={`${isLight ? 'fill-amber-100 border-amber-350 shadow-sm' : 'fill-amber-500/15 stroke-amber-500/40'}`} />
+            <text x="0" y="3.5" textAnchor="middle" className={`${isLight ? 'fill-amber-800' : 'fill-amber-300'} font-bold text-[7px]`}>💻 feature</text>
           </g>
         </g>
 
         {/* Spawned Merge commit node */}
         {currentStep >= 3 && (
           <g className="transition-all duration-700">
-            <circle cx="420" cy="90" r="18" className="stroke-indigo-400 fill-indigo-950 border stroke-2 animate-bounce" />
-            <text x="420" y="93" textAnchor="middle" className="fill-indigo-300 font-bold text-[8.5px]">M4</text>
-            <text x="420" y="122" textAnchor="middle" className="fill-indigo-400 text-[8px] font-bold">Merge Commit</text>
+            <circle cx="420" cy="90" r="18" className={`stroke-indigo-400 ${isLight ? 'fill-indigo-100 shadow-md' : 'fill-indigo-950'} border stroke-2 animate-bounce`} />
+            <text x="420" y="93" textAnchor="middle" className={`${isLight ? 'fill-indigo-850' : 'fill-indigo-300'} font-bold text-[8.5px]`}>M4</text>
+            <text x="420" y="122" textAnchor="middle" className={`${isLight ? 'fill-indigo-700' : 'fill-indigo-400'} text-[8px] font-bold`}>Merge Commit</text>
             
             {/* Merged master branch tag - local master advanced to M4 */}
             <g transform={`translate(420, 24)`}>
-              <rect x="-38" y="-6" width="76" height="14" rx="3" className="fill-emerald-500/20 stroke stroke-emerald-400" />
-              <text x="0" y="4.5" textAnchor="middle" className="fill-emerald-350 text-[7.5px] font-bold">💻 master (local)</text>
+              <rect x="-38" y="-6" width="76" height="14" rx="3" className={`${isLight ? 'fill-emerald-100/95 stroke-emerald-405' : 'fill-emerald-500/20 stroke-emerald-400'}`} />
+              <text x="0" y="4.5" textAnchor="middle" className={`${isLight ? 'fill-emerald-850' : 'fill-emerald-350'} text-[7.5px] font-bold`}>💻 master (local)</text>
             </g>
           </g>
         )}
@@ -1623,13 +1631,17 @@ export default function GitVisualizerPanel({
     let fileXOffset = currentStep === 1 ? 160 : 0;
     let fileYOffset = currentStep === 1 ? 40 : 0;
     let fileOpacity = currentStep >= 2 ? 0 : 1;
-    let fileColor = currentStep === 1 ? "bg-emerald-500/20 border-emerald-400 text-emerald-300" : "bg-slate-800/40 border-slate-700 text-slate-300";
+    let fileColor = currentStep === 1 
+      ? (isLight ? "bg-emerald-50 border-emerald-300 text-emerald-800 animate-pulse font-semibold" : "bg-emerald-500/20 border-emerald-400 text-emerald-300") 
+      : (isLight ? "bg-slate-100 border-slate-205 text-slate-700" : "bg-slate-800/40 border-slate-700 text-slate-300");
 
     return (
       <div className="relative overflow-hidden" style={{ width: `${w}px`, height: `${h}px` }} id="commit-stage">
         {/* Staging Index Queue */}
-        <div className="absolute left-[30px] top-[15px] w-[260px] h-[55px] border border-dashed border-slate-800 rounded-lg p-2 flex flex-col justify-between bg-slate-950/20">
-          <span className="text-[8px] font-mono text-slate-500 block uppercase font-bold tracking-wider">Staging Area Index (Index)</span>
+        <div className={`absolute left-[30px] top-[15px] w-[260px] h-[55px] border border-dashed rounded-lg p-2 flex flex-col justify-between ${
+          isLight ? 'border-slate-300 bg-slate-50' : 'border-slate-800 bg-slate-950/20'
+        }`}>
+          <span className={`text-[8px] font-mono block uppercase font-bold tracking-wider ${isLight ? 'text-slate-450' : 'text-slate-500'}`}>Staging Area Index (Index)</span>
           <div className="flex gap-2 justify-center select-none" style={{ opacity: fileOpacity }}>
             <div className={`px-2 py-0.5 rounded border text-[8px] flex items-center gap-1.5 transition-all duration-700 ${fileColor}`} style={{ transform: `translate(${fileXOffset}px, ${fileYOffset}px)` }}>
               <Bookmark className="w-2.5 h-2.5" />
@@ -1648,32 +1660,32 @@ export default function GitVisualizerPanel({
 
           {/* C1 & C2 Commits */}
           <g>
-            <circle cx="110" cy="45" r="14" className="stroke-indigo-400 fill-slate-950 stroke-2" />
-            <text x="110" y="49" textAnchor="middle" className="fill-indigo-300 font-bold text-[8.5px]">C1</text>
+            <circle cx="110" cy="45" r="14" className={`stroke-indigo-400 ${isLight ? 'fill-indigo-50' : 'fill-slate-950'} stroke-2`} />
+            <text x="110" y="49" textAnchor="middle" className={`${isLight ? 'fill-indigo-855 font-bold' : 'fill-indigo-300'} font-bold text-[8.5px]`}>C1</text>
           </g>
 
           <g>
-            <circle cx="220" cy="45" r="14" className="stroke-indigo-400 fill-slate-950 stroke-2" />
-            <text x="220" y="49" textAnchor="middle" className="fill-indigo-300 font-bold text-[8.5px]">C2</text>
+            <circle cx="220" cy="45" r="14" className={`stroke-indigo-400 ${isLight ? 'fill-indigo-50' : 'fill-slate-950'} stroke-2`} />
+            <text x="220" y="49" textAnchor="middle" className={`${isLight ? 'fill-indigo-855 font-bold' : 'fill-indigo-300'} font-bold text-[8.5px]`}>C2</text>
             {currentStep < 3 ? (
               <g>
                 {/* Local branch pointer tag at C2 */}
                 <g transform="translate(220, 14)" className="opacity-95">
-                  <rect x="-24" y="-5" width="48" height="11" rx="2.5" className="fill-emerald-500/15 stroke stroke-emerald-400" />
-                  <text x="0" y="3.5" textAnchor="middle" className="fill-emerald-300 font-bold text-[7px]">💻 main</text>
+                  <rect x="-24" y="-5" width="48" height="11" rx="2.5" className={`${isLight ? 'fill-emerald-100/90 stroke-emerald-400 font-bold' : 'fill-emerald-500/15 stroke-emerald-400'}`} />
+                  <text x="0" y="3.5" textAnchor="middle" className={`${isLight ? 'fill-emerald-800' : 'fill-emerald-300'} font-bold text-[7px]`}>💻 main</text>
                 </g>
                 {/* Remote tracking branch tag at C2 */}
                 <g transform="translate(220, -18)" className="opacity-80">
-                  <rect x="-35" y="-5" width="70" height="11" rx="2.5" className="fill-indigo-500/10 stroke stroke-indigo-400/40 stroke-dashed" />
-                  <text x="0" y="3" textAnchor="middle" className="fill-indigo-300 text-[6.5px] font-mono">☁️ origin/main</text>
+                  <rect x="-35" y="-5" width="70" height="11" rx="2.5" className={`${isLight ? 'fill-indigo-100/80 stroke-indigo-405' : 'fill-indigo-500/10 stroke-indigo-400/40'} stroke-dashed`} />
+                  <text x="0" y="3" textAnchor="middle" className={`${isLight ? 'fill-indigo-805 font-bold' : 'fill-indigo-300'} text-[6.5px] font-mono`}>☁️ origin/main</text>
                 </g>
               </g>
             ) : (
               <g>
                 {/* After commit, remote tracking tag stays at C2 */}
                 <g transform="translate(220, 14)" className="opacity-85">
-                  <rect x="-35" y="-5" width="70" height="11" rx="2.5" className="fill-indigo-500/10 stroke stroke-indigo-400/40 stroke-dashed" />
-                  <text x="0" y="3" textAnchor="middle" className="fill-indigo-300 text-[6.5px] font-mono">☁️ origin/main</text>
+                  <rect x="-35" y="-5" width="70" height="11" rx="2.5" className={`${isLight ? 'fill-indigo-100/80 stroke-indigo-405' : 'fill-indigo-500/10 stroke-indigo-400/40'} stroke-dashed`} />
+                  <text x="0" y="3" textAnchor="middle" className={`${isLight ? 'fill-indigo-805 font-bold' : 'fill-indigo-300'} text-[6.5px] font-mono`}>☁️ origin/main</text>
                 </g>
               </g>
             )}
@@ -1682,14 +1694,14 @@ export default function GitVisualizerPanel({
           {/* Spawning C3 */}
           {currentStep >= 2 && (
             <g className="transition-all duration-500 animate-zoomIn">
-              <circle cx="340" cy="45" r="16" className="stroke-emerald-400 fill-emerald-950/20 stroke-2 shadow" />
-              <text x="340" y="48.5" textAnchor="middle" className="fill-emerald-300 font-bold text-[8.5px]">C3</text>
+              <circle cx="340" cy="45" r="16" className={`stroke-emerald-400 ${isLight ? 'fill-emerald-50 shadow-sm' : 'fill-emerald-950/20'} stroke-2 shadow`} />
+              <text x="340" y="48.5" textAnchor="middle" className={`${isLight ? 'fill-emerald-850' : 'fill-emerald-300'} font-bold text-[8.5px]`}>C3</text>
               {currentStep === 3 && (
                 <g>
                    {/* Local branch pointer tag moves to C3 */}
                    <g transform="translate(340, 14)">
-                     <rect x="-24" y="-5" width="48" height="11" rx="2.5" className="fill-emerald-500/15 stroke stroke-emerald-400" />
-                     <text x="0" y="3.5" textAnchor="middle" className="fill-emerald-300 font-bold text-[7px]">💻 main</text>
+                     <rect x="-24" y="-5" width="48" height="11" rx="2.5" className={`${isLight ? 'fill-emerald-100/90 stroke-emerald-400 font-bold' : 'fill-emerald-505/15 stroke-emerald-400'}`} />
+                     <text x="0" y="3.5" textAnchor="middle" className={`${isLight ? 'fill-emerald-805' : 'fill-emerald-300'} font-bold text-[7px]`}>💻 main</text>
                    </g>
                 </g>
               )}
@@ -1714,11 +1726,11 @@ export default function GitVisualizerPanel({
         <div className="grid grid-cols-2 gap-4 h-full relative p-2">
           {/* Local Machine Dashboard */}
           <div className={`rounded-xl border p-3 flex flex-col justify-between ${
-            isLight ? 'bg-emerald-50/20 border-emerald-100/60' : 'bg-slate-950/40 border-emerald-950/20'
+            isLight ? 'bg-emerald-50/70 border-emerald-200' : 'bg-slate-950/40 border-emerald-950/20'
           }`}>
             <div className="flex items-center justify-between border-b pb-1 mb-1 border-emerald-500/10">
-              <span className="text-[8.5px] font-mono font-bold text-emerald-400 uppercase tracking-wider">💻 Local (Client)</span>
-              <span className="text-[7.5px] font-mono bg-emerald-500/10 text-emerald-400 px-1 py-0.2 rounded border border-emerald-500/20">refs/heads/main</span>
+              <span className={`text-[8.5px] font-mono font-bold uppercase tracking-wider ${isLight ? 'text-emerald-800' : 'text-emerald-400'}`}>💻 Local (Client)</span>
+              <span className={`text-[7.5px] font-mono px-1 py-0.2 rounded border ${isLight ? 'bg-emerald-100 text-emerald-800 border-emerald-250 font-semibold' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>refs/heads/main</span>
             </div>
             
             {/* Local Repository Timeline */}
@@ -1729,23 +1741,23 @@ export default function GitVisualizerPanel({
                 
                 {/* Commits */}
                 <g>
-                  <circle cx="45" cy="40" r="11" className="stroke-emerald-500/60 fill-slate-950 stroke-2" />
-                  <text x="45" y="43" textAnchor="middle" className="fill-emerald-400 font-bold text-[7.5px]">C1</text>
+                  <circle cx="45" cy="40" r="11" className={`stroke-emerald-500/60 ${isLight ? 'fill-emerald-50/40' : 'fill-slate-950'} stroke-2`} />
+                  <text x="45" y="43" textAnchor="middle" className={`${isLight ? 'fill-emerald-800 font-bold' : 'fill-emerald-400'} font-bold text-[7.5px]`}>C1</text>
                 </g>
 
                 <g>
-                  <circle cx="115" cy="40" r="11" className="stroke-emerald-500/60 fill-slate-950 stroke-2" />
-                  <text x="115" y="43" textAnchor="middle" className="fill-emerald-400 font-bold text-[7.5px]">C2</text>
+                  <circle cx="115" cy="40" r="11" className={`stroke-emerald-500/60 ${isLight ? 'fill-emerald-50/40' : 'fill-slate-950'} stroke-2`} />
+                  <text x="115" y="43" textAnchor="middle" className={`${isLight ? 'fill-emerald-800 font-bold' : 'fill-emerald-400'} font-bold text-[7.5px]`}>C2</text>
                 </g>
 
                 <g className="animate-zoomIn">
-                  <circle cx="185" cy="40" r="13" className="stroke-emerald-400 fill-slate-950 stroke-2" />
-                  <text x="185" y="43" textAnchor="middle" className="fill-emerald-300 font-bold text-[7.5px]">C3</text>
+                  <circle cx="185" cy="40" r="13" className={`stroke-emerald-400 ${isLight ? 'fill-emerald-100' : 'fill-slate-950'} stroke-2`} />
+                  <text x="185" y="43" textAnchor="middle" className={`${isLight ? 'fill-emerald-850' : 'fill-emerald-300'} font-bold text-[7.5px]`}>C3</text>
                   
                   {/* Local main tag stays at C3 */}
                   <g transform="translate(185, 14)">
-                    <rect x="-18" y="-4" width="36" height="9" rx="1.5" className="fill-emerald-500/20 stroke stroke-emerald-400/60" />
-                    <text x="0" y="2.5" textAnchor="middle" className="fill-emerald-300 text-[5.5px] font-bold">main</text>
+                    <rect x="-18" y="-4" width="36" height="9" rx="1.5" className={`${isLight ? 'fill-emerald-100/95 stroke-emerald-350' : 'fill-emerald-500/20 stroke-emerald-400/60'}`} />
+                    <text x="0" y="2.5" textAnchor="middle" className={`${isLight ? 'fill-emerald-850 font-bold' : 'fill-emerald-300'} text-[5.5px] font-bold`}>main</text>
                   </g>
                 </g>
               </svg>
@@ -1753,19 +1765,19 @@ export default function GitVisualizerPanel({
 
             {/* Packaging status bar */}
             {isPackaging && (
-              <div className="text-[7.5px] font-mono bg-emerald-500/10 text-emerald-300 border border-emerald-500/25 rounded py-1 text-center animate-pulse">
+              <div className={`text-[7.5px] font-mono border rounded py-1 text-center animate-pulse ${isLight ? 'bg-emerald-100 text-emerald-855 border-emerald-250 font-bold' : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25'}`}>
                 📦 Creating delta payload packs...
               </div>
             )}
             {!isPackaging && !isFlight && (
               <div className={`text-[7.5px] text-center font-mono py-1 rounded border-dashed border ${
-                isLight ? 'border-slate-200 text-slate-500' : 'border-slate-900/60 text-slate-600'
+                isLight ? 'border-slate-300 text-slate-500 bg-slate-50' : 'border-slate-900/60 text-slate-600'
               }`}>
                 Ready to transmit object C3
               </div>
             )}
             {isFlight && (
-              <div className="text-[7.5px] font-mono bg-sky-500/10 text-sky-300 border border-sky-500/20 rounded py-1 text-center animate-pulse">
+              <div className={`text-[7.5px] font-mono border rounded py-1 text-center animate-pulse ${isLight ? 'bg-sky-100 text-sky-850 border-sky-250 font-bold' : 'bg-sky-500/10 text-sky-300 border-sky-500/20'}`}>
                 ⚡ Transmitting Packfile stream...
               </div>
             )}
@@ -1773,11 +1785,11 @@ export default function GitVisualizerPanel({
 
           {/* Remote (Cloud GitHub Server) Area */}
           <div className={`rounded-xl border p-3 flex flex-col justify-between ${
-            isLight ? 'bg-indigo-50/20 border-indigo-100/60' : 'bg-slate-950/40 border-indigo-950/20'
+            isLight ? 'bg-indigo-50/70 border-indigo-200' : 'bg-slate-950/40 border-indigo-950/20'
           }`}>
             <div className="flex items-center justify-between border-b pb-1 mb-1 border-indigo-500/10">
-              <span className="text-[8.5px] font-mono font-bold text-indigo-400 uppercase tracking-wider">☁️ Remote (GitHub Server)</span>
-              <span className="text-[7.5px] font-mono bg-indigo-500/10 text-indigo-400 px-1 py-0.2 rounded border border-indigo-500/20">origin/refs/heads/main</span>
+              <span className={`text-[8.5px] font-mono font-bold uppercase tracking-wider ${isLight ? 'text-indigo-805' : 'text-indigo-400'}`}>☁️ Remote (GitHub Server)</span>
+              <span className={`text-[7.5px] font-mono px-1 py-0.2 rounded border ${isLight ? 'bg-indigo-100 text-indigo-800 border-indigo-250 font-semibold' : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'}`}>origin/refs/heads/main</span>
             </div>
 
             {/* Remote Timeline */}
@@ -1787,48 +1799,48 @@ export default function GitVisualizerPanel({
                 <line x1="30" y1="40" x2={remoteContainsC3 ? "190" : "115"} y2="40" className="stroke-indigo-500/40 stroke-2" />
 
                 <g>
-                  <circle cx="45" cy="40" r="11" className="stroke-indigo-455 fill-slate-950 stroke-2" />
-                  <text x="45" y="43" textAnchor="middle" className="fill-indigo-300 font-bold text-[7.5px]">C1</text>
+                  <circle cx="45" cy="40" r="11" className={`stroke-indigo-405 $isLight ? 'fill-indigo-50' : 'fill-slate-950'} stroke-2`} />
+                  <text x="45" y="43" textAnchor="middle" className={`${isLight ? 'fill-indigo-800' : 'fill-indigo-300'} font-bold text-[7.5px]`}>C1</text>
                 </g>
 
                 <g>
-                  <circle cx="115" cy="40" r="11" className="stroke-indigo-455 fill-slate-950 stroke-2" />
-                  <text x="115" y="43" textAnchor="middle" className="fill-indigo-300 font-bold text-[7.5px]">C2</text>
+                  <circle cx="115" cy="40" r="11" className={`stroke-indigo-405 $isLight ? 'fill-indigo-50' : 'fill-slate-950'} stroke-2`} />
+                  <text x="115" y="43" textAnchor="middle" className={`${isLight ? 'fill-indigo-800 font-bold' : 'fill-indigo-300'} font-bold text-[7.5px]`}>C2</text>
                   
                   {!remoteContainsC3 && (
                     <g transform="translate(115, 14)">
-                      <rect x="-24" y="-4" width="48" height="9" rx="1.5" className="fill-indigo-500/20 stroke stroke-indigo-400/60 shadow-md animate-pulse" />
-                      <text x="0" y="2.5" textAnchor="middle" className="fill-indigo-300 text-[5.5px] font-bold">origin/main</text>
+                      <rect x="-24" y="-4" width="48" height="9" rx="1.5" className={`${isLight ? 'fill-indigo-100/90 stroke-indigo-400' : 'fill-indigo-500/20 stroke-indigo-400/60'} shadow-md animate-pulse`} />
+                      <text x="0" y="2.5" textAnchor="middle" className={`${isLight ? 'fill-indigo-850 font-bold' : 'fill-indigo-300'} text-[5.5px] font-bold`}>origin/main</text>
                     </g>
                   )}
                 </g>
 
                 {remoteContainsC3 ? (
                   <g className="animate-zoomIn">
-                    <circle cx="185" cy="40" r="13" className="stroke-indigo-400 fill-indigo-950 stroke-2 shadow" />
-                    <text x="185" y="43" textAnchor="middle" className="fill-indigo-300 font-bold text-[7.5px]">C3</text>
+                    <circle cx="185" cy="40" r="13" className={`stroke-indigo-400 ${isLight ? 'fill-indigo-100' : 'fill-indigo-950'} stroke-2 shadow`} />
+                    <text x="185" y="43" textAnchor="middle" className={`${isLight ? 'fill-indigo-850' : 'fill-indigo-300'} font-bold text-[7.5px]`}>C3</text>
                     
                     <g transform="translate(185, 14)">
-                      <rect x="-24" y="-4" width="48" height="9" rx="1.5" className="fill-indigo-500/20 stroke stroke-indigo-400/60 shadow" />
-                      <text x="0" y="2.5" textAnchor="middle" className="fill-indigo-300 text-[5.5px] font-bold">origin/main</text>
+                      <rect x="-24" y="-4" width="48" height="9" rx="1.5" className={`${isLight ? 'fill-indigo-150 stroke-indigo-400' : 'fill-indigo-500/20 stroke-indigo-400/60'} shadow`} />
+                      <text x="0" y="2.5" textAnchor="middle" className={`${isLight ? 'fill-indigo-900 font-bold' : 'fill-indigo-300'} text-[5.5px] font-bold`}>origin/main</text>
                     </g>
                   </g>
                 ) : (
                   <g className="opacity-30">
-                    <circle cx="185" cy="40" r="11" className="stroke-slate-800 fill-none stroke-2 stroke-dashed" />
-                    <text x="185" y="43" textAnchor="middle" className="fill-slate-700 text-[7.5px]">C3</text>
+                    <circle cx="185" cy="40" r="11" className={`${isLight ? 'stroke-slate-300 animate-pulse' : 'stroke-slate-800'} fill-none stroke-2 stroke-dashed`} />
+                    <text x="185" y="43" textAnchor="middle" className={`${isLight ? 'fill-slate-400' : 'fill-slate-700'} text-[7.5px]`}>C3</text>
                   </g>
                 )}
               </svg>
             </div>
 
             {remoteContainsC3 ? (
-              <div className="text-[7.5px] font-mono bg-indigo-550/25 text-indigo-300 border border-indigo-505 text-center rounded py-1 font-bold flex items-center justify-center gap-1 animate-pulse">
-                <span>🟢 origin/main is synced at C3</span>
+              <div className={`text-[7.5px] font-mono text-center rounded py-1 font-bold flex items-center justify-center gap-1 animate-pulse ${isLight ? 'bg-indigo-100 text-indigo-850 border border-indigo-300' : 'bg-indigo-550/25 text-indigo-300 border border-indigo-505'}`}>
+                <span>🟢 {tone === TranslationTone.ENGLISH ? "origin/main is synced at C3" : "origin/main đã đồng bộ tại C3"}</span>
               </div>
             ) : (
-              <div className="text-[7.5px] font-mono bg-[#0c1329] text-indigo-300/70 border border-dashed border-indigo-500/30 text-center rounded py-1 flex items-center justify-center gap-1">
-                <span>🔴 origin/main is outdated (at C2)</span>
+              <div className={`text-[7.5px] font-mono text-center rounded py-1 flex items-center justify-center gap-1 border border-dashed ${isLight ? 'bg-rose-50 text-rose-800 border-rose-350' : 'bg-[#0c1329] text-indigo-300/70 border border-indigo-500/30'}`}>
+                <span>🔴 {tone === TranslationTone.ENGLISH ? "origin/main is outdated (at C2)" : "origin/main bị lỗi thời (tại C2)"}</span>
               </div>
             )}
           </div>
@@ -1849,8 +1861,6 @@ export default function GitVisualizerPanel({
       </div>
     );
   };
-
-  // DIVERGE
   const renderDivergeVisual = (w: number, h: number) => {
     // Gốc chung: C1(120, 90).
     // Local: L2(240, 50) -> L3(360, 50). Tag: main
@@ -1868,7 +1878,7 @@ export default function GitVisualizerPanel({
     return (
       <svg className="w-full h-full font-mono" viewBox={`0 0 ${w} ${h}`} referrerPolicy="no-referrer">
         {/* Baseline anchor lines */}
-        <line x1="50" y1="90" x2="120" y2="90" className="stroke-slate-700 stroke-2 fill-none" />
+        <line x1="50" y1="90" x2="120" y2="90" className={`${isLight ? 'stroke-slate-300' : 'stroke-slate-700'} stroke-2 fill-none`} />
 
         {/* Local rẽ top */}
         {showSplit && (
@@ -1881,25 +1891,27 @@ export default function GitVisualizerPanel({
 
         {/* C1 common anchor commit */}
         <g>
-          <circle cx="120" cy="90" r="14" className="stroke-slate-600 fill-slate-950 stroke-2" />
-          <text x="120" y="93.5" textAnchor="middle" className="fill-slate-400 font-bold text-[8.5px]">C1</text>
-          <text x="120" y="118" textAnchor="middle" className="fill-slate-500 text-[8px] font-bold">Split Point</text>
+          <circle cx="120" cy="90" r="14" className={`stroke-slate-600 ${isLight ? 'fill-slate-100' : 'fill-slate-950'} stroke-2`} />
+          <text x="120" y="93.5" textAnchor="middle" className={`${isLight ? 'fill-slate-700 font-bold' : 'fill-slate-400'} font-bold text-[8.5px]`}>C1</text>
+          <text x="120" y="118" textAnchor="middle" className={`${isLight ? 'fill-slate-600 font-bold' : 'fill-slate-500'} text-[8px] font-bold`}>
+            {tone === TranslationTone.ENGLISH ? "Split Point" : "Điểm chia nhánh"}
+          </text>
         </g>
 
         {/* Local Branch developments */}
         {showForkCommitted && (
           <>
             <g>
-              <circle cx="240" cy="50" r="14" className="stroke-emerald-400 fill-slate-950 stroke-2" />
-              <text x="240" y="53.5" textAnchor="middle" className="fill-emerald-300 font-bold text-[8.5px]">L2</text>
+              <circle cx="240" cy="50" r="14" className={`stroke-emerald-400 ${isLight ? 'fill-emerald-50' : 'fill-slate-950'} stroke-2`} />
+              <text x="240" y="53.5" textAnchor="middle" className={`${isLight ? 'fill-emerald-800' : 'fill-emerald-300'} font-bold text-[8.5px]`}>L2</text>
             </g>
             <g>
-              <circle cx="360" cy="50" r="14" className="stroke-emerald-400 fill-slate-950 stroke-2" />
-              <text x="360" y="53.5" textAnchor="middle" className="fill-emerald-300 font-bold text-[8.5px]">L3</text>
+              <circle cx="360" cy="50" r="14" className={`stroke-emerald-400 ${isLight ? 'fill-emerald-50' : 'fill-slate-950'} stroke-2`} />
+              <text x="360" y="53.5" textAnchor="middle" className={`${isLight ? 'fill-emerald-805' : 'fill-emerald-300'} font-bold text-[8.5px]`}>L3</text>
               
               <g transform="translate(360, 22)" className="opacity-95">
-                <rect x="-32" y="-5" width="64" height="11" rx="2.5" className="fill-emerald-500/15 stroke stroke-emerald-400" />
-                <text x="0" y="3.5" textAnchor="middle" className="fill-emerald-355 font-bold text-[7px]">💻 main (local)</text>
+                <rect x="-32" y="-5" width="64" height="11" rx="2.5" className={`${isLight ? 'fill-emerald-100/95 stroke-emerald-400 font-bold' : 'fill-emerald-505/15 stroke-emerald-400'}`} />
+                <text x="0" y="3.5" textAnchor="middle" className={`${isLight ? 'fill-emerald-805' : 'fill-emerald-355'} font-bold text-[7px]`}>💻 main (local)</text>
               </g>
             </g>
           </>
@@ -1909,16 +1921,16 @@ export default function GitVisualizerPanel({
         {showForkCommitted && (
           <>
             <g>
-              <circle cx="240" cy="130" r="14" className="stroke-rose-400/50 fill-slate-950 stroke-2" />
-              <text x="240" y="133.5" textAnchor="middle" className="fill-rose-300/60 font-bold text-[8.5px]">R2</text>
+              <circle cx="240" cy="130" r="14" className={`stroke-rose-400/50 ${isLight ? 'fill-rose-50/80' : 'fill-slate-950'} stroke-2`} />
+              <text x="240" y="133.5" textAnchor="middle" className={`${isLight ? 'fill-rose-800' : 'fill-rose-300/60'} font-bold text-[8.5px]`}>R2</text>
             </g>
             <g>
-              <circle cx="360" cy="130" r="14" className="stroke-rose-450 fill-slate-950 stroke-2" />
-              <text x="360" y="133.5" textAnchor="middle" className="fill-rose-300 font-bold text-[8.5px]">R3</text>
+              <circle cx="360" cy="130" r="14" className={`stroke-rose-450 ${isLight ? 'fill-rose-50' : 'fill-slate-950'} stroke-2`} />
+              <text x="360" y="133.5" textAnchor="middle" className={`${isLight ? 'fill-rose-805 font-bold' : 'fill-rose-300'} font-bold text-[8.5px]`}>R3</text>
               
               <g transform="translate(360, 154)" className="opacity-85">
-                <rect x="-42" y="-5" width="84" height="11" rx="2.5" className="fill-indigo-500/10 stroke stroke-indigo-400/45 stroke-dashed" />
-                <text x="0" y="3" textAnchor="middle" className="fill-indigo-300 text-[6.5px] font-mono">☁️ origin/main</text>
+                <rect x="-42" y="-5" width="84" height="11" rx="2.5" className={`${isLight ? 'fill-indigo-100/90 stroke-indigo-405' : 'fill-indigo-505/10 stroke-indigo-404/45'} stroke-dashed`} />
+                <text x="0" y="3" textAnchor="middle" className={`${isLight ? 'fill-indigo-805 font-bold' : 'fill-indigo-300'} text-[6.5px] font-mono`}>☁️ origin/main</text>
               </g>
             </g>
           </>
@@ -1929,20 +1941,28 @@ export default function GitVisualizerPanel({
           <g>
             <line x1="360" y1="50" x2="360" y2="130" className="stroke-amber-500 stroke-2 stroke-dashed animate-pulse" />
             <g transform="translate(360, 90)" className="animate-bounce">
-              <circle cx="0" cy="0" r="15" className="fill-rose-950/90 stroke-rose-500 stroke-2" />
-              <text x="0" y="3.5" textAnchor="middle" className="fill-rose-300 font-bold text-[11px]">⚡</text>
+              <circle cx="0" cy="0" r="15" className={`${isLight ? 'fill-rose-100' : 'fill-rose-950/90'} stroke-rose-500 stroke-2`} />
+              <text x="0" y="3.5" textAnchor="middle" className={`${isLight ? 'fill-rose-800 font-extrabold' : 'fill-rose-300'} font-bold text-[11px]`}>⚡</text>
             </g>
-            <text x="360" y="112" textAnchor="middle" className="fill-amber-400 text-[8px] font-bold font-mono">DIVERGED (SPLIT PATH)</text>
+            <text x="360" y="112" textAnchor="middle" className={`${isLight ? 'fill-rose-800 font-black' : 'fill-amber-400'} text-[8px] font-bold font-mono`}>
+              {tone === TranslationTone.ENGLISH ? "DIVERGED (SPLIT PATH)" : "BỊ LỆCH NHÁNH (SPLIT PATH)"}
+            </text>
           </g>
         )}
 
         {/* Push Denied shield */}
         {isPushRejected && (
           <g transform="translate(480, 90)" className="animate-zoomIn">
-            <rect x="-60" y="-30" width="120" height="60" rx="6" className="fill-rose-950/90 border border-rose-500/40 text-center stroke-rose-500 stroke-2" />
-            <text x="0" y="-12" textAnchor="middle" className="fill-rose-400 text-[9px] font-bold">PUSH REJECTED!</text>
-            <text x="0" y="4" textAnchor="middle" className="fill-slate-300 text-[7.5px] font-mono leading-normal">Cannot Fast-Forward</text>
-            <text x="0" y="18" textAnchor="middle" className="fill-amber-450 text-[7px] font-mono leading-normal font-bold">Merge/Rebase Needed</text>
+            <rect x="-60" y="-30" width="120" height="60" rx="6" className={`${isLight ? 'fill-rose-50 border-rose-300 shadow-md stroke-rose-400' : 'fill-rose-950/90 border-rose-500/40 stroke-rose-500'} stroke-2`} />
+            <text x="0" y="-12" textAnchor="middle" className={`${isLight ? 'fill-rose-850 font-black' : 'fill-rose-400'} text-[9px] font-bold`}>
+              {tone === TranslationTone.ENGLISH ? "PUSH REJECTED!" : "PUSH BỊ TỪ CHỐI!"}
+            </text>
+            <text x="0" y="4" textAnchor="middle" className={`${isLight ? 'fill-slate-700 font-bold' : 'fill-slate-300'} text-[7.5px] font-mono leading-normal`}>
+              {tone === TranslationTone.ENGLISH ? "Cannot Fast-Forward" : "Không thể Fast-Forward"}
+            </text>
+            <text x="0" y="18" textAnchor="middle" className={`${isLight ? 'fill-amber-805 font-bold' : 'fill-amber-450'} text-[7px] font-mono leading-normal font-bold`}>
+              {tone === TranslationTone.ENGLISH ? "Merge/Rebase Needed" : "Cần Merge hoặc Rebase"}
+            </text>
           </g>
         )}
       </svg>
@@ -1961,17 +1981,17 @@ export default function GitVisualizerPanel({
     let masterTagX = 220;
     let labelText = "💻 main";
     let highlightCircle = false;
-    let guidePathColor = "stroke-slate-800";
+    let guidePathColor = isLight ? "stroke-slate-300" : "stroke-slate-800";
 
     if (currentStep === 1) { // Scanning
       highlightCircle = true;
-      guidePathColor = "stroke-indigo-500/50 animate-pulse";
+      guidePathColor = isLight ? "stroke-indigo-400 animate-pulse" : "stroke-indigo-500/50 animate-pulse";
     } else if (currentStep === 2) { // Sliding
       masterTagX = 340;
-      labelText = "💻 main (sliding...)";
+      labelText = tone === TranslationTone.ENGLISH ? "💻 main (sliding...)" : "💻 main (đang trượt...)";
     } else if (currentStep === 3) { // Completed
       masterTagX = 460;
-      labelText = "💻 main (local HEAD)";
+      labelText = tone === TranslationTone.ENGLISH ? "💻 main (local HEAD)" : "💻 main (HEAD cá nhân)";
     }
 
     return (
@@ -1985,49 +2005,53 @@ export default function GitVisualizerPanel({
         {/* Remote tracking main pointer: always stays at M2 since Fast-Forward is a local merge */}
         {currentStep < 2 ? (
           <g transform="translate(220, 16)" className="opacity-80">
-            <rect x="-38" y="-5" width="76" height="11" rx="2" className="fill-indigo-500/10 stroke stroke-indigo-400/40 stroke-dashed" />
-            <text x="0" y="3" textAnchor="middle" className="fill-indigo-300 text-[6.5px] font-mono">☁️ origin/main</text>
+            <rect x="-38" y="-5" width="76" height="11" rx="2" className={`${isLight ? 'fill-indigo-100/90 stroke-indigo-405 font-semibold' : 'fill-indigo-505/10 stroke-indigo-404/40'} stroke-dashed`} />
+            <text x="0" y="3" textAnchor="middle" className={`${isLight ? 'fill-indigo-805 font-bold' : 'fill-indigo-300'} text-[6.5px] font-mono`}>☁️ origin/main</text>
             <line x1="0" y1="6" x2="0" y2="58" className="stroke-indigo-400/30 stroke-dashed" />
           </g>
         ) : (
           <g transform="translate(220, 35)" className="opacity-80">
-            <rect x="-38" y="-5" width="76" height="11" rx="2" className="fill-indigo-550/10 stroke stroke-indigo-400/40 stroke-dashed" />
-            <text x="0" y="3" textAnchor="middle" className="fill-indigo-300 text-[6.5px] font-mono">☁️ origin/main</text>
+            <rect x="-38" y="-5" width="76" height="11" rx="2" className={`${isLight ? 'fill-indigo-100/90 stroke-indigo-405 font-semibold' : 'fill-indigo-550/10 stroke-indigo-400/40'} stroke-dashed`} />
+            <text x="0" y="3" textAnchor="middle" className={`${isLight ? 'fill-indigo-805 font-bold' : 'fill-indigo-300'} text-[6.5px] font-mono`}>☁️ origin/main</text>
             <line x1="0" y1="6" x2="0" y2="40" className="stroke-indigo-400/30 stroke-dashed" />
           </g>
         )}
 
         {/* Commit Nodes */}
         <g>
-          <circle cx="100" cy="90" r="14" className="stroke-emerald-400 fill-slate-950 stroke-2" />
-          <text x="100" y="94" textAnchor="middle" className="fill-emerald-300 font-bold text-[8.5px]">M1</text>
+          <circle cx="100" cy="90" r="14" className={`stroke-emerald-400 ${isLight ? 'fill-emerald-50' : 'fill-slate-950'} stroke-2`} />
+          <text x="100" y="94" textAnchor="middle" className={`${isLight ? 'fill-emerald-800' : 'fill-emerald-300'} font-bold text-[8.5px]`}>M1</text>
         </g>
 
         <g>
-          <circle cx="220" cy="90" r="14" className="stroke-emerald-400 fill-slate-950 stroke-2" />
-          <text x="220" y="94" textAnchor="middle" className="fill-emerald-300 font-bold text-[8.5px]">M2</text>
+          <circle cx="220" cy="90" r="14" className={`stroke-emerald-400 ${isLight ? 'fill-emerald-50' : 'fill-slate-950'} stroke-2`} />
+          <text x="220" y="94" textAnchor="middle" className={`${isLight ? 'fill-emerald-805' : 'fill-emerald-300'} font-bold text-[8.5px]`}>M2</text>
           
           <g transform="translate(220, 126)">
-            <rect x="-24" y="-5" width="48" height="12" rx="2.5" className="fill-emerald-500/10 stroke stroke-emerald-500/30" />
-            <text x="0" y="3.5" textAnchor="middle" className="fill-emerald-400 text-[7px] font-bold">split base</text>
+            <rect x="-24" y="-5" width="48" height="12" rx="2.5" className={`${isLight ? 'fill-emerald-100/80 stroke-emerald-300 font-semibold' : 'fill-emerald-505/10 stroke-emerald-500/30'}`} />
+            <text x="0" y="3.5" textAnchor="middle" className={`${isLight ? 'fill-emerald-805' : 'fill-emerald-400'} text-[7px] font-bold`}>
+              {tone === TranslationTone.ENGLISH ? "split base" : "gốc chia nhánh"}
+            </text>
           </g>
         </g>
 
         <g>
-          <circle cx="340" cy="90" r="14" className="stroke-indigo-400 fill-slate-950 stroke-2" />
-          <text x="340" y="94" textAnchor="middle" className="fill-indigo-300 font-bold text-[8.5px]">M3</text>
+          <circle cx="340" cy="90" r="14" className={`stroke-indigo-400 ${isLight ? 'fill-indigo-50' : 'fill-slate-950'} stroke-2`} />
+          <text x="340" y="94" textAnchor="middle" className={`${isLight ? 'fill-indigo-805 font-bold' : 'fill-indigo-300'} font-bold text-[8.5px]`}>M3</text>
         </g>
 
         <g>
-          <circle cx="460" cy="90" r="15" className={`stroke-2 transition-all ${highlightCircle ? 'stroke-indigo-400 fill-indigo-950/20' : 'stroke-indigo-450 fill-slate-950'}`} />
-          <text x="460" y="94" textAnchor="middle" className="fill-indigo-300 font-bold text-[8.5px]">M4</text>
-          <text x="460" y="126" textAnchor="middle" className="fill-indigo-400 text-[8px] font-bold">Feature Head</text>
+          <circle cx="460" cy="90" r="15" className={`stroke-2 transition-all ${highlightCircle ? (isLight ? 'stroke-indigo-500 fill-indigo-110 animate-pingScale' : 'stroke-indigo-400 fill-indigo-950/20 animate-pingScale') : (`stroke-indigo-455 ${isLight ? 'fill-indigo-50' : 'fill-slate-950'}`)}`} />
+          <text x="460" y="94" textAnchor="middle" className={`${isLight ? 'fill-indigo-850' : 'fill-indigo-300'} font-bold text-[8.5px]`}>M4</text>
+          <text x="460" y="126" textAnchor="middle" className={`${isLight ? 'fill-indigo-700 font-bold' : 'fill-indigo-400'} text-[8px] font-bold`}>
+            {tone === TranslationTone.ENGLISH ? "Feature Head" : "Đầu nhánh Feature"}
+          </text>
         </g>
 
         {/* Sliding pointer master */}
         <g transform={`translate(${masterTagX}, 35)`} className="transition-all duration-1000 ease-in-out opacity-90">
-          <rect x="-42" y="-6" width="84" height="14" rx="2.5" className="fill-indigo-500/20 stroke stroke-indigo-400 shadow-md animate-pulse" />
-          <text x="0" y="4" textAnchor="middle" className="fill-indigo-300 text-[8px] font-bold truncate">{labelText}</text>
+          <rect x="-42" y="-6" width="84" height="14" rx="2.5" className={`${isLight ? 'fill-indigo-100 border border-indigo-400 font-bold' : 'fill-indigo-502/20 stroke stroke-indigo-400'} shadow-md animate-pulse`} />
+          <text x="0" y="4" textAnchor="middle" className={`${isLight ? 'fill-indigo-850' : 'fill-indigo-300'} text-[8px] font-bold truncate`}>{labelText}</text>
           <line x1="0" y1="8" x2="0" y2="40" className="stroke-indigo-400/50 stroke-dashed" />
         </g>
       </svg>
@@ -2328,30 +2352,28 @@ export default function GitVisualizerPanel({
                 id="btn-vis-prev"
                 onClick={handlePrevStep}
                 disabled={currentStep === 0}
-                className={`p-1 px-2.5 rounded-lg border disabled:opacity-40 disabled:cursor-not-allowed transition-all text-[10px] flex items-center gap-1 cursor-pointer ${
+                className={`p-1.5 rounded-lg border disabled:opacity-40 disabled:cursor-not-allowed transition-all text-xs flex items-center justify-center cursor-pointer ${
                   isLight 
                     ? 'bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-800 border-slate-200' 
                     : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border-slate-800'
                 }`}
                 title={loc.prevStepBtn}
               >
-                <ChevronLeft className="w-3.5 h-3.5" />
-                <span>{loc.prevStepBtn}</span>
+                <ChevronLeft className="w-4 h-4" />
               </button>
 
               <button
                 id="btn-vis-next"
                 onClick={handleNextStep}
                 disabled={currentStep === totalSteps - 1}
-                className={`p-1 px-2.5 rounded-lg border disabled:opacity-40 disabled:cursor-not-allowed transition-all text-[10px] flex items-center gap-1 cursor-pointer ${
+                className={`p-1.5 rounded-lg border disabled:opacity-40 disabled:cursor-not-allowed transition-all text-xs flex items-center justify-center cursor-pointer ${
                   isLight 
                     ? 'bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-800 border-slate-200' 
                     : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border-slate-800'
                 }`}
                 title={loc.nextStepBtn}
               >
-                <span>{loc.nextStepBtn}</span>
-                <ChevronRight className="w-3.5 h-3.5" />
+                <ChevronRight className="w-4 h-4" />
               </button>
             </div>
 

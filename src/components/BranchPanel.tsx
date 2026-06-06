@@ -324,12 +324,14 @@ export default function BranchPanel({
           {/* Branch Create button */}
           <button
             onClick={openCreateModal}
-            className={`text-xs font-mono flex items-center gap-1 px-2 py-1 rounded transition-colors cursor-pointer ${
-              isLight ? 'bg-sky-50 text-sky-600 border border-sky-250 hover:bg-sky-100' : 'bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:text-sky-300'
+            title={loc.newBranch}
+            className={`p-1.5 rounded border transition-all text-xs flex items-center justify-center shrink-0 cursor-pointer active:scale-95 ${
+              isLight 
+                ? 'bg-sky-50 text-sky-600 border-sky-250 hover:bg-sky-100' 
+                : 'bg-sky-500/10 text-sky-450 border-sky-500/20 hover:text-sky-300'
             }`}
           >
-            <PlusCircle className="w-3.5 h-3.5" />
-            <span>{loc.newBranch}</span>
+            <PlusCircle className="w-4 h-4" />
           </button>
 
           {/* Collapse Toggle */}

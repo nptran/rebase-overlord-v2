@@ -1169,19 +1169,27 @@ export default function WizardPanel({
         {/* Step 1: Sync / Fetch with Origin */}
         {wizard.step === 1 && (
           <div className="flex flex-col gap-4">
-            <div className="bg-slate-950 p-4 rounded-xl border border-slate-900 text-xs text-slate-400 leading-relaxed font-sans">
-              <span className="font-mono text-slate-200 block font-bold mb-1.5 uppercase text-[11px] flex items-center gap-1">
+            <div className={`p-4 rounded-xl border text-xs leading-relaxed font-sans ${isLight ? 'bg-slate-50 border-slate-200 text-slate-600' : 'bg-slate-950 border border-slate-900 text-slate-400'}`}>
+              <span className={`font-mono block font-bold mb-1.5 uppercase text-[11px] flex items-center gap-1 ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
                 <RefreshCw className="w-4 h-4 text-emerald-400" /> {loc.step1.title}
               </span>
               <p className="mb-2">{loc.step1.desc}</p>
               
-              <div className="flex gap-2 flex-wrap mt-2.5 pt-2.5 border-t border-slate-900 text-[10px] text-slate-500 font-mono">
+              <div className={`flex gap-2 flex-wrap mt-2.5 pt-2.5 border-t text-[10px] font-mono ${isLight ? 'border-slate-200 text-slate-500' : 'border-slate-900 text-slate-500'}`}>
                 <span className="self-center font-bold mr-1 text-slate-450">{tone === TranslationTone.ENGLISH ? "❓ Terms:" : "❓ Thuật ngữ:"}</span>
                 <Tooltip text={tone === TranslationTone.ENGLISH ? "Downloads tracking pointers and changes safely from the centralized server without moving your local workspace." : "Lệnh tải các bản ghi chép mới nhất từ server chung về máy của bạn để biết ai đã sửa những gì. Cực kỳ an toàn, không sợ mất code."}>
-                  <span className="px-2 py-0.5 rounded bg-slate-900 hover:text-slate-300 text-slate-400 border border-slate-800 transition-colors">git fetch</span>
+                  <span className={`px-2 py-0.5 rounded border transition-colors ${
+                    isLight 
+                      ? 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200' 
+                      : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-300'
+                  }`}>git fetch</span>
                 </Tooltip>
                 <Tooltip text={tone === TranslationTone.ENGLISH ? "The original public hub hosting the master project files (e.g. GitHub, GitLab)." : "Danh xưng chỉ kho lưu trữ chung trên mây của cả đội (như GitHub, GitLab). Từ đó đồng nghiệp tải xuống mã chung."}>
-                  <span className="px-2 py-0.5 rounded bg-slate-900 hover:text-slate-300 text-slate-400 border border-slate-800 transition-colors">Origin / Remote</span>
+                  <span className={`px-2 py-0.5 rounded border transition-colors ${
+                    isLight 
+                      ? 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200' 
+                      : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-300'
+                  }`}>Origin / Remote</span>
                 </Tooltip>
               </div>
             </div>
@@ -1191,24 +1199,32 @@ export default function WizardPanel({
                 onClick={() => onUpdateWizard({ doFetch: true })}
                 className={`flex-grow p-4 rounded-xl border text-left transition-all relative overflow-hidden ${
                   wizard.doFetch 
-                    ? 'bg-emerald-500/10 border-emerald-400/50 text-emerald-300' 
-                    : 'bg-slate-950 border-slate-900 text-slate-400 hover:border-slate-800'
+                    ? isLight 
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-800' 
+                      : 'bg-emerald-500/10 border-emerald-400/50 text-emerald-300' 
+                    : isLight 
+                      ? 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50/50 hover:border-slate-300' 
+                      : 'bg-slate-950 border-slate-900 text-slate-400 hover:border-slate-800'
                 }`}
               >
-                <div className="font-bold text-xs font-mono uppercase mb-1">{loc.step1.syncYes}</div>
-                <div className="text-[11px] text-slate-500 font-sans">{loc.step1.syncYesDesc}</div>
+                <div className={`font-bold text-xs font-mono uppercase mb-1 ${wizard.doFetch ? (isLight ? 'text-emerald-800' : 'text-emerald-355') : (isLight ? 'text-slate-600' : 'text-slate-450')}`}>{loc.step1.syncYes}</div>
+                <div className={`text-[11px] font-sans ${wizard.doFetch ? (isLight ? 'text-emerald-700/80' : 'text-emerald-400/80') : (isLight ? 'text-slate-400' : 'text-slate-500')}`}>{loc.step1.syncYesDesc}</div>
               </button>
 
               <button
                 onClick={() => onUpdateWizard({ doFetch: false })}
                 className={`flex-grow p-4 rounded-xl border text-left transition-all ${
                   !wizard.doFetch 
-                    ? 'bg-amber-500/10 border-amber-400/50 text-amber-300' 
-                    : 'bg-slate-950 border-slate-900 text-slate-400 hover:border-slate-800'
+                    ? isLight 
+                      ? 'bg-amber-50 border-amber-305 text-amber-800' 
+                      : 'bg-amber-500/10 border-amber-400/50 text-amber-300' 
+                    : isLight 
+                      ? 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50/50 hover:border-slate-300' 
+                      : 'bg-slate-950 border-slate-900 text-slate-400 hover:border-slate-800'
                 }`}
               >
-                <div className="font-bold text-xs font-mono uppercase mb-1">{loc.step1.syncNo}</div>
-                <div className="text-[11px] text-slate-500 font-sans">{loc.step1.syncNoDesc}</div>
+                <div className={`font-bold text-xs font-mono uppercase mb-1 ${!wizard.doFetch ? (isLight ? 'text-amber-800' : 'text-amber-355') : (isLight ? 'text-slate-600' : 'text-slate-450')}`}>{loc.step1.syncNo}</div>
+                <div className={`text-[11px] font-sans ${!wizard.doFetch ? (isLight ? 'text-amber-700/80' : 'text-amber-400/80') : (isLight ? 'text-slate-400' : 'text-slate-500')}`}>{loc.step1.syncNoDesc}</div>
               </button>
             </div>
           </div>
@@ -1217,18 +1233,26 @@ export default function WizardPanel({
         {/* Step 2: History Analysis & Commit Squash Checklist */}
         {wizard.step === 2 && (
           <div className="flex flex-col gap-5">
-            <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-900 text-xs text-slate-400 leading-relaxed flex items-center gap-3.5">
+            <div className={`p-3.5 rounded-xl border text-xs leading-relaxed flex items-center gap-3.5 ${
+              isLight 
+                ? 'bg-indigo-50/40 border-indigo-100 text-slate-600' 
+                : 'bg-slate-950 border border-slate-900 text-slate-400'
+            }`}>
               <Zap className="w-8 h-8 text-indigo-400 shrink-0" />
               <div>
-                <strong>{loc.step2.title}</strong> {loc.step2.desc.replace('{baseBranch}', wizard.baseBranch).replace('{commitsLength}', commits.length)}
+                <strong className={isLight ? 'text-slate-800' : 'text-slate-205'}>{loc.step2.title}</strong> {loc.step2.desc.replace('{baseBranch}', wizard.baseBranch).replace('{commitsLength}', commits.length)}
                 <div className="mt-1 text-[11px] text-slate-500">
-                  💡 <span className="text-amber-400 font-semibold">{tone === TranslationTone.ENGLISH ? "Drag-and-Drop Enabled:" : "Hỗ trợ kéo thả:"}</span> {tone === TranslationTone.ENGLISH ? "Drag cards between panels to squash/exclude, or drag vertical order to reschedule commits!" : "Kéo thả giữa 2 bảng để nén/loại trừ, hoặc kéo lên/xuống để thay đổi thứ tự thời gian của commit!"}
+                  💡 <span className={`font-semibold ${isLight ? 'text-amber-600' : 'text-amber-450'}`}>{tone === TranslationTone.ENGLISH ? "Drag-and-Drop Enabled:" : "Hỗ trợ kéo thả:"}</span> {tone === TranslationTone.ENGLISH ? "Drag cards between panels to squash/exclude, or drag vertical order to reschedule commits!" : "Kéo thả giữa 2 bảng để nén/loại trừ, hoặc kéo lên/xuống để thay đổi thứ tự thời gian của commit!"}
                 </div>
               </div>
             </div>
 
             {/* Selection control bars */}
-            <div className="flex items-center justify-between bg-slate-900/40 px-3.5 py-2 rounded-xl border border-slate-900/60 text-[11px] font-mono leading-relaxed">
+            <div className={`flex items-center justify-between px-3.5 py-2 rounded-xl border text-[11px] font-mono leading-relaxed ${
+              isLight 
+                ? 'bg-slate-50 border-slate-200 text-slate-605' 
+                : 'bg-slate-900/40 border border-slate-900/60 text-slate-400'
+            }`}>
               <span className="text-slate-400 font-medium">
                 <Tooltip text={tone === TranslationTone.ENGLISH ? "Selected commits represent modifications that will be merged into a single clean block." : "Số lượng các lưu nháp sẽ được nén dồn vào làm một gói duy nhất."}>
                   {loc.step2.selectedCount.replace('{count}', wizard.selectedCommits.length).replace('{total}', commits.length)}
@@ -1291,8 +1315,12 @@ export default function WizardPanel({
               <div 
                 className={`flex flex-col gap-3 p-4 rounded-xl border-2 transition-all ${
                   isDragOverSquash
-                    ? 'bg-indigo-950/20 border-indigo-400 border-dashed shadow-lg shadow-indigo-505/10 scale-[1.01]'
-                    : 'bg-[#0b0c15] border-slate-850 border-dashed'
+                    ? isLight
+                      ? 'bg-indigo-50/50 border-indigo-400 border-dashed shadow-md scale-[1.01]'
+                      : 'bg-indigo-950/20 border-indigo-400 border-dashed shadow-lg shadow-indigo-505/10 scale-[1.01]'
+                    : isLight
+                      ? 'bg-slate-50/55 border-slate-205 border-dashed'
+                      : 'bg-[#0b0c15] border-slate-850 border-dashed'
                 }`}
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -1311,14 +1339,14 @@ export default function WizardPanel({
                   }
                 }}
               >
-                <div className="flex items-center justify-between border-b border-slate-900 pb-2">
+                <div className={`flex items-center justify-between border-b pb-2 ${isLight ? 'border-slate-200' : 'border-slate-900'}`}>
                   <Tooltip text={tone === TranslationTone.ENGLISH ? "Commits in this pile will be squashed and combined into a single clean commit." : "Các commit trong cột này sẽ được dồn nén lại thành một commit duy nhất, giúp lịch sử sạch đẹp."}>
-                    <span className="text-xs font-bold font-mono text-indigo-400 tracking-wider flex items-center gap-1.5 font-sans">
-                      <Sparkles className="w-3.5 h-3.5 fill-indigo-400/20" />
+                    <span className={`text-xs font-bold tracking-wider flex items-center gap-1.5 font-sans ${isLight ? 'text-indigo-650' : 'text-indigo-400'}`}>
+                      <Sparkles className={`w-3.5 h-3.5 ${isLight ? 'fill-indigo-500/10 text-indigo-550' : 'fill-indigo-400/20'}`} />
                       <span>{tone === TranslationTone.ENGLISH ? "📦 SQUASH (KEEP & COMBINE)" : "📦 NÉN & SÁP NHẬP (SQUASH)"}</span>
                     </span>
                   </Tooltip>
-                  <span className="bg-indigo-500/10 border border-indigo-500/20 text-[10px] text-indigo-400 px-2 py-0.5 rounded font-mono font-bold">
+                  <span className={`border text-[10px] px-2 py-0.5 rounded font-mono font-bold ${isLight ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-400'}`}>
                     {orderedCommits.filter(c => wizard.selectedCommits.includes(c.sha)).length}
                   </span>
                 </div>
@@ -1343,15 +1371,19 @@ export default function WizardPanel({
                             draggable
                             onDragStart={(e) => handleDragStart(e, commit.sha, 'squash')}
                             onDragEnd={handleDragEnd}
-                            className={`p-2.5 rounded-lg border bg-slate-900/60 border-slate-800/60 hover:border-indigo-500/40 text-xs font-mono transition-all flex items-center justify-between cursor-grab active:cursor-grabbing hover:bg-slate-900`}
+                            className={`p-2.5 rounded-lg border text-xs font-mono transition-all flex items-center justify-between cursor-grab active:cursor-grabbing ${
+                              isLight
+                                ? 'bg-white border-slate-205 hover:border-indigo-400 text-slate-800 hover:bg-slate-50/50'
+                                : 'bg-slate-900/60 border-slate-800/60 hover:border-indigo-500/40 hover:bg-slate-900'
+                            }`}
                           >
                             <div className="flex items-center gap-2.5 w-[75%]">
                               {/* Draggable dots indicators */}
-                              <div className="text-slate-600 font-mono text-[10px] space-y-0.5 select-none font-bold mr-1 shrink-0">
+                              <div className={`font-mono text-[10px] space-y-0.5 select-none font-bold mr-1 shrink-0 ${isLight ? 'text-slate-350' : 'text-slate-600'}`}>
                                 ░
                               </div>
-                              <span className="text-indigo-400 font-semibold font-mono shrink-0">{commit.sha}</span>
-                              <span className="truncate font-sans text-slate-200 font-medium" title={commit.message}>{commit.message}</span>
+                              <span className={`font-semibold font-mono shrink-0 ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`}>{commit.sha}</span>
+                              <span className={`truncate font-sans font-medium ${isLight ? 'text-slate-700' : 'text-slate-205'}`} title={commit.message}>{commit.message}</span>
                             </div>
 
                             {/* Easy Sorting Arrow icons and action button fallback */}
@@ -1384,7 +1416,11 @@ export default function WizardPanel({
                                   onUpdateWizard({ selectedCommits: wizard.selectedCommits.filter(s => s !== commit.sha) });
                                 }}
                                 title={tone === TranslationTone.ENGLISH ? "Exclude from squash" : "Loại bỏ khỏi nén"}
-                                className="px-1.5 py-0.5 text-[10px] bg-rose-950/40 border border-rose-900/30 rounded text-rose-405 font-sans font-medium hover:bg-rose-900/40 hover:text-rose-300 transition-all cursor-pointer"
+                                className={`px-1.5 py-0.5 text-[10px] rounded font-sans font-medium border transition-all cursor-pointer ${
+                                  isLight
+                                    ? 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100'
+                                    : 'bg-rose-950/40 border border-rose-900/30 text-rose-405 hover:bg-rose-900/40 hover:text-rose-300'
+                                }`}
                               >
                                 ✕ Skip
                               </button>
@@ -1400,8 +1436,12 @@ export default function WizardPanel({
               <div 
                 className={`flex flex-col gap-3 p-4 rounded-xl border-2 transition-all ${
                   isDragOverExclude
-                    ? 'bg-rose-950/20 border-rose-500/50 border-dashed shadow-lg shadow-rose-500/5 scale-[1.01]'
-                    : 'bg-[#07080f] border-slate-900 border-dashed'
+                    ? isLight
+                      ? 'bg-rose-50/50 border-rose-400 border-dashed shadow-md scale-[1.01]'
+                      : 'bg-rose-950/20 border-rose-500/50 border-dashed shadow-lg shadow-rose-500/5 scale-[1.01]'
+                    : isLight
+                      ? 'bg-slate-50/55 border-slate-205 border-dashed'
+                      : 'bg-[#07080f] border-slate-900 border-dashed'
                 }`}
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -1418,14 +1458,18 @@ export default function WizardPanel({
                   }
                 }}
               >
-                <div className="flex items-center justify-between border-b border-slate-900/60 pb-2">
+                <div className={`flex items-center justify-between border-b pb-2 ${isLight ? 'border-slate-205' : 'border-slate-900/60'}`}>
                   <Tooltip text={tone === TranslationTone.ENGLISH ? "Commits in this pile will not be squashed. They are excluded or skipped." : "Các commit trong cột này sẽ được giữ riêng, không tham gia vào tiến trình nén gộp."}>
-                    <span className="text-xs font-bold font-mono text-rose-450 tracking-wider flex items-center gap-1.5 font-sans">
-                      <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                    <span className={`text-xs font-bold tracking-wider flex items-center gap-1.5 font-sans ${isLight ? 'text-rose-650' : 'text-rose-455'}`}>
+                      <AlertTriangle className={`w-3.5 h-3.5 ${isLight ? 'text-rose-500' : 'text-amber-500'}`} />
                       <span>{tone === TranslationTone.ENGLISH ? "🚫 EXCLUDE (SKIP/DROP COMMITS)" : "🚫 KHÔNG NÉN (LOẠI BỎ / DROP)"}</span>
                     </span>
                   </Tooltip>
-                  <span className="bg-slate-900 border border-slate-800 text-[10px] text-slate-500 px-2 py-0.5 rounded font-mono font-bold">
+                  <span className={`border text-[10px] px-2 py-0.5 rounded font-mono font-bold ${
+                    isLight 
+                      ? 'bg-slate-100 border-slate-200 text-slate-600' 
+                      : 'bg-slate-900 border border-slate-800 text-slate-500'
+                  }`}>
                     {orderedCommits.filter(c => !wizard.selectedCommits.includes(c.sha)).length}
                   </span>
                 </div>
@@ -1450,14 +1494,18 @@ export default function WizardPanel({
                             draggable
                             onDragStart={(e) => handleDragStart(e, commit.sha, 'exclude')}
                             onDragEnd={handleDragEnd}
-                            className="p-2.5 rounded-lg border bg-slate-950/40 border-slate-900 text-xs font-mono transition-all flex items-center justify-between cursor-grab active:cursor-grabbing hover:border-slate-850 hover:bg-slate-950/80 group opacity-75 hover:opacity-100"
+                            className={`p-2.5 rounded-lg border text-xs font-mono transition-all flex items-center justify-between cursor-grab active:cursor-grabbing group opacity-75 hover:opacity-100 ${
+                              isLight
+                                ? 'bg-slate-50/60 border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-700'
+                                : 'bg-slate-950/40 border-slate-900 text-slate-400 hover:border-slate-850 hover:bg-slate-950/80'
+                            }`}
                           >
                             <div className="flex items-center gap-2.5 w-[75%]">
-                              <div className="text-slate-800 font-mono text-[10px] space-y-0.5 mr-1 shrink-0 select-none">
+                              <div className={`font-mono text-[10px] space-y-0.5 mr-1 shrink-0 select-none ${isLight ? 'text-slate-300' : 'text-slate-800'}`}>
                                 ░
                               </div>
-                              <span className="text-slate-500 font-mono shrink-0">{commit.sha}</span>
-                              <span className="truncate font-sans text-slate-400 group-hover:text-slate-300 font-medium" title={commit.message}>{commit.message}</span>
+                              <span className={`font-mono shrink-0 ${isLight ? 'text-slate-500' : 'text-slate-550'}`}>{commit.sha}</span>
+                              <span className={`truncate font-sans font-medium ${isLight ? 'text-slate-650 group-hover:text-slate-800' : 'text-slate-400 group-hover:text-slate-300'}`} title={commit.message}>{commit.message}</span>
                             </div>
 
                             <button
@@ -1465,7 +1513,11 @@ export default function WizardPanel({
                               onClick={() => {
                                 onUpdateWizard({ selectedCommits: [...wizard.selectedCommits, commit.sha] });
                               }}
-                              className="px-2 py-0.5 text-[10px] bg-indigo-950/40 hover:bg-indigo-900/40 border border-indigo-900/30 text-indigo-300 rounded font-sans font-semibold transition-all cursor-pointer"
+                              className={`px-2 py-0.5 text-[10px] rounded font-sans font-semibold transition-all cursor-pointer border ${
+                                isLight
+                                  ? 'bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100'
+                                  : 'bg-indigo-950/40 hover:bg-indigo-900/40 border border-indigo-900/30 text-indigo-300'
+                              }`}
                             >
                               ✓ Squash
                             </button>
@@ -1485,19 +1537,31 @@ export default function WizardPanel({
         {/* Step 3: Create safe backup branch */}
         {wizard.step === 3 && (
           <div className="flex flex-col gap-4">
-            <div className="bg-slate-950 p-4 rounded-xl border border-slate-900 text-xs text-slate-400 leading-relaxed font-sans relative">
-              <span className="font-mono text-slate-200 block font-bold mb-1.5 uppercase text-[11px] flex items-center gap-1">
+            <div className={`p-4 rounded-xl border text-xs leading-relaxed font-sans relative ${
+              isLight 
+                ? 'bg-slate-50 border-slate-200 text-slate-600' 
+                : 'bg-slate-955 border border-slate-900 text-slate-400'
+            }`}>
+              <span className={`font-mono block font-bold mb-1.5 uppercase text-[11px] flex items-center gap-1 ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
                 <ShieldAlert className="w-4 h-4 text-indigo-400 animate-pulse" /> {loc.step3.title}
               </span>
               <p className="mb-2">{loc.step3.desc.replace('{backupBranchName}', wizard.backupBranchName)}</p>
               
-              <div className="flex gap-2 flex-wrap mt-2.5 pt-2.5 border-t border-slate-900 text-[10px] text-slate-500 font-mono">
+              <div className={`flex gap-2 flex-wrap mt-2.5 pt-2.5 border-t text-[10px] font-mono ${isLight ? 'border-slate-200 text-slate-500' : 'border-slate-900 text-slate-500'}`}>
                 <span className="self-center font-bold mr-1 text-slate-450">{tone === TranslationTone.ENGLISH ? "❓ Terms:" : "❓ Thuật ngữ:"}</span>
                 <Tooltip text={tone === TranslationTone.ENGLISH ? "An isolated replica clone of your working line to rollback safely in case anything goes wrong." : "Bản sao chụp clone lại nguyên vẹn trạng thái code của bạn lúc này. Nếu nén code bị lỗi hay mất dòng, khôi phụ lại trong 3 giây."}>
-                  <span className="px-2 py-0.5 rounded bg-slate-900 hover:text-slate-300 text-slate-400 border border-slate-800 transition-colors">{tone === TranslationTone.ENGLISH ? "Backup Branch" : "Nhánh sao lưu"}</span>
+                  <span className={`px-2 py-0.5 rounded border transition-colors ${
+                    isLight 
+                      ? 'bg-slate-100 text-slate-605 border-slate-200 hover:bg-slate-200' 
+                      : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-300'
+                  }`}>{tone === TranslationTone.ENGLISH ? "Backup Branch" : "Nhánh sao lưu"}</span>
                 </Tooltip>
                 <Tooltip text={tone === TranslationTone.ENGLISH ? "The specific point inside the git history representing your current local workspace timeline." : "Con trỏ vô hình đánh dấu toa tàu đầu tiên mà bạn đang đứng gõ code ghi nhận sửa đổi."}>
-                  <span className="px-2 py-0.5 rounded bg-slate-900 hover:text-slate-300 text-slate-400 border border-slate-800 transition-colors">HEAD Pointer</span>
+                  <span className={`px-2 py-0.5 rounded border transition-colors ${
+                    isLight 
+                      ? 'bg-slate-100 text-slate-605 border-slate-200 hover:bg-slate-200' 
+                      : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-300'
+                  }`}>HEAD Pointer</span>
                 </Tooltip>
               </div>
             </div>
@@ -1507,24 +1571,32 @@ export default function WizardPanel({
                 onClick={() => onUpdateWizard({ doBackup: true })}
                 className={`flex-grow p-4 rounded-xl border text-left transition-all cursor-pointer ${
                   wizard.doBackup 
-                    ? 'bg-indigo-500/10 border-indigo-400/50 text-indigo-300' 
-                    : 'bg-slate-950 border-slate-900 text-slate-400'
+                    ? isLight
+                      ? 'bg-indigo-50 border-indigo-305 text-indigo-800 font-semibold'
+                      : 'bg-indigo-500/10 border-indigo-400/50 text-indigo-300' 
+                    : isLight
+                      ? 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                      : 'bg-slate-950 border-slate-900 text-slate-400'
                 }`}
               >
-                <div className="font-bold text-xs font-mono uppercase mb-1">{loc.step3.backupYes}</div>
-                <div className="text-[11px] text-slate-505 font-sans">{loc.step3.backupYesDesc}</div>
+                <div className={`font-bold text-xs font-mono uppercase mb-1 ${wizard.doBackup ? (isLight ? 'text-indigo-700' : 'text-indigo-400') : (isLight ? 'text-slate-600' : 'text-slate-450')}`}>{loc.step3.backupYes}</div>
+                <div className={`text-[11px] font-sans ${wizard.doBackup ? (isLight ? 'text-indigo-600/80' : 'text-slate-400') : (isLight ? 'text-slate-400' : 'text-slate-500')}`}>{loc.step3.backupYesDesc}</div>
               </div>
 
               <div 
                 onClick={() => onUpdateWizard({ doBackup: false })}
                 className={`flex-grow p-4 rounded-xl border text-left transition-all cursor-pointer ${
                   !wizard.doBackup 
-                    ? 'bg-rose-500/10 border-rose-400/50 text-rose-300' 
-                    : 'bg-slate-950 border-slate-900 text-slate-400'
+                    ? isLight
+                      ? 'bg-rose-50 border-rose-300 text-rose-800 font-semibold'
+                      : 'bg-rose-500/10 border-rose-400/50 text-rose-300' 
+                    : isLight
+                      ? 'bg-white border-slate-205 text-slate-600 hover:border-slate-300'
+                      : 'bg-slate-950 border-slate-900 text-slate-400'
                 }`}
               >
-                <div className="font-bold text-xs font-mono uppercase mb-1">{loc.step3.backupNo}</div>
-                <div className="text-[11px] text-slate-505 font-sans">{loc.step3.backupNoDesc}</div>
+                <div className={`font-bold text-xs font-mono uppercase mb-1 ${!wizard.doBackup ? (isLight ? 'text-rose-700' : 'text-rose-400') : (isLight ? 'text-slate-600' : 'text-slate-455')}`}>{loc.step3.backupNo}</div>
+                <div className={`text-[11px] font-sans ${!wizard.doBackup ? (isLight ? 'text-rose-600/80' : 'text-slate-400') : (isLight ? 'text-slate-405' : 'text-slate-500')}`}>{loc.step3.backupNoDesc}</div>
               </div>
             </div>
 
@@ -1535,7 +1607,11 @@ export default function WizardPanel({
                   type="text"
                   value={wizard.backupBranchName}
                   onChange={(e) => onUpdateWizard({ backupBranchName: e.target.value })}
-                  className="w-full bg-slate-950 border border-slate-800 px-3 py-1.5 text-xs font-mono rounded text-slate-300 outline-none focus:border-indigo-500"
+                  className={`w-full border px-3 py-1.5 text-xs font-mono rounded outline-none transition-colors ${
+                    isLight
+                      ? 'bg-white border-slate-200 text-slate-800 focus:border-indigo-505'
+                      : 'bg-slate-950 border border-slate-800 text-slate-300 focus:border-indigo-500'
+                  }`}
                 />
               </div>
             )}
@@ -1544,15 +1620,15 @@ export default function WizardPanel({
 
         {/* Step 4: Rebase Run & Progress Breakpoints */}
         {wizard.step === 4 && (
-          <div className="flex flex-col gap-4 text-center py-6">
+          <div className="flex flex-col gap-4 text-center py-6 animate-fade-in">
             {wizard.status === 'idle' && (
               <div className="flex flex-col items-center justify-center gap-4">
-                <div className="text-slate-400 text-xs font-sans max-w-sm font-medium">
+                <div className={`text-xs font-sans max-w-sm font-medium ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
                   {loc.step4.idleDesc}
                 </div>
                 <button
                   onClick={onExecuteWizardRebase}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-xs font-bold px-6 py-3 rounded-lg border border-indigo-500/10 shadow-lg active:scale-95 transition-all animate-bounce cursor-pointer"
+                  className="bg-indigo-600 hover:bg-indigo-550 text-white font-mono text-xs font-bold px-6 py-3 rounded-lg border border-indigo-500/10 shadow-lg active:scale-95 transition-all animate-bounce cursor-pointer"
                 >
                   {loc.step4.idleBtn}
                 </button>
@@ -1560,17 +1636,16 @@ export default function WizardPanel({
             )}
 
             {wizard.status === 'running' && (
-              <div className="flex flex-col items-center justify-center gap-4">
-                <div className="text-indigo-400 text-xs font-mono font-semibold animate-pulse">
+              <div className="flex flex-col items-center justify-center gap-4 animate-pulse">
+                <div className="text-indigo-500 text-xs font-mono font-semibold">
                   {loc.step4.runningTitle}
                 </div>
-                
                 {/* Visual Fake Progress Bar */}
-                <div className="w-full max-w-sm bg-slate-950 border border-slate-900 rounded-full h-3.5 overflow-hidden p-0.5">
+                <div className={`w-full max-w-sm rounded-full h-3.5 overflow-hidden p-0.5 border ${isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-950 border border-slate-900'}`}>
                   <div className="bg-indigo-500 h-full rounded-full transition-all duration-1000 animate-pulse" style={{ width: '45%' }}></div>
                 </div>
                 <div className="text-[10px] text-slate-500 font-mono italic">
-                  $ git checkout -b backup_branch && git rebase -i HEAD~3
+                  $ git checkout -b {wizard.backupBranchName || 'backup'} && git rebase -i {wizard.baseBranch || 'main'}
                 </div>
               </div>
             )}
@@ -1580,19 +1655,21 @@ export default function WizardPanel({
                 <div className="text-amber-500 text-xs font-mono font-bold uppercase animate-pulse">
                   {loc.step4.pausedTitle}
                 </div>
-                <div className="text-[#bfdbfe] text-xs font-sans max-w-md bg-rose-500/10 border border-rose-500/20 rounded-lg p-3 mx-auto leading-relaxed mt-2 text-left">
+                <div className={`text-xs font-sans max-w-md rounded-lg p-3 mx-auto leading-relaxed mt-2 text-left border ${
+                  isLight
+                    ? 'bg-amber-50 border-amber-250 text-amber-950'
+                    : 'bg-rose-500/10 border border-rose-500/20 text-[#bfdbfe]'
+                }`}>
                   {loc.step4.pausedDesc}
                 </div>
-                
-                {/* Visual Broken Anchor */}
                 <span className="text-3xl mt-2 animate-bounce">🚧</span>
               </div>
             )}
 
             {wizard.status === 'completed' && (
               <div className="flex flex-col items-center justify-center gap-4">
-                <div className="text-emerald-400 font-bold font-mono text-xs flex items-center gap-1">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400 ml-1.5 inline animate-pulse" />
+                <div className="text-emerald-505 font-bold font-mono text-xs flex items-center gap-1">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 ml-1.5 inline animate-pulse" />
                   {loc.step4.completedTitle}
                 </div>
                 <span className="text-4xl animate-bounce">🎉🏆</span>
@@ -1603,9 +1680,13 @@ export default function WizardPanel({
 
         {/* Step 5: Combined commit message editor */}
         {wizard.step === 5 && (
-          <div className="flex flex-col gap-4">
-            <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-900 text-xs text-slate-400 leading-relaxed font-sans">
-              <span className="font-mono text-slate-200 block font-bold mb-1 uppercase text-[11px] flex items-center gap-1">
+          <div className="flex flex-col gap-4 animate-fade-in">
+            <div className={`p-3.5 rounded-xl border text-xs leading-relaxed font-sans ${
+              isLight 
+                ? 'bg-slate-50 border-slate-205 text-slate-650' 
+                : 'bg-slate-955 border border-slate-900 text-slate-400'
+            }`}>
+              <span className={`font-mono block font-bold mb-1 uppercase text-[11px] flex items-center gap-1 ${isLight ? 'text-slate-800' : 'text-slate-205'}`}>
                 <Edit3 className="w-4 h-4 text-sky-400" /> {loc.step5.title}
               </span>
               {loc.step5.desc}
@@ -1623,23 +1704,31 @@ export default function WizardPanel({
                 <button
                   key={prefix.label}
                   onClick={() => handleApplyTemplate(prefix.label)}
-                  className="px-2.5 py-1 text-xs font-mono rounded border border-slate-800 text-slate-300 bg-slate-900 hover:bg-slate-800 hover:border-slate-700 transition-colors flex items-center gap-1 cursor-pointer"
+                  className={`px-2.5 py-1 text-xs font-mono rounded border transition-colors flex items-center gap-1 cursor-pointer ${
+                    isLight
+                      ? 'border-slate-200 text-slate-700 bg-white hover:bg-slate-50'
+                      : 'border-slate-800 text-slate-300 bg-slate-900 hover:bg-slate-800 hover:border-slate-700'
+                  }`}
                   title={prefix.detail}
                 >
-                  <span className="text-yellow-500 font-bold">{prefix.label}:</span>
+                  <span className="text-yellow-600 font-bold">{prefix.label}:</span>
                 </button>
               ))}
             </div>
 
             <div className="flex flex-col gap-1.5">
               <textarea
-                value={localFinalMsg}
+                value={localFinalMsg || ''}
                 onChange={(e) => {
                   setLocalFinalMsg(e.target.value);
                   onUpdateWizard({ finalMsg: e.target.value });
                 }}
                 rows={4}
-                className="w-full bg-slate-950 border border-slate-800 p-3 font-mono text-xs text-slate-200 rounded-lg outline-none focus:border-indigo-500 leading-relaxed"
+                className={`w-full border p-3 font-mono text-xs rounded-lg outline-none focus:border-indigo-500 leading-relaxed transition-colors ${
+                  isLight
+                    ? 'bg-white border-slate-220 text-slate-800 focus:border-indigo-505'
+                    : 'bg-slate-950 border border-slate-850 text-slate-200 focus:border-indigo-500'
+                }`}
                 placeholder="feat: some awesome things worked out nicely"
               />
             </div>
@@ -1649,21 +1738,27 @@ export default function WizardPanel({
         {/* Step 6: Verify Rebase Integrity Checking */}
         {wizard.step === 6 && (
           <div className="flex flex-col gap-4 animate-fade-in">
-            <div className="bg-slate-950 p-4 rounded-xl border border-slate-900 text-xs text-slate-400 leading-relaxed font-sans">
-              <span className="font-mono text-slate-200 block font-bold mb-1 uppercase text-[11px] flex items-center gap-1">
+            <div className={`p-4 rounded-xl border text-xs leading-relaxed font-sans ${
+              isLight
+                ? 'bg-slate-50 border-slate-200 text-slate-600'
+                : 'bg-slate-955 border border-slate-900 text-slate-400'
+            }`}>
+              <span className={`font-mono block font-bold mb-1 uppercase text-[11px] flex items-center gap-1 ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
                 <ShieldCheck className="w-4 h-4 text-emerald-400" /> {loc.step6.title}
               </span>
               {loc.step6.desc}
             </div>
 
             {verifyStatus === 'idle' && (
-              <div className="flex flex-col items-center justify-center py-6 border border-dashed border-slate-800 rounded-xl bg-slate-950/20 gap-3">
+              <div className={`flex flex-col items-center justify-center py-6 border border-dashed rounded-xl gap-3 ${
+                isLight ? 'border-slate-200 bg-slate-50/50' : 'border-slate-805 bg-slate-950/20'
+              }`}>
                 <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-full animate-bounce">
                   <Cpu className="w-6 h-6" />
                 </div>
                 <button
                   onClick={runVerification}
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-505 text-white font-mono font-bold text-xs rounded-lg shadow-md active:scale-95 transition-all cursor-pointer border border-indigo-500/10 uppercase"
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-550 text-white font-mono font-bold text-xs rounded-lg shadow-md active:scale-95 transition-all cursor-pointer border border-indigo-505/10 uppercase"
                 >
                   {loc.step6.runBtn}
                 </button>
@@ -1671,19 +1766,25 @@ export default function WizardPanel({
             )}
 
             {verifyStatus === 'running' && (
-              <div className="flex flex-col gap-3 p-4 bg-slate-950 border border-slate-900 rounded-xl">
+              <div className={`flex flex-col gap-3 p-4 border rounded-xl ${
+                isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border border-slate-900'
+              }`}>
                 <div className="flex items-center gap-2 text-indigo-400 font-mono text-xs font-bold animate-pulse">
                   <RefreshCw className="w-4 h-4 animate-spin" />
                   <span>{loc.step6.running}</span>
                 </div>
-                <div className="font-mono text-[10px] leading-relaxed text-slate-400 space-y-1 max-h-48 overflow-y-auto bg-slate-1000 p-3 rounded-lg border border-slate-900/50">
+                <div className={`font-mono text-[10px] leading-relaxed space-y-1 max-h-48 overflow-y-auto p-3 rounded-lg border ${
+                  isLight
+                    ? 'bg-white border-slate-200 text-slate-650'
+                    : 'bg-slate-1000 border border-slate-900/50 text-slate-400'
+                }`}>
                   {verifyLogs.map((log, i) => (
-                    <div key={i} className={`p-0.5 ${log.startsWith('$') ? 'text-indigo-300' : log.startsWith('✓') ? 'text-emerald-400' : log.startsWith('⚠️') ? 'text-amber-400 font-semibold' : log.startsWith('❌') ? 'text-rose-400' : 'text-slate-500'}`}>
+                    <div key={i} className={`p-0.5 ${log.startsWith('$') ? 'text-indigo-500 font-bold' : log.startsWith('✓') ? 'text-emerald-555 font-semibold' : log.startsWith('⚠️') ? 'text-amber-500 font-semibold' : log.startsWith('❌') ? 'text-rose-500' : 'text-slate-500'}`}>
                       {log}
                     </div>
                   ))}
                 </div>
-                <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
+                <div className={`w-full h-1.5 rounded-full overflow-hidden ${isLight ? 'bg-slate-200' : 'bg-slate-900'}`}>
                   <div className="bg-indigo-500 h-full rounded-full transition-all duration-300" style={{ width: `${Math.min(100, (verifyLogs.length / 8) * 100)}%` }}></div>
                 </div>
               </div>
@@ -1693,41 +1794,41 @@ export default function WizardPanel({
               <div className="flex flex-col gap-4 animate-fade-in">
                 {/* Scorecard checklist box */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-950 border border-slate-900">
+                  <div className={`flex items-start gap-2.5 p-3 rounded-xl border ${isLight ? 'bg-slate-50/50 border-slate-200' : 'bg-slate-950 border border-slate-900'}`}>
                     <div className="text-emerald-400 bg-emerald-500/10 p-1.5 rounded-md border border-emerald-500/20 mt-0.5 shrink-0">
                       <Check className="w-3.5 h-3.5" />
                     </div>
                     <div className="text-[11px] leading-tight">
                       <Tooltip text={tone === TranslationTone.ENGLISH ? "Checks if your local branch is strictly leading, or has fallen behind remote updates." : "Xem nhánh local có đang dẫn đầu tuyệt đối hay bị tụt hậu chậm trễ so với server."}>
-                        <div className="font-mono font-bold text-slate-300 uppercase select-none tracking-wider text-[9px] mb-0.5">Ahead/Behind</div>
+                        <div className={`font-mono font-bold uppercase select-none tracking-wider text-[9px] mb-0.5 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>Ahead/Behind</div>
                       </Tooltip>
-                      <div className="text-slate-400">{loc.step6.aheadOk}</div>
+                      <div className={isLight ? 'text-slate-600' : 'text-slate-400'}>{loc.step6.aheadOk}</div>
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-950 border border-slate-900">
-                    <div className={`p-1.5 rounded-md border mt-0.5 shrink-0 ${verifyResults.patchId === 'mutated' ? 'text-amber-400 bg-amber-500/10 border-amber-500/20' : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'}`}>
+                  <div className={`flex items-start gap-2.5 p-3 rounded-xl border ${isLight ? 'bg-slate-50/50 border-slate-200' : 'bg-slate-950 border border-slate-900'}`}>
+                    <div className={`p-1.5 rounded-md border mt-0.5 shrink-0 ${verifyResults.patchId === 'mutated' ? 'text-amber-505 bg-amber-500/10 border-amber-500/20' : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'}`}>
                       {verifyResults.patchId === 'mutated' ? <AlertTriangle className="w-3.5 h-3.5" /> : <ShieldCheck className="w-3.5 h-3.5" />}
                     </div>
                     <div className="text-[11px] leading-tight">
                       <Tooltip text={tone === TranslationTone.ENGLISH ? "Validates logic preservation. Ensures code modifications are identical before and after squash." : "Đối chiếu cấu trúc dòng mã nguồn xem rebase tự động có làm mất mát dòng code nào của bạn hay không."}>
-                        <div className="font-mono font-bold text-slate-300 uppercase select-none tracking-wider text-[9px] mb-0.5">Patch-ID integrity</div>
+                        <div className={`font-mono font-bold uppercase select-none tracking-wider text-[9px] mb-0.5 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>Patch-ID integrity</div>
                       </Tooltip>
-                      <div className="text-slate-400">
+                      <div className={isLight ? 'text-slate-600' : 'text-slate-400'}>
                         {verifyResults.patchId === 'mutated' ? loc.step6.patchLoss : loc.step6.patchOk.replace('{backupBranch}', wizard.backupBranchName || 'backup')}
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-950 border border-slate-900">
+                  <div className={`flex items-start gap-2.5 p-3 rounded-xl border ${isLight ? 'bg-slate-50/50 border-slate-200' : 'bg-slate-950 border border-slate-900'}`}>
                     <div className="text-emerald-400 bg-emerald-500/10 p-1.5 rounded-md border border-emerald-500/20 mt-0.5 shrink-0">
                       <Check className="w-3.5 h-3.5" />
                     </div>
                     <div className="text-[11px] leading-tight">
                       <Tooltip text={tone === TranslationTone.ENGLISH ? "Runs project build tests and syntax parsers to confirm code is 100% sound." : "Hệ thống tự động biên dịch thử dự án và linter, đảm bảo không dính các lỗi cú pháp."}>
-                        <div className="font-mono font-bold text-slate-300 uppercase select-none tracking-wider text-[9px] mb-0.5">Build & Tests</div>
+                        <div className={`font-mono font-bold uppercase select-none tracking-wider text-[9px] mb-0.5 ${isLight ? 'text-slate-600' : 'text-slate-300'}`}>Build & Tests</div>
                       </Tooltip>
-                      <div className="text-slate-400">{loc.step6.testsOk}</div>
+                      <div className={isLight ? 'text-slate-600' : 'text-slate-400'}>{loc.step6.testsOk}</div>
                     </div>
                   </div>
                 </div>
@@ -1795,14 +1896,19 @@ export default function WizardPanel({
       </div>
 
       {/* FOOTER WIZARD CONTROLS */}
-      <div className="flex justify-between items-center border-t border-slate-900 pt-4 mt-4">
+      <div className={`flex justify-between items-center border-t pt-4 mt-4 ${isLight ? 'border-slate-205' : 'border-slate-900'}`}>
         {/* Previous Button */}
         {wizard.step > 0 && wizard.step !== 4 && (
           <button
             onClick={() => onUpdateWizard({ step: wizard.step - 1 })}
-            className="px-4 py-2 text-xs bg-slate-900 text-slate-400 hover:text-slate-200 rounded-lg border border-slate-800 cursor-pointer active:scale-95 transition-all font-mono flex items-center gap-1"
+            title={loc.prevStepBtn}
+            className={`p-2.5 rounded-lg border cursor-pointer active:scale-95 transition-all font-mono flex items-center justify-center ${
+              isLight
+                ? 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
+                : 'bg-slate-900 text-slate-400 hover:text-slate-205 border border-slate-805'
+            }`}
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> {loc.prevStepBtn}
+            <ArrowLeft className="w-5 h-5" />
           </button>
         )}
         <div className="flex-grow"></div>
@@ -1820,13 +1926,16 @@ export default function WizardPanel({
               }
               onUpdateWizard({ step: wizard.step + 1 });
             }}
-            className={`px-5 py-2.5 text-xs rounded-lg border cursor-pointer active:scale-95 transition-all font-mono font-bold flex items-center gap-1 ${
+            title={loc.nextStepBtn}
+            className={`p-2.5 rounded-lg border cursor-pointer active:scale-95 transition-all font-mono font-bold flex items-center justify-center ${
               (wizard.step === 4 && wizard.status !== 'completed') || (wizard.step === 6 && verifyStatus === 'running')
-                ? 'bg-slate-950 border-slate-900 text-slate-600 cursor-not-allowed'
+                ? isLight
+                  ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                  : 'bg-slate-955 border-slate-900 text-slate-650 cursor-not-allowed'
                 : 'bg-indigo-600 hover:bg-indigo-550 border-indigo-500/10 text-white shadow-md'
             }`}
           >
-            <span>{loc.nextStepBtn}</span> <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="w-5 h-5" />
           </button>
         )}
 
