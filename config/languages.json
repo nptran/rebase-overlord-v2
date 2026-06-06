@@ -1183,5 +1183,23 @@
         "vn_joke": "Chế độ: Bật Đèn ☀️",
         "vn_toxic": "Mù Mắt Dev (Sáng) ⚡",
         "en_pro": "Theme: Light"
+    },
+    "commit_files_changed": {
+        "vn_pro": "Tệp thay đổi",
+        "vn_joke": "Danh sách file bị động chạm 📂",
+        "vn_toxic": "Đống file bị phá hoại 💀",
+        "en_pro": "Files changed"
+    },
+    "commit_files_loading": {
+        "vn_pro": "Đang tải danh sách...",
+        "vn_joke": "Đợi tý đang lục lọi... 🔍",
+        "vn_toxic": "Quét file lâu vãi đ*i, đợi tý... ⏳",
+        "en_pro": "Loading files..."
+    },
+    "commit_files_none": {
+        "vn_pro": "Không phát hiện tệp thay đổi nào.",
+        "vn_joke": "Trong sạch cô đơn, chả đổi file nào cả!",
+        "vn_toxic": "Đéo đổi file nào cả, làm màu à? 🤷",
+        "en_pro": "No file changes detected."
     }
 }

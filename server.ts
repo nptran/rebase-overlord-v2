@@ -77,6 +77,115 @@ function isGitFolder(dirPath: string): boolean {
 // Active repository path tracker
 let activeRepoPath = process.cwd();
 
+// Endpoint to fetch files changed for a specific commit SHA
+app.get('/api/commit-changes', async (req, res) => {
+  const sha = (req.query.sha as string || '').trim();
+  const isSimulation = req.query.simulation === 'true';
+
+  if (!sha) {
+    return res.status(400).json({ error: 'SHA is required' });
+  }
+
+  if (isSimulation) {
+    const shortSha = sha.substring(0, 7).toLowerCase();
+    let files: { filepath: string, status: 'modified' | 'added' | 'deleted' }[] = [];
+
+    switch (shortSha) {
+      case 'f941a3c':
+        files = [
+          { filepath: 'src/routes/payment.ts', status: 'modified' },
+          { filepath: 'src/services/stripe.ts', status: 'modified' },
+          { filepath: 'package.json', status: 'modified' }
+        ];
+        break;
+      case 'a82bc4e':
+        files = [
+          { filepath: 'src/services/checkout.ts', status: 'modified' },
+          { filepath: 'tests/checkout.test.ts', status: 'modified' }
+        ];
+        break;
+      case '662dbf1':
+        files = [
+          { filepath: 'gateways/bank.ts', status: 'added' },
+          { filepath: 'gateways/stripe.ts', status: 'added' },
+          { filepath: 'gateways/base.ts', status: 'deleted' }
+        ];
+        break;
+      case '7c8d9e2':
+        files = [
+          { filepath: 'docs/sequence-diagram.md', status: 'modified' }
+        ];
+        break;
+      case '001ba90':
+        files = [
+          { filepath: 'docs/billing-policy.md', status: 'added' }
+        ];
+        break;
+      case 'ef12ab3':
+        files = [
+          { filepath: 'src/utils/validation.ts', status: 'added' },
+          { filepath: 'src/schemas/stripe.json', status: 'added' }
+        ];
+        break;
+      case 'd92a11b':
+        files = [
+          { filepath: 'package.json', status: 'modified' },
+          { filepath: 'package-lock.json', status: 'modified' }
+        ];
+        break;
+      case 'b5a2e1d':
+        files = [
+          { filepath: 'config/keys.json', status: 'modified' }
+        ];
+        break;
+      default:
+        // Consistent hash-based files for any other simulated/created commit
+        const hash = sha.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const extensions = ['.ts', '.json', '.md'];
+        const prefixes = ['src/components/', 'config/', 'tests/'];
+        const ext = extensions[hash % extensions.length];
+        const pref = prefixes[(hash + 1) % prefixes.length];
+        
+        files = [
+          { filepath: `${pref}file_${shortSha}${ext}`, status: 'modified' },
+          { filepath: `${pref}test_${shortSha}${ext}`, status: (hash % 3 === 0) ? 'added' : 'modified' }
+        ];
+        break;
+    }
+
+    return res.json({ sha, files });
+  }
+
+  // Real Git Query Mode
+  const isValid = isGitFolder(activeRepoPath);
+  if (!isValid) {
+    return res.status(400).json({ error: 'Not a git repository' });
+  }
+
+  try {
+    const gitShowRes = await runCmd(`git show --name-status --oneline --pretty="" ${sha}`, activeRepoPath);
+    const lines = gitShowRes.stdout.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    
+    const files = lines.map(line => {
+      const parts = line.split(/\s+/);
+      if (parts.length < 2) return null;
+      const statusChar = parts[0].substring(0, 1).toUpperCase();
+      const filepath = parts[1];
+      
+      let status: 'modified' | 'added' | 'deleted' = 'modified';
+      if (statusChar === 'A') status = 'added';
+      else if (statusChar === 'D') status = 'deleted';
+      
+      return { filepath, status };
+    }).filter(Boolean);
+
+    return res.json({ sha, files });
+  } catch (err: any) {
+    console.error(`Failed to load file changes for commit ${sha}:`, err);
+    return res.status(500).json({ error: err.message || 'Failed to fetch commit diff' });
+  }
+});
+
 // Endpoint to fetch system wide states
 app.get('/api/git-status', async (req, res) => {
   const isSimulation = req.query.simulation === 'true';
