@@ -53,6 +53,7 @@ import TerminalPanel from './components/TerminalPanel';
 import ConflictSolver from './components/ConflictSolver';
 import GitVisualizerPanel from './components/GitVisualizerPanel';
 import AiDoctorFloatingChat from './components/AiDoctorFloatingChat';
+import ReflogRescuePanel from './components/ReflogRescuePanel';
 import { resolveApiUrl } from './utils/apiResolver';
 
 const sanityLoc: Record<TranslationTone, {
@@ -493,6 +494,14 @@ export default function App() {
   const [customBackendUrl, setCustomBackendUrl] = React.useState<string>(() => {
     return (typeof window !== 'undefined' && localStorage.getItem('rebase_overlord_backend_url')) || '';
   });
+
+  const [appVersion, setAppVersion] = React.useState<string>('1.12.0');
+  const isUpgraded = React.useMemo(() => {
+    const parts = appVersion.split('.').map(v => parseInt(v, 10) || 0);
+    if (parts[0] > 1) return true;
+    if (parts[0] === 1 && parts[1] >= 15) return true;
+    return false;
+  }, [appVersion]);
 
   const sloc = sanityLoc[tone];
 
@@ -1181,6 +1190,48 @@ export default function App() {
     }
   };
 
+  // Dynamically probe update version on mount
+  React.useEffect(() => {
+    const probeVersion = async () => {
+      try {
+        const url = resolveApiUrl('/api/update/check');
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.currentVersion) {
+            setAppVersion(data.currentVersion);
+            
+            // If we are on v1.15.0 or later, celebrate the successful upgrade!
+            const parts = data.currentVersion.split('.').map((v: string) => parseInt(v, 10) || 0);
+            const isLatest = parts[0] > 1 || (parts[0] === 1 && parts[1] >= 15);
+            if (isLatest) {
+              const hasAnnounced = localStorage.getItem('rebase_overlord_announced_v15');
+              if (!hasAnnounced) {
+                setTimeout(() => {
+                  triggerToast(
+                    'success',
+                    tone === TranslationTone.ENGLISH ? '🎉 UPGRADED TO v1.15.0!' : '🎉 ĐÃ NÂNG CẤP LÊN v1.15.0!',
+                    tone === TranslationTone.ENGLISH 
+                      ? 'Congratulations! The advanced features (AI Doctor Pro, Reflog Diagnostics, and interactive recovery) are fully unlocked.'
+                      : 'Chúc mừng! Bạn đã nâng cấp thành công. Toàn bộ tính năng cao cấp (AI Doctor Pro, Khôi phục Reflog, Chẩn đoán offline) đã được kích hoạt!',
+                    '🚀'
+                  );
+                  localStorage.setItem('rebase_overlord_announced_v15', 'true');
+                }, 2000);
+              }
+            } else {
+              // Clear so that next time they upgrade it fires
+              localStorage.removeItem('rebase_overlord_announced_v15');
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to dynamically probe version from App.tsx:', err);
+      }
+    };
+    probeVersion();
+  }, [tone, triggerToast]);
+
   // Trigger ee_night_owl Easter Egg on load if late
   React.useEffect(() => {
     const hr = new Date().getHours();
@@ -1621,6 +1672,45 @@ export default function App() {
       }
     }
   };
+
+  // Advanced Reflog Rescue - injects recovered dangling commit node directly into the branch timeline
+  const handleRescueCommit = React.useCallback((sha: string, message: string, author: string, date: string) => {
+    addLog(`$ git reflog --date=relative`);
+    addLog(`$ git cherry-pick ${sha}`);
+    addLog(`✓ Reflog Rescue success: Recovered dangling commit ${sha}`);
+    
+    // Inject the rescued commit at the top of the timeline!
+    setRepoState(prev => {
+      // Avoid duplicate insertion
+      if (prev.commits.some(c => c.sha === sha)) return prev;
+
+      const rescuedNode: Commit = {
+        sha,
+        author,
+        date,
+        message,
+        type: 'feat',
+        selected: true,
+        parents: prev.commits.length > 0 ? [prev.commits[0].sha] : [],
+        track: 1
+      };
+
+      // Put rescued node at the front of the commit list so it renders in the SVG graph immediately
+      return {
+        ...prev,
+        commits: [rescuedNode, ...prev.commits]
+      };
+    });
+
+    triggerToast(
+      'success',
+      tone === TranslationTone.ENGLISH ? '🎉 COMMIT RESCUED LIVE!' : '🎉 CỨU HỘ VỀ NHÁNH THÀNH CÔNG!',
+      tone === TranslationTone.ENGLISH
+        ? `Commit ${sha} ("${message}") was successfully retrieved from reflog history.`
+        : `Commit ${sha} ("${message}") đã được cứu khỏi ngục tối Reflog và khôi phục về sơ đồ lực lượng.`,
+      '⚡'
+    );
+  }, [tone, triggerToast, addLog]);
 
   // Conflict resolved signal from child solver click
   const handleResolveFile = async (filepath: string, resolvedContent: string) => {
@@ -3481,6 +3571,14 @@ export default function App() {
             </div>
           )}
 
+          {isUpgraded && (
+            <ReflogRescuePanel
+              theme={theme}
+              tone={tone}
+              onRescueCommit={handleRescueCommit}
+            />
+          )}
+
             {/* Dynamic visual terminal logger console */}
             <TerminalPanel
               logs={logs}
@@ -3598,6 +3696,8 @@ export default function App() {
             addLog(newVal ? '🤖 Gemini API Enabled (Full AI Features activated)' : '🤖 Gemini API Disabled (Cost saved - falling back to offline mode)');
           }}
           theme={theme}
+          appVersion={appVersion}
+          isUpgraded={isUpgraded}
         />
 
         {/* Custom Confirmation Modal */}

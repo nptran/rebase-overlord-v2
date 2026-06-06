@@ -139,6 +139,8 @@ interface AiDoctorFloatingChatProps {
   isAiEnabled: boolean;
   onToggleAi: () => void;
   theme: 'light' | 'dark';
+  appVersion?: string;
+  isUpgraded?: boolean;
 }
 
 export default function AiDoctorFloatingChat({
@@ -146,7 +148,9 @@ export default function AiDoctorFloatingChat({
   tone,
   isAiEnabled,
   onToggleAi,
-  theme
+  theme,
+  appVersion = '1.12.0',
+  isUpgraded = false
 }: AiDoctorFloatingChatProps) {
   const [isOpen, setIsOpen] = React.useState<boolean>(false);
   const [isMaximized, setIsMaximized] = React.useState<boolean>(false);
@@ -206,12 +210,40 @@ export default function AiDoctorFloatingChat({
       query: 'Hãy giải thích cho tôi điểm khác biệt cốt lõi giữa Git Rebase và Git Merge, khuyên dùng khi nào?'
     });
 
+    if (isUpgraded) {
+      list.push({
+        title: tone === 'en_pro' ? '⚡ Advanced Reflog Rescue' : '⚡ Khôi Phục Reflog Nâng Cao',
+        query: tone === 'en_pro'
+          ? 'Deeply analyze how I can restore orphaned or lost commits from git reflog during a bad rebase, showing step-by-step cli and visual recovery.'
+          : 'Bác Sĩ khuyên tai: Tôi vừa bị mất commit và code cũ do rebase đè. Hướng dẫn tôi thần chú khôi phục bằng lệnh git reflog nâng cao và giải cứu nhánh!'
+      });
+      list.push({
+        title: tone === 'en_pro' ? '🔌 Diagnostic Sandbox Rules' : '🔌 Chẩn Đoán Ngoại Tuyến',
+        query: tone === 'en_pro'
+          ? 'What are the static diagnostic safety checks for git projects, including detached HEADs, diverged trees, and dangling references?'
+          : 'Hãy phân tích các lỗi tiềm ẩn của nhánh Git hiện tại bằng bộ luật chẩn đoán ngoại tuyến v1.15 của Bác Sĩ!'
+      });
+    }
+
     return list;
-  }, [repoState, tone]);
+  }, [repoState, tone, isUpgraded]);
 
   // Handle open greeting message based on active tone Persona
   React.useEffect(() => {
     if (messages.length === 0) {
+      let proPrefix = "";
+      if (isUpgraded) {
+        if (tone === 'vn_joke') {
+          proPrefix = "🚀 [BẢN NÂNG CẤP CHUYÊN NGHIỆP v1.15.0 ĐÃ KÍCH HOẠT!] 🌟\n\n";
+        } else if (tone === 'vn_toxic') {
+          proPrefix = "🔥 [AI DOCTOR PRO v1.15 LÊN SÀN - CÔNG LỰC VÔ SONG!] 😈\n\n";
+        } else if (tone === 'en_pro') {
+          proPrefix = "⚡ [AI GIT DOCTOR PRO v1.15.0 ENGINE LOADED] ⚡\n\n";
+        } else {
+          proPrefix = "✨ [CHẾ ĐỘ AI DOCTOR PRO v1.15.0 ĐÃ SẮN SÀNG CHẨN ĐOÁN] ✨\n\n";
+        }
+      }
+
       let greetText = "Xin chào! Tôi là Trợ lý Giáo sư AI Git Doctor. Trạng thái Git của bạn hiện đã được tự kết nối. Bạn vừa gặp sự cố, mất code hoặc có thắc mắc gì về quy trình Rebase?";
       if (tone === 'vn_joke') {
         greetText = "Chào ní yêu! 🩺 Bác Sĩ Git đã túc trực 24/7 đây. Nhánh rẽ, mất code, hay húc nhau tung toé gây xung đột à? Ní cứ ném hết vào đây em gầm rú gỡ tơ vò cho nhé!";
@@ -220,6 +252,8 @@ export default function AiDoctorFloatingChat({
       } else if (tone === 'en_pro') {
         greetText = "Greetings! I am your Git Overlord Solutions Advisor. I have auto-synced with your repository's context. Ask me anything about conflict resolution, diverged state, branch mismatches, or emergency reflog recovery!";
       }
+
+      greetText = proPrefix + greetText;
 
       if (!isAiEnabled) {
         if (tone === 'vn_joke') {
@@ -395,24 +429,45 @@ export default function AiDoctorFloatingChat({
             exit={{ opacity: 0, scale: 0.85, y: 40, x: 10 }}
             transition={{ type: "spring", stiffness: 220, damping: 24 }}
             className={`fixed bottom-24 right-6 z-50 rounded-2xl shadow-3xl border flex flex-col overflow-hidden transition-all duration-150 ${
-              theme === 'light' 
-                ? 'bg-white border-slate-200 text-slate-800' 
-                : 'bg-slate-950/95 border-indigo-500/30 backdrop-blur-md text-slate-100'
+              isUpgraded
+                ? theme === 'light'
+                  ? 'bg-white border-amber-400 ring-2 ring-amber-400/20 text-slate-800'
+                  : 'bg-slate-950/95 border-amber-500/50 ring-2 ring-amber-500/10 backdrop-blur-md text-slate-100 shadow-[0_0_25px_-5px_rgba(245,158,11,0.25)]'
+                : theme === 'light' 
+                  ? 'bg-white border-slate-200 text-slate-800' 
+                  : 'bg-slate-950/95 border-indigo-500/30 backdrop-blur-md text-slate-100'
             }`}
           >
             {/* Header section styled elegantly */}
             <div className={`p-4 flex justify-between items-center border-b shrink-0 ${
-              theme === 'light' ? 'bg-indigo-50/50 border-slate-100' : 'bg-slate-900 border-indigo-500/20'
+              isUpgraded 
+                ? theme === 'light' 
+                  ? 'bg-amber-50/50 border-amber-100' 
+                  : 'bg-[#18120b] border-amber-500/20'
+                : theme === 'light' 
+                  ? 'bg-indigo-50/50 border-slate-100' 
+                  : 'bg-slate-900 border-indigo-500/20'
             }`}>
               <div className="flex items-center gap-2.5">
                 <div className={`p-1.5 rounded-lg ${
-                  theme === 'light' ? 'bg-indigo-100 text-indigo-700' : 'bg-indigo-500/10 text-indigo-400'
+                  isUpgraded
+                    ? 'bg-amber-500/10 text-amber-500'
+                    : theme === 'light' 
+                      ? 'bg-indigo-100 text-indigo-700' 
+                      : 'bg-indigo-500/10 text-indigo-400'
                 }`}>
                   <Bot className="w-5 h-5 animate-bounce" />
                 </div>
                 <div>
                   <h3 className="text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-1.5">
-                    <span>AI Git Doctor</span>
+                    <span className="flex items-center gap-1">
+                      AI Git Doctor 
+                      {isUpgraded && (
+                        <span className="text-[9px] text-amber-500 bg-amber-500/10 border border-amber-500/30 px-1 py-0.2 rounded font-extrabold tracking-widest animate-pulse">
+                          PRO v1.15
+                        </span>
+                      )}
+                    </span>
                     <span className={`w-2 h-2 rounded-full transition-all duration-300 ${
                       isAiEnabled ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
                     }`} />
