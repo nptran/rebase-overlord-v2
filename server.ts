@@ -205,13 +205,19 @@ app.get('/api/git-status', async (req, res) => {
 
     // 4. Load local / remote branches
     const branchesRes = await runCmd('git branch -a --format="%(refname:short)"', activeRepoPath);
-    const rawBranchList = branchesRes.stdout.split('\n').map(b => b.trim()).filter(b => b.length > 0);
+    const rawBranchList = branchesRes.stdout.split('\n')
+      .map(b => b.trim())
+      .filter(b => b.length > 0 && b !== 'origin' && !b.includes('->') && !b.includes('HEAD'));
     
-    const branches = Array.from(new Set(rawBranchList.map(b => b.replace('origin/', ''))))
+    const branches = Array.from(new Set(
+      rawBranchList
+        .map(b => b.replace(/^remotes\//, '').replace(/^origin\//, '').trim())
+        .filter(b => b.length > 0 && b !== 'origin' && !b.includes('HEAD') && !b.includes('->'))
+    ))
       .map(bName => ({
         name: bName,
-        isLocal: rawBranchList.includes(bName),
-        isRemote: rawBranchList.includes(`origin/${bName}`),
+        isLocal: rawBranchList.includes(bName) || rawBranchList.includes(`heads/${bName}`),
+        isRemote: rawBranchList.includes(`origin/${bName}`) || rawBranchList.includes(`remotes/origin/${bName}`),
         isCurrent: bName === currBranch,
         isBase: ['main', 'master', 'develop', 'dev'].includes(bName)
       }));

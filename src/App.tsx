@@ -534,6 +534,14 @@ export default function App() {
     firstRun: new Date().toISOString().split('T')[0]
   });
 
+  // Custom confirmation modal state
+  const [confirmModal, setConfirmModal] = React.useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
+
   // Wizard state machine with localStorage fallback
   const [wizard, setWizard] = React.useState<WizardState>(() => {
     try {
@@ -662,102 +670,109 @@ export default function App() {
     return { startX, startY, endX, endY };
   };
 
+  const updatingConnectionsRef = React.useRef(false);
   const updateConnectionPaths = React.useCallback(() => {
-    const container = boardRef.current;
-    const devEl = devRef.current;
-    if (!container || !devEl) return;
+    if (updatingConnectionsRef.current) return;
+    updatingConnectionsRef.current = true;
     
-    const containerRect = container.getBoundingClientRect();
-    const getCenterAndSize = (el: HTMLElement) => {
-      const rect = el.getBoundingClientRect();
-      const x = (rect.left + rect.width / 2 - containerRect.left) / zoomScale;
-      const y = (rect.top + rect.height / 2 - containerRect.top) / zoomScale;
-      return {
-        x,
-        y,
-        w: rect.width / zoomScale,
-        h: rect.height / zoomScale
-      };
-    };
-    
-    const list: Array<{ startX: number; startY: number; endX: number; endY: number; isDash?: boolean }> = [];
-    const activeCommits = repoState.commits.filter(c => c.selected);
-    const activeKeys = activeCommits.map(c => c.sha);
-    
-    if (activeKeys.length > 0) {
-      const devNode = getCenterAndSize(devEl);
+    requestAnimationFrame(() => {
+      updatingConnectionsRef.current = false;
+      const container = boardRef.current;
+      const devEl = devRef.current;
+      if (!container || !devEl) return;
       
-      // Map through all active commits and link to parents
-      activeCommits.forEach((c) => {
-        const currentEl = nodeRefs.current[c.sha];
-        if (!currentEl) return;
-        const currentMeta = getCenterAndSize(currentEl);
+      const containerRect = container.getBoundingClientRect();
+      const getCenterAndSize = (el: HTMLElement) => {
+        const rect = el.getBoundingClientRect();
+        const x = (rect.left + rect.width / 2 - containerRect.left) / zoomScale;
+        const y = (rect.top + rect.height / 2 - containerRect.top) / zoomScale;
+        return {
+          x,
+          y,
+          w: rect.width / zoomScale,
+          h: rect.height / zoomScale
+        };
+      };
+      
+      const list: Array<{ startX: number; startY: number; endX: number; endY: number; isDash?: boolean }> = [];
+      const activeCommits = repoState.commits.filter(c => c.selected);
+      const activeKeys = activeCommits.map(c => c.sha);
+      
+      if (activeKeys.length > 0) {
+        const devNode = getCenterAndSize(devEl);
         
-        if (c.parents && c.parents.length > 0) {
-          c.parents.forEach((parentSha) => {
-            const parentEl = nodeRefs.current[parentSha];
-            if (parentEl) {
-              const parentMeta = getCenterAndSize(parentEl);
-              const pts = getConnectorPoints(currentMeta, parentMeta);
-              
-              const isCurrentSelected = wizard.selectedCommits.includes(c.sha) || wizard.selectedCommits.length === 0;
-              const isParentSelected = wizard.selectedCommits.includes(parentSha) || wizard.selectedCommits.length === 0;
-              
-              list.push({
-                startX: pts.startX,
-                startY: pts.startY,
-                endX: pts.endX,
-                endY: pts.endY,
-                isDash: !(isCurrentSelected && isParentSelected)
-              });
-            }
-          });
-        } else {
-          // Sequential fallback for compatibility and live CLI support
-          const idx = activeKeys.indexOf(c.sha);
-          if (idx !== -1 && idx < activeKeys.length - 1) {
-            const nextSha = activeKeys[idx + 1];
-            const nextEl = nodeRefs.current[nextSha];
-            if (nextEl) {
-              const nextMeta = getCenterAndSize(nextEl);
-              const pts = getConnectorPoints(currentMeta, nextMeta);
-              
-              const isCurrentSelected = wizard.selectedCommits.includes(c.sha) || wizard.selectedCommits.length === 0;
-              const isNextSelected = wizard.selectedCommits.includes(nextSha) || wizard.selectedCommits.length === 0;
-              
-              list.push({
-                startX: pts.startX,
-                startY: pts.startY,
-                endX: pts.endX,
-                endY: pts.endY,
-                isDash: !(isCurrentSelected && isNextSelected)
-              });
+        // Map through all active commits and link to parents
+        activeCommits.forEach((c) => {
+          const currentEl = nodeRefs.current[c.sha];
+          if (!currentEl) return;
+          const currentMeta = getCenterAndSize(currentEl);
+          
+          if (c.parents && c.parents.length > 0) {
+            c.parents.forEach((parentSha) => {
+              const parentEl = nodeRefs.current[parentSha];
+              if (parentEl) {
+                const parentMeta = getCenterAndSize(parentEl);
+                const pts = getConnectorPoints(currentMeta, parentMeta);
+                
+                const isCurrentSelected = wizard.selectedCommits.includes(c.sha) || wizard.selectedCommits.length === 0;
+                const isParentSelected = wizard.selectedCommits.includes(parentSha) || wizard.selectedCommits.length === 0;
+                
+                list.push({
+                  startX: pts.startX,
+                  startY: pts.startY,
+                  endX: pts.endX,
+                  endY: pts.endY,
+                  isDash: !(isCurrentSelected && isParentSelected)
+                });
+              }
+            });
+          } else {
+            // Sequential fallback for compatibility and live CLI support
+            const idx = activeKeys.indexOf(c.sha);
+            if (idx !== -1 && idx < activeKeys.length - 1) {
+              const nextSha = activeKeys[idx + 1];
+              const nextEl = nodeRefs.current[nextSha];
+              if (nextEl) {
+                const nextMeta = getCenterAndSize(nextEl);
+                const pts = getConnectorPoints(currentMeta, nextMeta);
+                
+                const isCurrentSelected = wizard.selectedCommits.includes(c.sha) || wizard.selectedCommits.length === 0;
+                const isNextSelected = wizard.selectedCommits.includes(nextSha) || wizard.selectedCommits.length === 0;
+                
+                list.push({
+                  startX: pts.startX,
+                  startY: pts.startY,
+                  endX: pts.endX,
+                  endY: pts.endY,
+                  isDash: !(isCurrentSelected && isNextSelected)
+                });
+              }
             }
           }
+        });
+        
+        // Connect develop HEAD
+        const track0Commits = activeCommits.filter(c => c.track === 0);
+        let targetDevConnectSha = track0Commits.length > 0 ? track0Commits[0].sha : null;
+        if (!targetDevConnectSha) {
+          targetDevConnectSha = activeKeys[activeKeys.length - 1];
         }
-      });
-      
-      // Connect develop HEAD
-      const track0Commits = activeCommits.filter(c => c.track === 0);
-      let targetDevConnectSha = track0Commits.length > 0 ? track0Commits[0].sha : null;
-      if (!targetDevConnectSha) {
-        targetDevConnectSha = activeKeys[activeKeys.length - 1];
+        
+        const targetDevConnectEl = targetDevConnectSha ? nodeRefs.current[targetDevConnectSha] : null;
+        if (targetDevConnectEl) {
+          const targetNode = getCenterAndSize(targetDevConnectEl);
+          const pts = getConnectorPoints(devNode, targetNode);
+          list.push({
+            startX: pts.startX,
+            startY: pts.startY,
+            endX: pts.endX,
+            endY: pts.endY
+          });
+        }
       }
       
-      const targetDevConnectEl = targetDevConnectSha ? nodeRefs.current[targetDevConnectSha] : null;
-      if (targetDevConnectEl) {
-        const targetNode = getCenterAndSize(targetDevConnectEl);
-        const pts = getConnectorPoints(devNode, targetNode);
-        list.push({
-          startX: pts.startX,
-          startY: pts.startY,
-          endX: pts.endX,
-          endY: pts.endY
-         });
-      }
-    }
-    
-    setConnections(list);
+      setConnections(list);
+    });
   }, [repoState.commits, wizard.selectedCommits, zoomScale, nodeWidth, resetKey, isGraphVertical]);
 
   React.useEffect(() => {
@@ -2582,18 +2597,33 @@ export default function App() {
                         <polygon points="0 0, 7 3.5, 0 7" fill={theme === 'light' ? '#6366f1' : '#818cf8'} />
                       </marker>
                     </defs>
-                    {connections.map((conn, idx) => (
-                      <path
-                        key={idx}
-                        d={`M ${conn.startX} ${conn.startY} L ${conn.endX} ${conn.endY}`}
-                        stroke={theme === 'light' ? '#6366f1' : '#818cf8'}
-                        strokeWidth="2.5"
-                        strokeDasharray={conn.isDash ? '4 4' : undefined}
-                        fill="none"
-                        markerEnd="url(#arrowhead-connector)"
-                        className="opacity-75 transition-all duration-75"
-                      />
-                    ))}
+                    {connections.map((conn, idx) => {
+                      const isVertical = isGraphVertical;
+                      let pathD = '';
+                      if (isVertical) {
+                        const dy = conn.endY - conn.startY;
+                        const cp1Y = conn.startY + dy * 0.45;
+                        const cp2Y = conn.startY + dy * 0.55;
+                        pathD = `M ${conn.startX} ${conn.startY} C ${conn.startX} ${cp1Y}, ${conn.endX} ${cp2Y}, ${conn.endX} ${conn.endY}`;
+                      } else {
+                        const dx = conn.endX - conn.startX;
+                        const cp1X = conn.startX + dx * 0.45;
+                        const cp2X = conn.startX + dx * 0.55;
+                        pathD = `M ${conn.startX} ${conn.startY} C ${cp1X} ${conn.startY}, ${cp2X} ${conn.endY}, ${conn.endX} ${conn.endY}`;
+                      }
+                      return (
+                        <path
+                          key={idx}
+                          d={pathD}
+                          stroke={theme === 'light' ? '#6366f1' : '#818cf8'}
+                          strokeWidth="2.5"
+                          strokeDasharray={conn.isDash ? '4 4' : undefined}
+                          fill="none"
+                          markerEnd="url(#arrowhead-connector)"
+                          className="opacity-75 transition-all duration-75"
+                        />
+                      );
+                    })}
                   </svg>
 
                   {/* The actual flow nodes */}
@@ -2610,11 +2640,9 @@ export default function App() {
                       whileDrag={{ scale: 1.05 }}
                       onDrag={() => {
                         updateConnectionPaths();
-                        triggerRenderTick();
                       }}
                       onDragEnd={() => {
                         updateConnectionPaths();
-                        triggerRenderTick();
                       }}
                       style={{
                         marginLeft: (isSimulation && isGraphVertical) ? '-180px' : undefined,
@@ -2671,11 +2699,9 @@ export default function App() {
                                   }}
                                   onDrag={() => {
                                     updateConnectionPaths();
-                                    triggerRenderTick();
                                   }}
                                   onDragEnd={() => {
                                     updateConnectionPaths();
-                                    triggerRenderTick();
                                   }}
                                   style={{ 
                                     width: `${finalWidth}px`,
@@ -3147,8 +3173,12 @@ export default function App() {
                         </button>
                         <button 
                           onClick={() => {
-                            const confirmVal = window.confirm(sloc.discardConfirm);
-                            if (confirmVal) handleTriggerDoctorAction('dirty_working_tree', 'discard');
+                            setConfirmModal({
+                              isOpen: true,
+                              title: tone === TranslationTone.ENGLISH ? "Discard Changes" : tone === TranslationTone.TOXIC ? "HUỶ BỎ TOÀN BỘ CÔNG SỨC" : "Hủy bỏ thay đổi",
+                              message: sloc.discardConfirm,
+                              onConfirm: () => handleTriggerDoctorAction('dirty_working_tree', 'discard')
+                            });
                           }}
                           className={`px-1.5 py-0.5 border rounded cursor-pointer transition-colors ${
                             theme === 'light'
@@ -3196,8 +3226,12 @@ export default function App() {
                         </button>
                         <button 
                           onClick={() => {
-                            const confirmVal = window.confirm(sloc.forcePushConfirm);
-                            if (confirmVal) handleTriggerDoctorAction('diverged_branch', 'force_push');
+                            setConfirmModal({
+                              isOpen: true,
+                              title: tone === TranslationTone.ENGLISH ? "Force Push Warning" : tone === TranslationTone.TOXIC ? "CẢNH BÁO FORCE PUSH THÔ BẠO" : "Cảnh báo Force Push",
+                              message: sloc.forcePushConfirm,
+                              onConfirm: () => handleTriggerDoctorAction('diverged_branch', 'force_push')
+                            });
                           }}
                           className={`px-1.5 py-0.5 border rounded cursor-pointer transition-colors ${
                             theme === 'light'
@@ -3523,6 +3557,72 @@ export default function App() {
           }}
           theme={theme}
         />
+
+        {/* Custom Confirmation Modal */}
+        <AnimatePresence>
+          {confirmModal && confirmModal.isOpen && (
+            <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+              {/* Backdrop with elegant blur */}
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setConfirmModal(null)}
+                className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+              />
+              {/* Modal Card */}
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 15 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 15 }}
+                transition={{ type: "spring", duration: 0.4 }}
+                className={`relative max-w-md w-full p-6 rounded-xl border shadow-2xl font-mono z-50 ${
+                  theme === 'light' 
+                    ? 'bg-white border-slate-200 text-slate-800' 
+                    : 'bg-[#0f172a] border-slate-800 text-slate-100'
+                }`}
+              >
+                {/* Alert Icon and Title */}
+                <div className="flex items-start gap-3.5 mb-4">
+                  <div className="p-2 rounded-lg bg-rose-500/10 text-rose-500 shrink-0">
+                    <AlertTriangle className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <h3 className={`text-sm font-bold uppercase tracking-wider ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                      {confirmModal.title}
+                    </h3>
+                    <p className={`text-[11px] mt-1.5 leading-relaxed ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+                      {confirmModal.message}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end gap-2.5 mt-6 pt-3 border-t border-slate-200/10 text-xs text-mono">
+                  <button
+                    onClick={() => setConfirmModal(null)}
+                    className={`px-3 py-1.5 rounded font-medium border cursor-pointer select-none transition-all active:scale-[0.98] ${
+                      theme === 'light'
+                        ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700'
+                        : 'bg-slate-950 hover:bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {tone === TranslationTone.ENGLISH ? 'Cancel' : tone === TranslationTone.TOXIC ? 'Thôi cút' : 'Hủy bỏ'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      confirmModal.onConfirm();
+                      setConfirmModal(null);
+                    }}
+                    className="px-3.5 py-1.5 rounded font-bold text-white bg-rose-600 hover:bg-rose-500 border border-rose-500/20 shadow-md cursor-pointer select-none transition-all active:scale-[0.98]"
+                  >
+                    {tone === TranslationTone.ENGLISH ? 'Confirm' : tone === TranslationTone.TOXIC ? 'Chốt luôn, sợ đéo' : 'Xác nhận'}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
       </div>
     </div>

@@ -704,7 +704,7 @@ export default function GitVisualizerPanel({
   };
 
   // Render real-life git commit tree with connections, lanes and pointers
-  const renderRealGitTree = (w: number, h: number) => {
+  const renderRealGitTree = (initialW: number, h: number) => {
     if (!repoState || !repoState.commits || repoState.commits.length === 0) {
       return (
         <div className="text-slate-500 font-mono text-[10px] text-center p-8">
@@ -716,6 +716,12 @@ export default function GitVisualizerPanel({
     // Sort/order commits from oldest to newest for left-to-right timeline
     const orderedCommits = [...repoState.commits].reverse();
     const count = orderedCommits.length;
+
+    // Dynamically calculate wide width to avoid crowding of nodes when history is deep.
+    // Give at least 85px space per commit, with a minimum overall boundary of the outer SVG stage width.
+    const minSpacing = 85;
+    const w = count > 1 ? Math.max(initialW, 130 + (count - 1) * minSpacing) : initialW;
+
     const startX = 65;
     const endX = w - 65;
     const spacing = count > 1 ? (endX - startX) / (count - 1) : 0;
@@ -752,8 +758,13 @@ export default function GitVisualizerPanel({
 
     return (
       <div className="relative w-full h-full flex items-center justify-center" id="real-git-tree-viewport">
-        {/* SVG Container for commits, connections, and tags */}
-        <svg className="w-full h-full font-mono select-none" viewBox={`0 0 ${w} ${h}`} referrerPolicy="no-referrer" style={{ minHeight: `${h}px` }}>
+        {/* SVG Container with direct styles to avoid being scaled down and cramped */}
+        <svg 
+          className="font-mono select-none" 
+          viewBox={`0 0 ${w} ${h}`} 
+          referrerPolicy="no-referrer" 
+          style={{ width: `${w}px`, height: `${h}px`, minWidth: `${w}px`, minHeight: `${h}px` }}
+        >
           {/* Defs for arrowheads and gradients */}
           <defs>
             <marker id="real-arrow" viewBox="0 0 10 10" refX="18" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">

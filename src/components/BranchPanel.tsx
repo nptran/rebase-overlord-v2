@@ -98,6 +98,7 @@ export default function BranchPanel({
   const [search, setSearch] = React.useState('');
   const [newBranchName, setNewBranchName] = React.useState('');
   const [showCreateForm, setShowCreateForm] = React.useState(false);
+  const [branchToDelete, setBranchToDelete] = React.useState<string | null>(null);
 
   const [isCollapsed, setIsCollapsed] = React.useState<boolean>(() => {
     try {
@@ -120,10 +121,32 @@ export default function BranchPanel({
   // Dynamic localization selection
   const loc = branchLoc[tone] || branchLoc[TranslationTone.PROFESSIONAL];
 
-  // Filter branches
-  const filtered = branches.filter(val => 
-    val.name.toLowerCase().includes(search.toLowerCase())
-  );
+  // Filter branches and remove 'origin' or empty or HEAD
+  const filteredAndOnHold = branches.filter(val => {
+    const lowerName = val.name.toLowerCase();
+    return lowerName.includes(search.toLowerCase()) && 
+           lowerName !== 'origin' && 
+           !lowerName.includes('head') && 
+           !lowerName.includes('->');
+  });
+
+  // Sort: current branch first, then base branches, then others alphabetically
+  const baseBranchNames = ['main', 'master', 'develop', 'dev', 'production'];
+  const filtered = [...filteredAndOnHold].sort((a, b) => {
+    const aIsCurrent = a.name === currentBranch;
+    const bIsCurrent = b.name === currentBranch;
+    if (aIsCurrent !== bIsCurrent) {
+      return aIsCurrent ? -1 : 1;
+    }
+
+    const aIsBase = a.isBase || baseBranchNames.includes(a.name.toLowerCase());
+    const bIsBase = b.isBase || baseBranchNames.includes(b.name.toLowerCase());
+    if (aIsBase !== bIsBase) {
+      return aIsBase ? -1 : 1;
+    }
+
+    return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+  });
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -339,8 +362,7 @@ export default function BranchPanel({
                     <button
                       onClick={(e) => {
                         e.stopPropagation(); // Avoid triggering double click checkout
-                        const confirmDel = window.confirm(loc.deleteConfirm(branch.name));
-                        if (confirmDel) onDeleteBranch(branch.name);
+                        setBranchToDelete(branch.name);
                       }}
                       className={`p-1 rounded border border-transparent transition-all active:scale-90 cursor-pointer ${
                         isLight ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200' : 'text-slate-600 hover:text-rose-450 hover:bg-rose-500/10 hover:border-rose-500/20'
@@ -361,9 +383,66 @@ export default function BranchPanel({
       <div className={`mt-4 pt-3 border-t flex justify-between items-center text-[10px] text-slate-500 font-mono ${isLight ? 'border-slate-200' : 'border-slate-900'}`}>
         <span>{loc.metrics}</span>
         <span>
-          Local: {branches.filter(b => b.isLocal).length} | Remote: {branches.filter(b => b.isRemote).length}
+          Local: {branches.filter(b => b.isLocal && b.name !== 'origin').length} | Remote: {branches.filter(b => b.isRemote && b.name !== 'origin').length}
         </span>
       </div>
+
+      {/* Custom Delete Confirmation Modal */}
+      {branchToDelete && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4 font-sans">
+          {/* Backdrop with elegant blur */}
+          <div 
+            onClick={() => setBranchToDelete(null)}
+            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity"
+          />
+          {/* Modal Card */}
+          <div
+            className={`relative max-w-md w-full p-6 rounded-xl border shadow-2xl font-mono z-10 scale-100 transition-all ${
+              isLight 
+                ? 'bg-white border-slate-200 text-slate-800' 
+                : 'bg-[#0f172a] border-slate-800 text-slate-100'
+            }`}
+          >
+            {/* Alert Icon and Title */}
+            <div className="flex items-start gap-3.5 mb-4 font-sans">
+              <div className="p-2 rounded-lg bg-rose-500/10 text-rose-500 shrink-0">
+                <Trash2 className="w-5 h-5 animate-pulse" />
+              </div>
+              <div>
+                <h3 className={`text-sm font-bold uppercase tracking-wider ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  {tone === TranslationTone.ENGLISH ? 'Delete Branch' : tone === TranslationTone.TOXIC ? 'KHAI TỬ CHI NHÁNH RÁC' : 'Xoá chi nhánh'}
+                </h3>
+                <p className={`text-[11px] mt-1.5 leading-relaxed font-mono ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+                  {loc.deleteConfirm(branchToDelete)}
+                </p>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-2.5 mt-6 pt-3 border-t border-slate-200/10 text-xs font-mono">
+              <button
+                onClick={() => setBranchToDelete(null)}
+                className={`px-3 py-1.5 rounded font-medium border cursor-pointer select-none transition-all active:scale-[0.98] ${
+                  isLight
+                    ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700'
+                    : 'bg-slate-950 hover:bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                {tone === TranslationTone.ENGLISH ? 'Cancel' : tone === TranslationTone.TOXIC ? 'Thôi cút' : 'Hủy bỏ'}
+              </button>
+              <button
+                onClick={() => {
+                  onDeleteBranch(branchToDelete);
+                  setBranchToDelete(null);
+                }}
+                className="px-3.5 py-1.5 rounded font-bold text-white bg-rose-600 hover:bg-rose-500 border border-rose-500/20 shadow-md cursor-pointer select-none transition-all active:scale-[0.98]"
+              >
+                {tone === TranslationTone.ENGLISH ? 'Confirm' : tone === TranslationTone.TOXIC ? 'Xoá luôn, sợ gì' : 'Xác nhận xoá'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
