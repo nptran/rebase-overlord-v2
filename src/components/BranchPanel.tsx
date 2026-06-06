@@ -32,7 +32,15 @@ const branchLoc = {
     checkoutBtn: "Chuyển sang",
     deleteConfirm: (b: string) => `Bạn có chắc chắn muốn xóa chi nhánh [${b}] không? Hành động này sẽ gây mất dữ liệu nếu chưa push.`,
     metrics: "CHỈ SỐ CHI NHÁNH",
-    checkingOut: "Đang chuyển nhánh..."
+    checkingOut: "Đang chuyển nhánh...",
+    modalTitle: "Tạo nhánh mới chuẩn hóa",
+    baseBranchLabel: "Nhánh cơ sở (Base branch)",
+    prefixLabel: "Tiền tố tiêu chuẩn (Prefix)",
+    suffixLabel: "Tên nhánh tùy chọn (Suffix)",
+    previewLabel: "Tên nhánh hoàn thiện",
+    cancelBtn: "Hủy bỏ",
+    invalidSuffix: "Tên nhánh không hợp lệ. Vui lòng chỉ dùng ký tự chữ, số, gạch ngang và không để trống.",
+    duplicateBranch: "Tên nhánh này đã tồn tại trong repository."
   },
   [TranslationTone.JOKE]: {
     newBranch: "Phun nhánh mới 🌿",
@@ -44,7 +52,15 @@ const branchLoc = {
     checkoutBtn: "Lượn sang",
     deleteConfirm: (b: string) => `Xóa cái nhánh [${b}] là bốc hơi luôn nha sếp? Chắc chưa á?`,
     metrics: "CHỈ SỐ SINH TRƯỞNG",
-    checkingOut: "Nhánh hịn đang load..."
+    checkingOut: "Nhánh hịn đang load...",
+    modalTitle: "Nơi hạ sinh nhánh xịn sò 🌱",
+    baseBranchLabel: "Gốc gác từ đâu thế sếp",
+    prefixLabel: "Họ nhà nhánh (Tiền tố tiêu chuẩn)",
+    suffixLabel: "Tên riêng tự sướng (Suffix)",
+    previewLabel: "Dáng dấp nhánh tương lai",
+    cancelBtn: "Thôi cút",
+    invalidSuffix: "Nhập tên cho đàng hoàng chữ số thôi sếp ơi, đừng chế cháo ký tự lạ.",
+    duplicateBranch: "Nhánh này bị trùng gốc rồi nha sếp."
   },
   [TranslationTone.TOXIC]: {
     newBranch: "Đẻ nhánh mới lẹ lên!",
@@ -56,7 +72,15 @@ const branchLoc = {
     checkoutBtn: "Cút sang",
     deleteConfirm: (b: string) => `Tao hỏi thật mày muốn khai tử cái nhánh [${b}] đúng không? Đéo khôi phục được đâu!`,
     metrics: "TỔNG SỐ ĐỐNG RÁC",
-    checkingOut: "Đang chuyển... đợi tí đi!"
+    checkingOut: "Đang chuyển... đợi tí đi!",
+    modalTitle: "ĐẺ THÊM NHÁNH RÁC NỮA HẢ",
+    baseBranchLabel: "Nhánh tổ tông rác ở đâu",
+    prefixLabel: "Mày muốn làm loại gì (Prefix)",
+    suffixLabel: "Đặt tên xàm xí gì nhập nốt vào",
+    previewLabel: "Hình dáng sản phẩm lỗi sắp đẻ",
+    cancelBtn: "Hủy cút",
+    invalidSuffix: "Tên rác quá, đéo hợp lệ rồi. Nhập chữ cái, số, gạch ngang thôi thằng ngu!",
+    duplicateBranch: "Nhánh này có rồi mày đẻ lắm thế!"
   },
   [TranslationTone.ENGLISH]: {
     newBranch: "New Branch",
@@ -68,9 +92,27 @@ const branchLoc = {
     checkoutBtn: "Checkout",
     deleteConfirm: (b: string) => `Are you sure you want to delete branch [${b}]? Unpushed changes will be lost permanently.`,
     metrics: "BRANCH METRICS",
-    checkingOut: "Checking out..."
+    checkingOut: "Checking out...",
+    modalTitle: "Create Standardized Branch",
+    baseBranchLabel: "Base branch",
+    prefixLabel: "Standardized prefix",
+    suffixLabel: "Custom name suffix",
+    previewLabel: "Resulting branch name",
+    cancelBtn: "Cancel",
+    invalidSuffix: "Invalid branch suffix. Please use letters, numbers, hyphens or underscores only.",
+    duplicateBranch: "This branch already exists in the repository."
   }
 };
+
+const STANDARD_PREFIXES = [
+  'feature/',
+  'bugfix/',
+  'hotfix/',
+  'release/',
+  'refactor/',
+  'docs/',
+  'chore/'
+];
 
 interface BranchPanelProps {
   branches: GitBranchType[];
@@ -80,7 +122,7 @@ interface BranchPanelProps {
   theme?: 'light' | 'dark';
   checkingOutBranch?: string | null;
   onCheckout: (branchName: string) => void;
-  onCreateBranch: (branchName: string) => void;
+  onCreateBranch: (branchName: string, baseBranch?: string) => void;
   onDeleteBranch: (branchName: string) => void;
 }
 
@@ -96,9 +138,14 @@ export default function BranchPanel({
   onDeleteBranch
 }: BranchPanelProps) {
   const [search, setSearch] = React.useState('');
-  const [newBranchName, setNewBranchName] = React.useState('');
-  const [showCreateForm, setShowCreateForm] = React.useState(false);
   const [branchToDelete, setBranchToDelete] = React.useState<string | null>(null);
+
+  // States for the creation modal
+  const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false);
+  const [baseBranch, setBaseBranch] = React.useState('');
+  const [selectedPrefix, setSelectedPrefix] = React.useState('feature/');
+  const [customSuffix, setCustomSuffix] = React.useState('');
+  const [modalError, setModalError] = React.useState<string | null>(null);
 
   const [isCollapsed, setIsCollapsed] = React.useState<boolean>(() => {
     try {
@@ -120,6 +167,50 @@ export default function BranchPanel({
 
   // Dynamic localization selection
   const loc = branchLoc[tone] || branchLoc[TranslationTone.PROFESSIONAL];
+
+  const openCreateModal = () => {
+    const defaultBase = branches.find(b => b.name === 'develop')?.name ||
+                        branches.find(b => b.name === 'dev')?.name ||
+                        branches.find(b => b.name === currentBranch)?.name ||
+                        branches.find(b => b.name === 'main')?.name ||
+                        branches.find(b => b.name === 'master')?.name ||
+                        currentBranch || 'develop';
+    setBaseBranch(defaultBase);
+    setSelectedPrefix('feature/');
+    setCustomSuffix('');
+    setModalError(null);
+    setIsCreateModalOpen(true);
+  };
+
+  const handleModalSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customSuffix.trim()) {
+      setModalError(loc.invalidSuffix);
+      return;
+    }
+
+    const cleanedSuffix = customSuffix.trim()
+      .toLowerCase()
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9\-_.]/g, '');
+
+    if (!cleanedSuffix) {
+      setModalError(loc.invalidSuffix);
+      return;
+    }
+
+    const fullBranchName = `${selectedPrefix}${cleanedSuffix}`;
+
+    // check if branch already exists
+    const isDuplicate = branches.some(b => b.name.toLowerCase() === fullBranchName.toLowerCase());
+    if (isDuplicate) {
+      setModalError(loc.duplicateBranch);
+      return;
+    }
+
+    onCreateBranch(fullBranchName, baseBranch);
+    setIsCreateModalOpen(false);
+  };
 
   // Filter branches and remove 'origin' or empty or HEAD
   const filteredAndOnHold = branches.filter(val => {
@@ -147,21 +238,6 @@ export default function BranchPanel({
 
     return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
   });
-
-  const handleCreateSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newBranchName.trim()) return;
-    
-    // Clean and validate branch name
-    const cleaned = newBranchName.trim()
-      .toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^a-z0-9/\-_.]/g, '');
-
-    onCreateBranch(cleaned);
-    setNewBranchName('');
-    setShowCreateForm(false);
-  };
 
   const isLight = theme === 'light';
 
@@ -201,7 +277,7 @@ export default function BranchPanel({
         <div className="flex items-center gap-2">
           {/* Branch Create button */}
           <button
-            onClick={() => setShowCreateForm(!showCreateForm)}
+            onClick={openCreateModal}
             className={`text-xs font-mono flex items-center gap-1 px-2 py-1 rounded transition-colors cursor-pointer ${
               isLight ? 'bg-sky-50 text-sky-600 border border-sky-250 hover:bg-sky-100' : 'bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:text-sky-300'
             }`}
@@ -224,34 +300,6 @@ export default function BranchPanel({
           </button>
         </div>
       </div>
-
-      {/* Quick create form collapsed state */}
-      {showCreateForm && (
-        <form onSubmit={handleCreateSubmit} className={`mb-4 p-3 rounded-lg border animate-fade-in ${isLight ? 'bg-slate-50 border-sky-200' : 'bg-slate-950 border-sky-500/20'}`}>
-          <div className={`text-xs mb-2 font-mono ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>{loc.titleCreate}</div>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={newBranchName}
-              onChange={(e) => setNewBranchName(e.target.value)}
-              placeholder="E.g. feature/checkout-refactor"
-              className={`flex-grow border px-3 py-1.5 text-xs font-mono rounded outline-none ${
-                isLight ? 'bg-white border-slate-250 text-slate-800 focus:border-sky-500' : 'bg-slate-900 border-slate-800 text-slate-250 focus:border-sky-500'
-              }`}
-              autoFocus
-            />
-            <button
-              type="submit"
-              className="bg-sky-600 hover:bg-sky-500 text-white text-xs px-3 py-1.5 rounded font-mono border border-sky-500/10 cursor-pointer"
-            >
-              {loc.createBtn}
-            </button>
-          </div>
-          <p className="text-[10px] text-slate-500 mt-1.5 italic font-mono">
-            {loc.tipCreate}
-          </p>
-        </form>
-      )}
 
       {/* Hint and Information */}
       <div className="text-[10px] text-slate-500 mb-2.5 font-mono flex items-center gap-1 select-none">
@@ -440,6 +488,170 @@ export default function BranchPanel({
                 {tone === TranslationTone.ENGLISH ? 'Confirm' : tone === TranslationTone.TOXIC ? 'Xoá luôn, sợ gì' : 'Xác nhận xoá'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Standardized Create Branch Modal */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4 font-sans">
+          {/* Backdrop with elegant blur */}
+          <div 
+            onClick={() => setIsCreateModalOpen(false)}
+            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm transition-opacity"
+          />
+          {/* Modal Card */}
+          <div
+            className={`relative max-w-md w-full p-6 rounded-xl border shadow-2xl font-mono z-10 scale-100 transition-all ${
+              isLight 
+                ? 'bg-white border-slate-200 text-slate-850' 
+                : 'bg-[#0f172a] border-slate-800 text-slate-100'
+            }`}
+          >
+            {/* Title with icon */}
+            <div className="flex items-start gap-3 mb-5 font-sans">
+              <div className="p-2 rounded-lg bg-sky-500/10 text-sky-400 shrink-0">
+                <GitBranch className="w-5 h-5 animate-pulse" />
+              </div>
+              <div>
+                <h3 className={`text-sm font-bold uppercase tracking-wider ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                  {loc.modalTitle}
+                </h3>
+                <p className={`text-[10px] mt-1 leading-relaxed font-mono ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  {tone === TranslationTone.ENGLISH 
+                    ? 'Spawn standard git branches starting from any specific base checkout' 
+                    : tone === TranslationTone.TOXIC 
+                      ? 'Đẻ nhánh mới cho đúng bộ quy tắc chuẩn chỉnh' 
+                      : 'Sinh nhánh mới theo cấu trúc Git tiêu chuẩn'}
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleModalSubmit} className="space-y-4">
+              {/* Base Branch Selection */}
+              <div>
+                <label className={`block text-[10px] uppercase font-bold tracking-wider mb-1.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  {loc.baseBranchLabel}
+                </label>
+                <select
+                  value={baseBranch}
+                  onChange={(e) => {
+                    setBaseBranch(e.target.value);
+                    setModalError(null);
+                  }}
+                  className={`w-full px-3 py-2 text-xs font-mono rounded border outline-none cursor-pointer focus:border-sky-500 transition-colors ${
+                    isLight 
+                      ? 'bg-white border-slate-250 text-slate-800 focus:ring-1 focus:ring-sky-200' 
+                      : 'bg-slate-900 border-slate-800 text-slate-200 focus:ring-1 focus:ring-sky-950'
+                  }`}
+                >
+                  {Array.from(new Set(branches.map(b => b.name)))
+                    .filter(bName => bName !== 'origin' && !bName.includes('HEAD') && !bName.includes('->'))
+                    .map(bName => (
+                      <option key={bName} value={bName}>{bName}</option>
+                    ))}
+                </select>
+              </div>
+
+              {/* Prefix and Suffix side by side */}
+              <div className="grid grid-cols-12 gap-3">
+                {/* Prefix Select */}
+                <div className="col-span-5">
+                  <label className={`block text-[10px] uppercase font-bold tracking-wider mb-1.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                    {loc.prefixLabel}
+                  </label>
+                  <select
+                    value={selectedPrefix}
+                    onChange={(e) => {
+                      setSelectedPrefix(e.target.value);
+                      setModalError(null);
+                    }}
+                    className={`w-full px-2 py-2 text-xs font-mono rounded border outline-none cursor-pointer focus:border-sky-500 transition-colors ${
+                      isLight 
+                        ? 'bg-white border-slate-250 text-slate-800 focus:ring-1 focus:ring-sky-200' 
+                        : 'bg-slate-900 border-slate-800 text-slate-200 focus:ring-1 focus:ring-sky-950'
+                    }`}
+                  >
+                    {STANDARD_PREFIXES.map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Suffix Input */}
+                <div className="col-span-7">
+                  <label className={`block text-[10px] uppercase font-bold tracking-wider mb-1.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                    {loc.suffixLabel}
+                  </label>
+                  <input
+                    type="text"
+                    value={customSuffix}
+                    onChange={(e) => {
+                      // automatic raw formatting inside typing to guarantee git compatibility
+                      const cleanVal = e.target.value
+                        .toLowerCase()
+                        .replace(/\s+/g, '-')
+                        .replace(/[^a-z0-9\-_.]/g, '');
+                      setCustomSuffix(cleanVal);
+                      setModalError(null);
+                    }}
+                    placeholder="e.g. login-page-fix"
+                    className={`w-full px-3 py-2 text-xs font-mono rounded border outline-none focus:border-sky-500 transition-colors ${
+                      isLight 
+                        ? 'bg-white border-slate-250 text-slate-800 focus:ring-1 focus:ring-sky-200' 
+                        : 'bg-slate-900 border-slate-800 text-slate-200 focus:ring-1 focus:ring-sky-950'
+                    }`}
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              {/* Dynamic visual preview */}
+              <div className={`p-3 rounded-lg border text-xs font-mono ${
+                isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-850/60'
+              }`}>
+                <div className="flex flex-col gap-1 w-full">
+                  <span className={`text-[9px] uppercase font-bold tracking-widest ${isLight ? 'text-slate-400' : 'text-slate-500'}`}>
+                    {loc.previewLabel}
+                  </span>
+                  <div className="flex items-center gap-2 flex-wrap text-xs font-bold font-mono">
+                    <span className="text-emerald-500 shrink-0">{baseBranch || '...'}</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    <span className="text-sky-500 bg-sky-500/10 border border-sky-500/20 px-1.5 py-0.5 rounded truncate max-w-[200px]" title={`${selectedPrefix}${customSuffix}`}>
+                      {selectedPrefix}{customSuffix || '...'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Validation errors */}
+              {modalError && (
+                <div className="text-[10px] text-rose-500 font-bold bg-rose-500/10 border border-rose-500/20 rounded p-2 text-left leading-relaxed">
+                  ⚠️ {modalError}
+                </div>
+              )}
+
+              {/* Actions Footer */}
+              <div className="flex justify-end gap-2.5 mt-6 pt-3 border-t border-slate-200/10 text-xs font-mono">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className={`px-3 py-1.5 rounded font-medium border cursor-pointer select-none transition-all active:scale-[0.98] ${
+                    isLight
+                      ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700'
+                      : 'bg-slate-950 hover:bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {loc.cancelBtn}
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 rounded font-bold text-white bg-sky-600 hover:bg-sky-500 border border-sky-500/20 shadow-md cursor-pointer select-none transition-all active:scale-[0.98]"
+                >
+                  {loc.createBtn}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -542,6 +542,23 @@ export default function App() {
     onConfirm: () => void;
   } | null>(null);
 
+  // Detection for mobile to optimize dragging performance on small screen devices
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkMobileWidth = () => {
+      // 768px is standard MD breakpoint
+      const isMob = window.innerWidth < 768;
+      setIsMobile(isMob);
+      if (isMob) {
+        setActiveTool('pan');
+      }
+    };
+    checkMobileWidth();
+    window.addEventListener('resize', checkMobileWidth);
+    return () => window.removeEventListener('resize', checkMobileWidth);
+  }, []);
+
   // Wizard state machine with localStorage fallback
   const [wizard, setWizard] = React.useState<WizardState>(() => {
     try {
@@ -2109,26 +2126,33 @@ export default function App() {
   };
 
   // Create branch action
-  const handleCreateBranch = async (branchName: string) => {
-    addLog(`$ git checkout -b ${branchName}`);
+  const handleCreateBranch = async (branchName: string, baseBranch?: string) => {
+    const startPoint = baseBranch ? ` ${baseBranch}` : '';
+    addLog(`$ git checkout -b ${branchName}${startPoint}`);
     
     if (isSimulation) {
       const newB = { name: branchName, isLocal: true, isRemote: false, isCurrent: true, isBase: false };
-      setRepoState(prev => ({
-        ...prev,
-        currentBranch: branchName,
-        branches: [...prev.branches, newB]
-      }));
-      addLog(`✓ Created and checkout brand new simulated branch: ${branchName}`);
+      setRepoState(prev => {
+        // Set currentBranch isCurrent to false
+        const updatedBranches = prev.branches.map(b => 
+          b.name === prev.currentBranch ? { ...b, isCurrent: false } : b
+        );
+        return {
+          ...prev,
+          currentBranch: branchName,
+          branches: [...updatedBranches, newB]
+        };
+      });
+      addLog(`✓ Created and checkout brand new simulated branch: ${branchName} starting from ${baseBranch || 'current HEAD'}`);
     } else {
       try {
         const res = await fetch(resolveApiUrl('/api/execute-command'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ command: `git checkout -b ${branchName}` })
+          body: JSON.stringify({ command: `git checkout -b ${branchName}${startPoint}` })
         });
         if (res.ok) {
-          addLog(`✓ Created branch: ${branchName}`);
+          addLog(`✓ Created branch: ${branchName} from base ${baseBranch || 'current HEAD'}`);
           handleRefresh();
         } else {
           const errMsg = await safeParseError(res, 'Unknown error creating branch');
@@ -2436,16 +2460,24 @@ export default function App() {
                 {/* Mode Selector */}
                 <div className="flex items-center gap-1 bg-slate-200/50 dark:bg-slate-900/60 p-1 rounded-md">
                   <button
-                    onClick={() => setActiveTool('dragNode')}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded transition-all cursor-pointer ${
-                      activeTool === 'dragNode'
-                        ? 'bg-indigo-600 text-white shadow font-semibold'
-                        : theme === 'light' ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400 hover:bg-slate-800/50'
+                    onClick={() => {
+                      if (!isMobile) setActiveTool('dragNode');
+                    }}
+                    disabled={isMobile}
+                    className={`flex items-center gap-1.5 px-3 py-1 rounded transition-all ${
+                      isMobile
+                        ? 'opacity-40 cursor-not-allowed text-slate-500'
+                        : activeTool === 'dragNode'
+                          ? 'bg-indigo-600 text-white shadow font-semibold cursor-pointer'
+                          : theme === 'light' ? 'text-slate-600 hover:bg-slate-100 cursor-pointer' : 'text-slate-400 hover:bg-slate-800/50 cursor-pointer'
                     }`}
-                    title={sloc.dragNodeModeLabel}
+                    title={isMobile 
+                      ? (tone === TranslationTone.ENGLISH ? 'Drag Nodes (PC & Tablet Only)' : tone === TranslationTone.TOXIC ? 'Kéo ô (Chỉ PC/Tablet)' : 'Kéo ô (Chỉ PC/Tablet)')
+                      : sloc.dragNodeModeLabel
+                    }
                   >
                     <MousePointer className="w-3.5 h-3.5" />
-                    <span>{sloc.dragNodeModeLabel}</span>
+                    <span>{isMobile ? (tone === TranslationTone.ENGLISH ? 'Drag (PC/Tablet Only)' : 'Kéo ô (PC/Tablet)') : sloc.dragNodeModeLabel}</span>
                   </button>
                   <button
                     onClick={() => setActiveTool('pan')}
@@ -2537,8 +2569,18 @@ export default function App() {
               </div>
 
               {/* Drag n drop Tip */}
-              <div className="text-[10px] text-indigo-400 mb-2 font-semibold">
-                {sloc.dragTip}
+              <div className="text-[10px] mb-2 font-semibold">
+                {isMobile ? (
+                  <span className="text-amber-500">
+                    {tone === TranslationTone.ENGLISH 
+                      ? "💡 Mobile: Node dragging is disabled for performance. You can still pan/zoom the whole board!" 
+                      : tone === TranslationTone.TOXIC 
+                        ? "💡 Khoá kéo thả ô commit trên Mobile cho đỡ lác. Vẫn kéo vuốt di dời sơ đồ vô tư nhé!"
+                        : "💡 Trên Mobile: Tắt kéo thả ô để chạy mượt hơn. Sếp vẫn có thể vuốt và zoom sơ đồ!"}
+                  </span>
+                ) : (
+                  <span className="text-indigo-400">{sloc.dragTip}</span>
+                )}
               </div>
 
               {/* Graphical representation of the Rebase squash action (Board Viewport) */}
@@ -2634,7 +2676,7 @@ export default function App() {
                     {/* Develop Head represent */}
                     <motion.div
                       ref={devRef}
-                      drag={activeTool === 'dragNode'}
+                      drag={!isMobile && activeTool === 'dragNode'}
                       dragConstraints={false}
                       dragElastic={0.2}
                       whileDrag={{ scale: 1.05 }}
@@ -2648,7 +2690,7 @@ export default function App() {
                         marginLeft: (isSimulation && isGraphVertical) ? '-180px' : undefined,
                         marginTop: (isSimulation && !isGraphVertical) ? '-110px' : undefined,
                       }}
-                      className="flex flex-col items-center gap-1.5 px-3 min-w-fit cursor-grab active:cursor-grabbing relative"
+                      className={`flex flex-col items-center gap-1.5 px-3 min-w-fit relative ${!isMobile && activeTool === 'dragNode' ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'}`}
                     >
                       <div className="w-12 h-12 rounded-full bg-emerald-500/20 border-2 border-emerald-400 shadow-md flex items-center justify-center text-xs font-mono font-bold text-emerald-300">
                         dev
@@ -2688,7 +2730,7 @@ export default function App() {
                               <React.Fragment key={c.sha}>
                                 <motion.div
                                   ref={el => { nodeRefs.current[c.sha] = el; }}
-                                  drag={activeTool === 'dragNode'}
+                                  drag={!isMobile && activeTool === 'dragNode'}
                                   dragConstraints={false}
                                   dragElastic={0.2}
                                   layout
@@ -2710,7 +2752,7 @@ export default function App() {
                                     marginLeft: isGraphVertical ? `${nodeOffsetX}px` : undefined,
                                     marginTop: !isGraphVertical ? `${nodeOffsetY}px` : undefined,
                                   }}
-                                  className={`flex flex-col items-stretch p-3 text-left border rounded-xl hover:shadow-md cursor-grab active:cursor-grabbing transition-all relative ${
+                                  className={`flex flex-col items-stretch p-3 text-left border rounded-xl hover:shadow-md transition-all relative ${!isMobile && activeTool === 'dragNode' ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'} ${
                                     theme === 'light' 
                                       ? 'bg-white border-slate-200/80 shadow-sm text-slate-800' 
                                       : 'bg-slate-900/60 border-slate-800 text-slate-100 shadow'
@@ -2747,7 +2789,7 @@ export default function App() {
                                     
                                     <div className="flex items-center gap-1.5 select-none">
                                       {/* Hover Grab Handle Indicator */}
-                                      {activeTool === 'dragNode' && (
+                                      {!isMobile && activeTool === 'dragNode' && (
                                         <Move className="w-3 h-3 text-slate-400 hover:text-slate-100 cursor-move" title="Drag node content" />
                                       )}
                                       

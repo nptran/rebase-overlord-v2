@@ -734,16 +734,16 @@ export default function GitVisualizerPanel({
       const x = count > 1 ? startX + idx * spacing : w / 2;
       // Map track numbers (0, 1, 2) to visual Y values
       const trackVal = typeof c.track === 'number' ? c.track : 0;
-      let y = 90; // Default center
+      let y = 110; // Default center
       if (trackVal === 0) {
-        y = 55; // Base track
+        y = 75; // Base track (shifted down by 20px so top labels like origin/develop can fit nicely without cropping)
       } else if (trackVal === 1) {
-        y = 110; // Feature track
+        y = 130; // Feature track (shifted down by 20px)
       } else {
-        y = 150; // Remote or other track
+        y = 175; // Remote or other track (shifted down by 25px)
       }
       // Keep within bounds
-      y = Math.min(155, Math.max(25, y));
+      y = Math.min(y, h - 25);
       commitCoords[c.sha] = { x, y };
     });
 
@@ -777,8 +777,8 @@ export default function GitVisualizerPanel({
           </defs>
 
           {/* 1. Base guidelines for tracks to represent lanes cleanly */}
-          <line x1="40" y1="55" x2={w - 40} y2="55" className={`${isLight ? 'stroke-slate-100' : 'stroke-slate-900/40'} stroke-1 stroke-dashed`} />
-          <line x1="40" y1="110" x2={w - 40} y2="110" className={`${isLight ? 'stroke-slate-100' : 'stroke-slate-900/40'} stroke-1 stroke-dashed`} />
+          <line x1="40" y1="75" x2={w - 40} y2="75" className={`${isLight ? 'stroke-slate-100' : 'stroke-slate-900/40'} stroke-1 stroke-dashed`} />
+          <line x1="40" y1="130" x2={w - 40} y2="130" className={`${isLight ? 'stroke-slate-100' : 'stroke-slate-900/40'} stroke-1 stroke-dashed`} />
 
           {/* 2. Drawing lines (parent/child connections) */}
           {orderedCommits.map((c) => {
@@ -1071,7 +1071,7 @@ export default function GitVisualizerPanel({
 
     // Standard Real Git Tree synchronization if active
     if (isSyncedWithWizard && repoState && repoState.commits && repoState.commits.length > 0) {
-      return renderRealGitTree(width, height);
+      return renderRealGitTree(width, 220);
     }
 
     switch (activeAction) {
@@ -1920,7 +1920,7 @@ export default function GitVisualizerPanel({
           </div>
           <div>
             <h3 className={`text-xs font-bold uppercase font-mono tracking-wider ${
-              isLight ? 'text-slate-800' : 'text-slate-100'
+              isLight ? 'text-slate-802' : 'text-slate-105'
             }`}>
               {loc.title}
             </h3>
@@ -1997,7 +1997,7 @@ export default function GitVisualizerPanel({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
         
         {/* Play stage display area (Left - col span 8) */}
-        <div className={`lg:col-span-8 flex flex-col gap-3 justify-center min-h-[220px] rounded-xl p-4 overflow-hidden relative border ${
+        <div className={`lg:col-span-8 flex flex-col gap-3 justify-center min-h-[260px] rounded-xl p-4 overflow-hidden relative border ${
           isLight ? 'bg-indigo-50/20 border-indigo-100/60' : 'bg-slate-950/70 border-slate-905/60'
         }`}>
           
@@ -2031,7 +2031,7 @@ export default function GitVisualizerPanel({
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
-            className="flex-1 w-full h-full min-h-[190px] overflow-hidden relative flex items-center justify-center pt-8 pb-2 cursor-grab active:cursor-grabbing"
+            className="flex-1 w-full h-full min-h-[230px] overflow-hidden relative flex items-center justify-center pt-8 pb-2 cursor-grab active:cursor-grabbing"
           >
             <motion.div
               key={`vis-board-${resetKey}`}
