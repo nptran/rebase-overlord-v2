@@ -1779,42 +1779,62 @@ app.get('/api/update/check', async (req, res) => {
   };
 
   try {
-    // 1. Primary Attempt: Check Official GitHub Latest Release
-    const releaseRes = await fetchJson('https://api.github.com/repos/nptran/rebase-overlord-v2/releases/latest');
+    // 1. Primary Attempt: Check Official GitHub Releases for all intermediate logs
+    const releasesRes = await fetchJson('https://api.github.com/repos/nptran/rebase-overlord-v2/releases');
     
-    if (releaseRes.status === 200 && releaseRes.data && releaseRes.data.tag_name) {
-      const release = releaseRes.data;
-      const latestVersion = release.tag_name.replace(/^v/, '');
+    if (releasesRes.status === 200 && Array.isArray(releasesRes.data) && releasesRes.data.length > 0) {
+      const releases = releasesRes.data;
+      const latestRelease = releases[0];
+      const latestVersion = latestRelease.tag_name.replace(/^v/, '');
       const updateAvailable = semverCompare(latestVersion, currentVersion) > 0;
 
-      let downloadUrl = release.html_url;
+      let downloadUrl = latestRelease.html_url;
       const platform = process.platform;
-      if (release.assets && Array.isArray(release.assets)) {
+      if (latestRelease.assets && Array.isArray(latestRelease.assets)) {
         let asset = null;
         if (platform === 'win32') {
-          asset = release.assets.find((a: any) => a.name.endsWith('.exe') || a.name.endsWith('.msi'));
+          asset = latestRelease.assets.find((a: any) => a.name.endsWith('.exe') || a.name.endsWith('.msi'));
         } else if (platform === 'darwin') {
-          asset = release.assets.find((a: any) => a.name.endsWith('.dmg') || a.name.endsWith('.zip'));
+          asset = latestRelease.assets.find((a: any) => a.name.endsWith('.dmg') || a.name.endsWith('.zip'));
         } else {
-          asset = release.assets.find((a: any) => a.name.endsWith('.AppImage') || a.name.endsWith('.deb') || a.name.endsWith('.tar.gz'));
+          asset = latestRelease.assets.find((a: any) => a.name.endsWith('.AppImage') || a.name.endsWith('.deb') || a.name.endsWith('.tar.gz'));
         }
         if (asset) {
           downloadUrl = asset.browser_download_url;
         }
       }
 
+      // Filter releases strictly greater than currentVersion
+      const intermediateReleases = releases.filter((r: any) => {
+        const tagVer = r.tag_name.replace(/^v/, '');
+        return semverCompare(tagVer, currentVersion) > 0;
+      });
+
+      let releaseNotes = '';
+      if (intermediateReleases.length > 0) {
+        releaseNotes = intermediateReleases.map((r: any) => {
+          const rName = r.name || r.tag_name;
+          const rBody = r.body ? r.body.trim() : 'No description provided.';
+          return `📦 **${rName}**\n${rBody}\n`;
+        }).join('\n────────────────────────────────────────\n\n');
+      } else {
+        releaseNotes = latestRelease.body || '### ✨ Có gì mới trong bản cập nhật này:\n- Các cải tiến hiệu năng chuyên sâu\n- Nâng cấp trải nghiệm UX và cập nhật giao diện';
+      }
+
       return res.json({
         currentVersion,
         latestVersion,
         updateAvailable,
-        releaseName: release.name || (`v${latestVersion} Spark of Overlord`),
-        releaseNotes: release.body || '### ✨ Có gì mới trong bản cập nhật này:\n- Các cải tiến hiệu năng chuyên sâu\n- Nâng cấp trải nghiệm UX và cập nhật giao diện',
+        releaseName: intermediateReleases.length > 1 
+          ? `v${latestVersion} Tổng hợp bản cập nhật (${intermediateReleases.length} phiên bản mới)`
+          : (latestRelease.name || `v${latestVersion} Spark of Overlord`),
+        releaseNotes: releaseNotes,
         downloadUrl: downloadUrl || `https://github.com/nptran/rebase-overlord-v2/releases/download/v${latestVersion}/Rebase.Overlord.Setup.${latestVersion}.exe`,
-        publishedAt: release.published_at || new Date().toISOString(),
+        publishedAt: latestRelease.published_at || new Date().toISOString(),
         simulated: false
       });
     } else {
-      console.warn(`GitHub REST API returned non-200 status (${releaseRes.status}). Trying raw package.json fallback.`);
+      console.warn(`GitHub REST API returned non-200 status or empty releases array. Trying raw package.json fallback.`);
     }
   } catch (err) {
     console.warn('GitHub Revisions REST API check failed. Fetching package.json reference.', err);
@@ -1827,12 +1847,45 @@ app.get('/api/update/check', async (req, res) => {
       const latestVersion = rawRes.data.version;
       const updateAvailable = semverCompare(latestVersion, currentVersion) > 0;
       
+      const mockReleases = [
+        {
+          tag: '1.26.1',
+          name: 'v1.26.1 - Bảo mật cập nhật & Sửa lỗi',
+          desc: '- 🔧 Ngăn ngừa sửa đổi phiên bản_patch.json không mong muốn khi tải tệp cài đặt thật.\n- 🚀 Tối ưu hóa phản hồi quy trình cập nhật thực tế.'
+        },
+        {
+          tag: '1.26.0',
+          name: 'v1.26.0 - Trình cài đặt tự động bypass UAC',
+          desc: '- 📦 Nâng cấp tệp MSI/EXE bỏ qua các kiểm soát phân quyền phức tạp của Windows.\n- 🎨 Tắt âm cảnh báo thông minh của Trợ lý AI và sửa thiết bị.'
+        },
+        {
+          tag: '1.25.0',
+          name: 'v1.25.0 - Giải quyết xung đột tự động AI Doctor',
+          desc: '- 🤖 Cho phép AI Git Doctor phân tách mâu thuẫn rebase phức tạp và gợi ý xử lý chuẩn.\n- 🍰 Thêm tính năng lưu trữ tạm các checkpoint patch.'
+        },
+        {
+          tag: '1.15.0',
+          name: 'v1.15.0 - Giải cứu chỉ số Reflog khẩn cấp',
+          desc: '- ⚡ Tích hợp Reflog Rescue Panel khôi phục lịch sử commit gốc dễ dàng.\n- 🔌 Hỗ trợ rà soát offline bằng luật chẩn đoán tĩnh.'
+        }
+      ];
+
+      const intermediateMock = mockReleases.filter(r => semverCompare(r.tag, currentVersion) > 0);
+      let releaseNotes = '';
+      if (intermediateMock.length > 0) {
+        releaseNotes = intermediateMock.map(r => `📦 **${r.name}**\n${r.desc}\n`).join('\n────────────────────────────────────────\n\n');
+      } else {
+        releaseNotes = `### ✨ Có gì mới trong bản v${latestVersion}:\n- 🤖 **Trợ lý AI Doctor**: Được cập nhật cấu trúc nhận thức mới, hỗ trợ tối đa quy trình squashing và giải quyết mâu thuẫn.\n- 🎨 **Cải thiện Toasts & UX**: Thêm bão táp chúc mừng khi chuyển đổi cấu hình, cảnh báo mượt mà và giao diện tương tác sinh động.\n- ⚡ **Giải cứu Reflog**: Bộ công cụ khôi phục lịch sử khi rebase bị lỗi được tối ưu hóa tốt hơn.\n- 🔌 **Chẩn đoán offline**: Sơ cứu cục bộ bằng luật tĩnh được tích hợp sẵn phòng khi ngắt kết nối.`;
+      }
+
       return res.json({
         currentVersion,
         latestVersion,
         updateAvailable,
-        releaseName: `v${latestVersion} Spark of Overlord`,
-        releaseNotes: `### ✨ Có gì mới trong bản v${latestVersion}:\n- 🤖 **Trợ lý AI Doctor**: Được cập nhật cấu trúc nhận thức mới, hỗ trợ tối đa quy trình squashing và giải quyết mâu thuẫn.\n- 🎨 **Cải thiện Toasts & UX**: Thêm bão táp chúc mừng khi chuyển đổi cấu hình, cảnh báo mượt mà và giao diện tương tác sinh động.\n- ⚡ **Giải cứu Reflog**: Bộ công cụ khôi phục lịch sử khi rebase bị lỗi được tối ưu hóa tốt hơn.\n- 🔌 **Chẩn đoán offline**: Sơ cứu cục bộ bằng luật tĩnh được tích hợp sẵn phòng khi ngắt kết nối.`,
+        releaseName: intermediateMock.length > 1
+          ? `v${latestVersion} Tổng hợp bản cập nhật (${intermediateMock.length} phiên bản mới)`
+          : `v${latestVersion} Spark of Overlord`,
+        releaseNotes: releaseNotes,
         downloadUrl: `https://github.com/nptran/rebase-overlord-v2/releases/download/v${latestVersion}/Rebase.Overlord.Setup.${latestVersion}.exe`,
         publishedAt: new Date().toISOString(),
         simulated: true
@@ -1845,12 +1898,31 @@ app.get('/api/update/check', async (req, res) => {
   // 3. Last-ditch local estimate fallback
   const fallbackVersion = '1.15.0';
   const updateAvailable = semverCompare(fallbackVersion, currentVersion) > 0;
+  
+  const mockReleasesFallback = [
+    {
+      tag: '1.15.0',
+      name: 'v1.15.0 - Trọng tâm giải cấu trúc Git',
+      desc: '- 🤖 Giải cứu nút thắt Reflog và squashing xung đột tự động nâng cao.\n- ⚡ Trình chẩn đoán offline bằng quy tắc tĩnh cục bộ siêu tốc.'
+    }
+  ];
+  
+  const intermediateMockFallback = mockReleasesFallback.filter(r => semverCompare(r.tag, currentVersion) > 0);
+  let releaseNotesFallback = '';
+  if (intermediateMockFallback.length > 0) {
+    releaseNotesFallback = intermediateMockFallback.map(r => `📦 **${r.name}**\n${r.desc}\n`).join('\n────────────────────────────────────────\n\n');
+  } else {
+    releaseNotesFallback = `### ✨ Có gì mới trong bản v${fallbackVersion}:\n- Trải nghiệm Git Rebase Overlord được tinh chỉnh hiệu năng cực đại.\n- Hỗ trợ công cụ AI Git Doctor mạnh mẽ dọn dẹp các mâu thuẫn chồng lấn dòng code.`;
+  }
+
   res.json({
     currentVersion,
     latestVersion: fallbackVersion,
     updateAvailable,
-    releaseName: `v${fallbackVersion} Spark of Overlord`,
-    releaseNotes: `### ✨ Có gì mới trong bản v${fallbackVersion}:\n- Trải nghiệm Git Rebase Overlord được tinh chỉnh hiệu năng cực đại.\n- Hỗ trợ công cụ AI Git Doctor mạnh mẽ dọn dẹp các mâu thuẫn chồng lấn dòng code.`,
+    releaseName: intermediateMockFallback.length > 1
+      ? `v${fallbackVersion} Tổng hợp bản cập nhật`
+      : `v${fallbackVersion} Spark of Overlord`,
+    releaseNotes: releaseNotesFallback,
     downloadUrl: `https://github.com/nptran/rebase-overlord-v2/releases/download/v${fallbackVersion}/Rebase.Overlord.Setup.${fallbackVersion}.exe`,
     publishedAt: new Date().toISOString(),
     simulated: true
