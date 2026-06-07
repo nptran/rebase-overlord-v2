@@ -2113,12 +2113,27 @@ app.post('/api/update/apply', (req, res) => {
   setTimeout(() => {
     try {
       if (platform === 'win32') {
-        const { spawn } = require('child_process');
-        const child = spawn(installerPath, [], {
-          detached: true,
-          stdio: 'ignore'
-        });
-        child.unref();
+        const { spawn, exec: winExec } = require('child_process');
+        // Use standard Windows shell initiation block to bypass sandbox constraints and trigger UAC if needed
+        try {
+          winExec(`start "" "${installerPath}"`, (err: any) => {
+            if (err) {
+              console.warn('[UPDATER] Shell-start trigger returned non-zero, falling back to direct detached spawning...', err);
+              const child = spawn(installerPath, [], {
+                detached: true,
+                stdio: 'ignore'
+              });
+              child.unref();
+            }
+          });
+        } catch (spawnErr) {
+          console.error('[UPDATER] Failed shell execution, direct direct spawn execution attempted:', spawnErr);
+          const child = spawn(installerPath, [], {
+            detached: true,
+            stdio: 'ignore'
+          });
+          child.unref();
+        }
       } else if (platform === 'darwin') {
         exec(`open "${installerPath}"`, (err) => {
           if (err) console.error('Failed to mount DMG on macOS:', err);

@@ -579,8 +579,12 @@ export default function App() {
   const [appVersion, setAppVersion] = React.useState<string>('1.12.0');
   const isUpgraded = React.useMemo(() => {
     const parts = appVersion.split('.').map(v => parseInt(v, 10) || 0);
+    // Baseline is 1.12.0; any version greater than that is an upgrade
     if (parts[0] > 1) return true;
-    if (parts[0] === 1 && parts[1] >= 15) return true;
+    if (parts[0] === 1) {
+      if (parts[1] > 12) return true;
+      if (parts[1] === 12 && parts[2] > 0) return true;
+    }
     return false;
   }, [appVersion]);
 
@@ -1307,19 +1311,19 @@ export default function App() {
           if (data.currentVersion) {
             setAppVersion(data.currentVersion);
             
-            // If we are on v1.15.0 or later, celebrate the successful upgrade!
+            // If we are upgraded relative to 1.12.0, celebrate!
             const parts = data.currentVersion.split('.').map((v: string) => parseInt(v, 10) || 0);
-            const isLatest = parts[0] > 1 || (parts[0] === 1 && parts[1] >= 15);
+            const isLatest = parts[0] > 1 || (parts[0] === 1 && (parts[1] > 12 || (parts[1] === 12 && parts[2] > 0)));
             if (isLatest) {
               const hasAnnounced = localStorage.getItem('rebase_overlord_announced_v15');
               if (!hasAnnounced) {
                 setTimeout(() => {
                   triggerToast(
                     'success',
-                    tone === TranslationTone.ENGLISH ? '🎉 UPGRADED TO v1.15.0!' : '🎉 ĐÃ NÂNG CẤP LÊN v1.15.0!',
+                    tone === TranslationTone.ENGLISH ? `🎉 UPGRADED TO v${data.currentVersion}!` : `🎉 ĐÃ NÂNG CẤP LÊN v${data.currentVersion}!`,
                     tone === TranslationTone.ENGLISH 
                       ? 'Congratulations! The advanced features (AI Doctor Pro, Reflog Diagnostics, and interactive recovery) are fully unlocked.'
-                      : 'Chúc mừng! Bạn đã nâng cấp thành công. Toàn bộ tính năng cao cấp (AI Doctor Pro, Khôi phục Reflog, Chẩn đoán offline) đã được kích hoạt!',
+                      : `Chúc mừng! Bạn đã nâng cấp thành công lên phiên bản v${data.currentVersion}. Toàn bộ tính năng cao cấp (AI Doctor Pro, Khôi phục Reflog, Chẩn đoán offline) đã được kích hoạt!`,
                     '🚀'
                   );
                   localStorage.setItem('rebase_overlord_announced_v15', 'true');

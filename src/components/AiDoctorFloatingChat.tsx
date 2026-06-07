@@ -216,12 +216,12 @@ export default function AiDoctorFloatingChat({
         title: tone === 'en_pro' ? '🔌 Diagnostic Sandbox Rules' : '🔌 Chẩn Đoán Ngoại Tuyến',
         query: tone === 'en_pro'
           ? 'What are the static diagnostic safety checks for git projects, including detached HEADs, diverged trees, and dangling references?'
-          : 'Hãy phân tích các lỗi tiềm ẩn của nhánh Git hiện tại bằng bộ luật chẩn đoán ngoại tuyến v1.15 của Bác Sĩ!'
+          : `Hãy phân tích các lỗi tiềm ẩn của nhánh Git hiện tại bằng bộ luật chẩn đoán ngoại tuyến v${appVersion} của Bác Sĩ!`
       });
     }
 
     return list;
-  }, [repoState, tone, isUpgraded]);
+  }, [repoState, tone, isUpgraded, appVersion]);
 
   // Handle open greeting message based on active tone Persona
   React.useEffect(() => {
@@ -229,13 +229,13 @@ export default function AiDoctorFloatingChat({
       let proPrefix = "";
       if (isUpgraded) {
         if (tone === 'vn_joke') {
-          proPrefix = "🚀 [BẢN NÂNG CẤP CHUYÊN NGHIỆP v1.15.0 ĐÃ KÍCH HOẠT!] 🌟\n\n";
+          proPrefix = `🚀 [BẢN NÂNG CẤP CHUYÊN NGHIỆP v${appVersion} ĐÃ KÍCH HOẠT!] 🌟\n\n`;
         } else if (tone === 'vn_toxic') {
-          proPrefix = "🔥 [AI DOCTOR PRO v1.15 LÊN SÀN - CÔNG LỰC VÔ SONG!] 😈\n\n";
+          proPrefix = `🔥 [AI DOCTOR PRO v${appVersion} LÊN SÀN - CÔNG LỰC VÔ SONG!] 😈\n\n`;
         } else if (tone === 'en_pro') {
-          proPrefix = "⚡ [AI GIT DOCTOR PRO v1.15.0 ENGINE LOADED] ⚡\n\n";
+          proPrefix = `⚡ [AI GIT DOCTOR PRO v${appVersion} ENGINE LOADED] ⚡\n\n`;
         } else {
-          proPrefix = "✨ [CHẾ ĐỘ AI DOCTOR PRO v1.15.0 ĐÃ SẮN SÀNG CHẨN ĐOÁN] ✨\n\n";
+          proPrefix = `✨ [CHẾ ĐỘ AI DOCTOR PRO v${appVersion} ĐÃ SẮN SÀNG CHẨN ĐOÁN] ✨\n\n`;
         }
       }
 
@@ -459,7 +459,7 @@ export default function AiDoctorFloatingChat({
                       AI Git Doctor 
                       {isUpgraded && (
                         <span className="text-[9px] text-amber-500 bg-amber-500/10 border border-amber-500/30 px-1 py-0.2 rounded font-extrabold tracking-widest animate-pulse">
-                          PRO v1.15
+                          PRO v{appVersion}
                         </span>
                       )}
                     </span>
