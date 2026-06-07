@@ -24,7 +24,8 @@ import {
   ChevronUp,
   ChevronDown,
   Bot,
-  Sparkles
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
 import { ConflictFile, TranslationTone } from '../types';
 
@@ -460,6 +461,11 @@ export default function ConflictSolver({
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
   const [editMode, setEditMode] = React.useState<'jetbrains' | 'raw'>('jetbrains');
   const [customBlockTexts, setCustomBlockTexts] = React.useState<Record<number, string>>({});
+
+  // Block-level AI suggestions states
+  const [blockAiLoading, setBlockAiLoading] = React.useState<Record<number, boolean>>({});
+  const [blockAiExplanations, setBlockAiExplanations] = React.useState<Record<number, string>>({});
+  const [blockAiApplied, setBlockAiApplied] = React.useState<Record<number, boolean>>({});
 
   // AI Resolution and Explanation states
   const [isAiLoading, setIsAiLoading] = React.useState(false);
@@ -1113,6 +1119,54 @@ export default function ConflictSolver({
     }).join('\n');
   }, [blocks]);
 
+  const handleResolveBlockAi = async (bIdx: number) => {
+    const block = blocks[bIdx];
+    if (!block || block.type !== 'conflict') return;
+
+    setBlockAiLoading(prev => ({ ...prev, [bIdx]: true }));
+    try {
+      const response = await fetch('/api/resolve-block-ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filepath: selectedFile?.filepath || 'source_code',
+          oursText: block.oursText || '',
+          theirsText: block.theirsText || '',
+          tone: tone
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to resolve block conflict');
+      }
+
+      const data = await response.json();
+      
+      // Update block choice to accepted/accepted
+      const updatedChoices = { ...blockChoices };
+      updatedChoices[bIdx] = { left: 'accepted', right: 'accepted' };
+      setBlockChoices(updatedChoices);
+
+      // Update block's custom text with the AI resolved content
+      const updatedCustoms = { ...customBlockTexts };
+      updatedCustoms[bIdx] = data.resolvedContent;
+      setCustomBlockTexts(updatedCustoms);
+
+      // Update explanation if any
+      setBlockAiExplanations(prev => ({ ...prev, [bIdx]: data.explanation }));
+      setBlockAiApplied(prev => ({ ...prev, [bIdx]: true }));
+
+      // Sync master editorText
+      setEditorText(getMergedContent(updatedChoices, updatedCustoms));
+    } catch (err) {
+      console.error("Failed to AI resolve block:", err);
+    } finally {
+      setBlockAiLoading(prev => ({ ...prev, [bIdx]: false }));
+    }
+  };
+
   React.useEffect(() => {
     // Reset our search fields on file selection transition
     setStateLeftSearch(prev => ({ ...prev, isOpen: false, query: '', activeIndex: 0 }));
@@ -1125,6 +1179,10 @@ export default function ConflictSolver({
     setAiError(null);
     setIsAiLoading(false);
     setWasAiApplied(false);
+
+    setBlockAiLoading({});
+    setBlockAiExplanations({});
+    setBlockAiApplied({});
 
     if (selectedFile) {
       const initialChoices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }> = {};
@@ -1376,6 +1434,35 @@ export default function ConflictSolver({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
+                          handleResolveBlockAi(bIdx);
+                        }}
+                        disabled={blockAiLoading[bIdx]}
+                        className={`px-1.5 py-0.5 rounded text-xs font-black shadow cursor-pointer transition-all flex items-center justify-center border hover:scale-105 active:scale-95 ${
+                          blockAiLoading[bIdx]
+                            ? 'bg-violet-950/20 text-violet-400 border-violet-500/20 animate-pulse'
+                            : isLight
+                              ? 'bg-violet-50 hover:bg-violet-100 text-violet-600 border-violet-200'
+                              : 'bg-violet-900/30 hover:bg-violet-900/50 text-violet-300 border-violet-500/30'
+                        }`}
+                        title={
+                          tone === TranslationTone.ENGLISH
+                            ? "AI Proposed Resolve (Smart Merge)"
+                            : tone === TranslationTone.TOXIC
+                              ? "🤖 Để bố AI giải bùa hộ mày cái!"
+                              : tone === TranslationTone.JOKE
+                                ? "🤖 Nhờ vả sư phụ AI gộp hộ"
+                                : "🤖 Đề xuất gộp thông minh bằng AI"
+                        }
+                      >
+                        {blockAiLoading[bIdx] ? (
+                          <RefreshCw className="w-3 h-3 animate-spin text-violet-400" />
+                        ) : (
+                          <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                        )}
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
                           handleResolveSide(bIdx, 'left', 'ignore');
                         }}
                         className={`px-2 py-0.5 font-bold rounded text-xs border cursor-pointer transition-colors ${
@@ -1484,6 +1571,35 @@ export default function ConflictSolver({
                         title={loc.btnTheirs}
                       >
                         «
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleResolveBlockAi(bIdx);
+                        }}
+                        disabled={blockAiLoading[bIdx]}
+                        className={`px-1.5 py-0.5 rounded text-xs font-black shadow cursor-pointer transition-all flex items-center justify-center border hover:scale-105 active:scale-95 ${
+                          blockAiLoading[bIdx]
+                            ? 'bg-violet-950/20 text-violet-400 border-violet-500/20 animate-pulse'
+                            : isLight
+                              ? 'bg-violet-50 hover:bg-violet-100 text-violet-600 border-violet-200'
+                              : 'bg-violet-900/30 hover:bg-violet-900/50 text-violet-300 border-violet-500/30'
+                        }`}
+                        title={
+                          tone === TranslationTone.ENGLISH
+                            ? "AI Proposed Resolve (Smart Merge)"
+                            : tone === TranslationTone.TOXIC
+                              ? "🤖 Để bố AI giải bùa hộ mày cái!"
+                              : tone === TranslationTone.JOKE
+                                ? "🤖 Nhờ vả sư phục AI gộp hộ"
+                                : "🤖 Đề xuất gộp thông minh bằng AI"
+                        }
+                      >
+                        {blockAiLoading[bIdx] ? (
+                          <RefreshCw className="w-3 h-3 animate-spin text-violet-400" />
+                        ) : (
+                          <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                        )}
                       </button>
                       <button
                         onClick={(e) => {
@@ -1656,6 +1772,15 @@ export default function ConflictSolver({
                     />
 
                     <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-80 select-none pointer-events-none">
+                      {blockAiApplied[bIdx] && (
+                        <span 
+                          className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-violet-500/20 border border-violet-500/35 text-violet-400 uppercase tracking-widest flex items-center gap-1 cursor-help pointer-events-auto"
+                          title={blockAiExplanations[bIdx]}
+                        >
+                          <Sparkles className="w-2.5 h-2.5 text-violet-400 animate-pulse" />
+                          <span>AI Option</span>
+                        </span>
+                      )}
                       {isPending ? (
                         <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/35 text-indigo-400 uppercase tracking-widest animate-pulse">
                           Pending

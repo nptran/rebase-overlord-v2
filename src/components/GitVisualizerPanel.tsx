@@ -612,15 +612,13 @@ export default function GitVisualizerPanel({
   const [activeAction, setActiveAction] = useState<VisualActionType>('rebase');
   const [currentStep, setCurrentStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isSyncedWithWizard, setIsSyncedWithWizard] = useState(!isSimulation);
+  const [isSyncedWithWizard, setIsSyncedWithWizard] = useState(true);
   const [hoveredCommitSha, setHoveredCommitSha] = useState<string | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    setIsSyncedWithWizard(!isSimulation);
-    if (!isSimulation) {
-      setIsPlaying(false);
-    }
+    setIsSyncedWithWizard(true);
+    setIsPlaying(false);
   }, [isSimulation]);
 
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
@@ -651,11 +649,7 @@ export default function GitVisualizerPanel({
     setActiveAction(action);
     setCurrentStep(0);
     setIsPlaying(false);
-    if (onToggleSimulation) {
-      onToggleSimulation(true);
-    } else {
-      setIsSyncedWithWizard(false); // Disable sync on manual tabs interaction
-    }
+    setIsSyncedWithWizard(false); // Disable sync on manual tabs interaction
   };
 
   // Synchronize with Wizard step changes
@@ -2117,47 +2111,6 @@ export default function GitVisualizerPanel({
 
         {/* Action Selector */}
         <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
-          {wizard && (
-            <div className={`p-0.5 rounded-lg border flex items-center shadow-sm select-none ${isLight ? 'bg-slate-100 border-slate-205' : 'bg-slate-900 border-slate-800'}`}>
-              {/* Real Git Sync Toggle Button */}
-              <button
-                type="button"
-                id="btn-vis-sync-toggle-header"
-                onClick={() => {
-                  if (isSimulation) handleToggleUnified();
-                }}
-                className={`p-1.5 px-2 rounded-md transition-all cursor-pointer flex items-center justify-center ${
-                  !isSimulation
-                    ? isLight
-                      ? 'bg-white text-indigo-600 shadow-sm border border-slate-200 font-semibold'
-                      : 'bg-indigo-600/35 text-indigo-300 border border-indigo-500/25'
-                    : 'text-slate-400 hover:text-indigo-400'
-                }`}
-                title={tone === TranslationTone.ENGLISH ? 'Sync with Real Git' : 'Đồng bộ với Git thật'}
-              >
-                <Link className="w-3.5 h-3.5" />
-              </button>
-              {/* Simulate Mode Toggle Button */}
-              <button
-                type="button"
-                id="btn-vis-simulate-toggle-header"
-                onClick={() => {
-                  if (!isSimulation) handleToggleUnified();
-                }}
-                className={`p-1.5 px-2 rounded-md transition-all cursor-pointer flex items-center justify-center ${
-                  isSimulation
-                    ? isLight
-                      ? 'bg-white text-emerald-600 shadow-sm border border-slate-200 font-semibold'
-                      : 'bg-emerald-600/35 text-emerald-300 border border-emerald-500/25'
-                    : 'text-slate-400 hover:text-emerald-400'
-                }`}
-                title={tone === TranslationTone.ENGLISH ? 'Playground Simulation' : 'Sa bàn Giả lập'}
-              >
-                <FlaskConical className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
-
           <div className="flex flex-wrap gap-1 w-full md:w-auto">
             {(['rebase', 'stash', 'merge', 'commit', 'push', 'diverge', 'fast-forward'] as VisualActionType[]).map((action) => {
               const isSelected = activeAction === action && isSimulation;
@@ -2294,8 +2247,9 @@ export default function GitVisualizerPanel({
                 type="button"
                 id="btn-vis-play-pause-floating"
                 onClick={() => {
-                  if (!isSimulation) {
-                    handleToggleUnified();
+                  if (isSyncedWithWizard) {
+                    setIsSyncedWithWizard(false);
+                    setIsPlaying(true);
                   } else {
                     setIsPlaying(p => !p);
                   }
@@ -2385,16 +2339,17 @@ export default function GitVisualizerPanel({
                     type="button"
                     id="btn-vis-sync-toggle-footer"
                     onClick={() => {
-                      if (isSimulation) handleToggleUnified();
+                      setIsSyncedWithWizard(true);
+                      setIsPlaying(false);
                     }}
                     className={`p-1.5 px-2.5 rounded-md transition-all cursor-pointer flex items-center justify-center ${
-                      !isSimulation
+                      isSyncedWithWizard
                         ? isLight
                           ? 'bg-white text-indigo-650 shadow-sm border border-slate-250/50 font-semibold'
                           : 'bg-indigo-600/35 text-indigo-300 border border-indigo-500/25'
                         : 'text-slate-400 hover:text-indigo-400'
                     }`}
-                    title={tone === TranslationTone.ENGLISH ? 'Sync with Real Git' : 'Đồng bộ với Git thực tế'}
+                    title={tone === TranslationTone.ENGLISH ? 'Sync with Git Repo' : 'Đồng bộ với Git thực tế'}
                   >
                     <Link className="w-3.5 h-3.5" />
                   </button>
@@ -2403,10 +2358,14 @@ export default function GitVisualizerPanel({
                     type="button"
                     id="btn-vis-simulate-toggle-footer"
                     onClick={() => {
-                      if (!isSimulation) handleToggleUnified();
+                      setIsSyncedWithWizard(false);
+                      if (currentStep >= totalSteps - 1) {
+                        setCurrentStep(0);
+                      }
+                      setIsPlaying(true);
                     }}
                     className={`p-1.5 px-2.5 rounded-md transition-all cursor-pointer flex items-center justify-center ${
-                      isSimulation
+                      !isSyncedWithWizard
                         ? isLight
                           ? 'bg-white text-emerald-650 shadow-sm border border-slate-250/50 font-semibold'
                           : 'bg-emerald-600/35 text-emerald-300 border border-emerald-500/25'
@@ -2422,7 +2381,7 @@ export default function GitVisualizerPanel({
               <button
                 id="btn-vis-reset"
                 onClick={handleReset}
-                disabled={!isSimulation}
+                disabled={isSyncedWithWizard}
                 className={`p-1.5 rounded-lg border transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer ${
                   isLight 
                     ? 'bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-800 border-slate-200' 

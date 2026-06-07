@@ -348,6 +348,81 @@ const sanityLoc: Record<TranslationTone, {
   }
 };
 
+const tooltipTexts: Record<TranslationTone, Record<string, { why: string; how: string }>> = {
+  [TranslationTone.PROFESSIONAL]: {
+    dirty: {
+      why: "Workspace đang có thay đổi chưa được commit. Tiến trình Rebase yêu cầu một thư mục làm việc sạch sẽ (clean working tree) để có thể tạm nén và sau đó áp dụng tuần tự từng commit mới của bạn lên phía trên nhánh base mà không gây đè hoặc mất dữ liệu.",
+      how: "Hãy chạy lệnh 'git stash' để lưu tạm thời các sửa đổi hiện tại vào bộ nhớ đệm ẩn, hoặc bấm nút 'discard' để xóa sạch các thay đổi nháp nếu bạn không cần sử dụng chúng nữa."
+    },
+    diverged: {
+      why: "Nhánh ở local máy tính của bạn và nhánh theo dõi từ xa (remote tracking branch) trên GitHub đều có thêm các commit mới khác nhau. Điều này khiến dòng lịch sử bị rẽ đôi chéo, Git không thể tự động fast-forward khi push.",
+      how: "Nên sử dụng 'git pull --rebase' để chèn những commit chưa đẩy của bạn lên sau các commit mới nhất của remote. Chỉ dùng Force Push khi bạn muốn ghi đè hoàn toàn bảo bối của mình lên máy chủ."
+    },
+    detached: {
+      why: "Con trỏ HEAD đang trỏ thẳng vào một commit cụ thể thay vì bám trụ vào một nhánh tham chiếu cụ thể. Trạng thái này là 'vô gia cư', các commit mới tạo ra sẽ không thuộc nhánh nào và dễ bị tiến trình dọn dẹp bộ nhớ (garbage collection) của Git xóa mất.",
+      how: "Hãy nhấp ngay nút 'tạo nhánh rescue' (mô phỏng 'git checkout -b <nhánh_mới>') để gắn neo liên kết, giữ an toàn toàn vẹn cho đống lịch sử code của bạn."
+    },
+    stale: {
+      why: "Nhánh đích cơ sở (thường là 'develop' hoặc 'main') đang bị tụt hậu so với remote server mây, khiến bạn chuẩn bị Rebase trên một cái nền móng cũ kĩ và dễ dẫn tới hàng tấn xung đột không đáng có.",
+      how: "Chọn cách 'fetch & pull sync' để cập nhật nhanh móng nhà base về trạng thái mới nhất, giúp quá trình nhấc - đặt commit diễn ra mượt mờ."
+    }
+  },
+  [TranslationTone.JOKE]: {
+    dirty: {
+      why: "Workspace ngổn ngang quần áo chưa gấp (chưa commit) kìa sếp! Đang tái cấu trúc lịch sử mà đồ đạc quăng lung tung là Git nó bạo loạn làm loạn xì ngầu đó.",
+      how: "Gấp gọn nhét tủ bằng 'git stash' hoặc vứt sọt rác bằng Discard cho nhẹ gánh giang hồ nha sếp."
+    },
+    diverged: {
+      why: "Sếp đi đường sếp, Server đi đường Server, hai bên đã rẽ lối chia hai ngả rồi kìa. Push đè lên là ăn dép của đồng nghiệp ngay!",
+      how: "Triển chiêu 'pull --rebase' dỗ dành kéo hai bên sát lại gần nhau, hoặc bá đạo hơn thì 'force push' đè bẹp server luôn."
+    },
+    detached: {
+      why: "Đầu lìa khỏi xác rồi sếp ơi! Trùng khơi vô định không bến đỗ, tắt máy đi ngủ là đống commit bay màu không dấu vết như người yêu cũ luôn.",
+      how: "Nhanh tay quăng phao 'tạo nhánh rescue' buộc cổ HEAD lại ngay kẻo code trôi sông trôi biển!"
+    },
+    stale: {
+      why: "Nhánh móng (base) mốc meo từ thời tống rồi kìa sếp! Móng nhà rệu rã thế này mà xây đè gạch rebase lên là nát bét đó.",
+      how: "Bật ngay 'fetch & pull' hút tinh khí từ remote về bơm căng nhánh base cho tươi trẻ lại sếp ơi."
+    }
+  },
+  [TranslationTone.TOXIC]: {
+    dirty: {
+      why: "Code bôi ra lung tung chưa thèm dọn dẹp mà đòi múa Rebase rồi à? Đừng để đống bừa bộn này làm hỏng bét cả tiến trình gộp nhé cụ.",
+      how: "Thả đống rác vào túi 'git stash' cất đi, hoặc bấm nút 'discard' xoá hết công sức xạo xạo vừa bôi ra đi cho rảnh."
+    },
+    diverged: {
+      why: "Mỗi bên đi một ngả chọc gáy nhau rồi. Nghĩ sao đòi push thẳng khi server đang có hàng xịn hơn? Úp sọt lộn xộn rồi đó.",
+      how: "Nhanh cái tay gõ 'pull --rebase' xếp hàng trật tự đi. Còn nếu thích ăn chửi thì phang 'force push' đè nát cả lò server."
+    },
+    detached: {
+      why: "HEAD mất xác, bay đầu lơ lửng ngoài vũ trụ rồi con giời ơi! Code vớ vẩn này không bám vào nhánh nào thì tắt tab một cái là bay màu sạch đừng khóc.",
+      how: "Hồn về với xác lẹ! Bấm mịa nó nút 'rescue' để tự chế ra cái nhánh cứu rỗi linh hồn đống commit đi kìa!"
+    },
+    stale: {
+      why: "Nhánh gốc (base) nát từ kiếp nào rồi không chịu cập nhật, tính Rebase đè lên cái nền mục nát để ăn cám cả lũ à?",
+      how: "Bớt lười lại, bấm 'fetch & pull sync' dọn dẹp móng cho sạch mới mong code chạy mượt được."
+    }
+  },
+  [TranslationTone.ENGLISH]: {
+    dirty: {
+      why: "You have uncommitted modifications in your workspace. Rebasing works by rewriting commit history, which strictly requires a clean working tree to prevent conflicting untracked code collisions.",
+      how: "Run 'git stash' to store your current progress into a temporary stack cabinet, or click 'discard' to wipe them if you don't need them anymore."
+    },
+    diverged: {
+      why: "Your local branch and remote origin have diverged with differing commit chains. Git will reject standard push requests because the remote history is not a parent of local HEAD.",
+      how: "Perform 'git pull --rebase' to cleanly fetch and replay your commits over the fetched remote timeline, or use force push to override."
+    },
+    detached: {
+      why: "HEAD is in a detached state, pointing directly to a naked commit instead of a reference branch container. Any future commits here are orphaned and at risk of being pruned by Git's garbage collection.",
+      how: "Instantly create a rescue branch ('git checkout -b rescue-branch') to anchor and safely secure your commits under a permanent pointer."
+    },
+    stale: {
+      why: "Your reference base branch is stale and outdated compared to remote origin master. Rebasing features on a stale root will yield severe and unnecessary merge conflicts.",
+      how: "Trigger origin sync using 'fetch & pull' to bring the base branch reference completely up-to-date, ensuring smooth rebase operations."
+    }
+  }
+};
+
 async function safeParseError(res: Response, fallbackMsg: string): Promise<string> {
   try {
     const text = await res.text();
@@ -510,6 +585,8 @@ export default function App() {
   }, [appVersion]);
 
   const sloc = sanityLoc[tone];
+
+  const [activeTooltip, setActiveTooltip] = React.useState<string | null>(null);
 
   // Core Git States with localStorage fallback
   const [repoState, setRepoState] = React.useState<GitRepoState>(() => {
@@ -2524,7 +2601,7 @@ export default function App() {
             handleRefresh(val);
             
             if (val) {
-              triggerToast('milestone', '⚡ SIMULATION RUNTIME', 'Vùng cát mô phỏng an toàn đã kích hoạt. Đập phá, commit láo thoải mái không sợ sập server!', '🧪');
+              triggerToast('milestone', '⚡ SIMULATION RUNTIME', 'Sandbox mô phỏng an toàn đã kích hoạt. Đập phá, commit láo thoải mái không sợ sập server!', '🧪');
             } else {
               triggerToast('warn', '🔌 REAL GIT CONNECTED', 'Chú ý: Đã chuyển ngữ trực tiếp vào tệp tin và Repo thật trên ổ đĩa máy chủ!', '⚠️');
             }
@@ -2556,6 +2633,9 @@ export default function App() {
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
         />
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 w-full">
+          <div className="lg:col-span-8 flex flex-col gap-5">
 
         {/* Serverless / Vercel Host Warn & Config Banner */}
         {backendStatus === 'unreachable' && (
@@ -2619,9 +2699,9 @@ export default function App() {
                       handleRefresh();
                     }}
                     className="bg-rose-950/40 hover:bg-rose-900/60 transition-all text-rose-400 font-mono text-[10px] py-1.5 px-2.5 rounded border border-rose-900/30 cursor-pointer text-center"
-                    title="Xóa địa chỉ tùy chỉnh"
+                    title="Xóa cấu hình địa chỉ tự chọn"
                   >
-                    Reset
+                    Xóa
                   </button>
                 )}
               </div>
@@ -2629,50 +2709,126 @@ export default function App() {
           </motion.div>
         )}
 
-        {/* Dashboard Panels Grid split screen */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-          
-          {/* Main Workspace Left panel containing State Wizard and visual helpers */}
-          <div className="lg:col-span-8 flex flex-col gap-5">
-            
-            {/* Real-time Visual Commit Squashing Timeline Graph */}
-            {!showGraphTimeline ? (
-              <div id="live-git-visualization-collapsed" className={`border rounded-xl p-3 flex justify-between items-center transition-all duration-200 ${theme === 'light' ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0f172a] border-slate-900 text-slate-305'}`}>
-                <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
-                  <History className="w-4 h-4 text-emerald-400" />
-                  <span className="font-bold uppercase tracking-wider">{sloc.visualTimelineTitle}</span>
-                  <span className="text-[10px] text-slate-500 opacity-60">
-                    ({tone === TranslationTone.ENGLISH ? 'Hidden' : 'Đang ẩn'})
-                  </span>
-                </div>
-                <button
-                  onClick={() => setShowGraphTimeline(true)}
-                  className={`p-1.5 rounded cursor-pointer border shrink-0 flex items-center justify-center transition-all ${
-                    theme === 'light'
-                      ? 'bg-emerald-50 border-emerald-250 text-emerald-700 hover:bg-emerald-100'
-                      : 'bg-[#1e293b] border-slate-755 text-emerald-400 hover:text-emerald-303'
-                  }`}
-                  title={tone === TranslationTone.ENGLISH ? 'Show' : 'Hiển thị'}
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ) : (
-              <div id="live-git-visualization" className={`border rounded-xl p-5 shadow-lg transition-all duration-200 ${theme === 'light' ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0f172a] border-slate-800 text-slate-100'}`}>
-                <div className="flex justify-between items-center w-full mb-4">
-                  <h3 className={`text-xs font-bold uppercase font-mono tracking-wider flex items-center gap-1.5 ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
-                    <History className="w-4 h-4 text-emerald-400" />
-                    <span>{sloc.visualTimelineTitle}</span>
-                  </h3>
+            {/* Clean Controls Toolbar Row (outside viewport to guarantee zero overlaps with rendered graph nodes) */}
+              <div className={`flex flex-wrap items-center justify-between gap-3 p-2 mb-3.5 rounded-lg border shadow-sm select-none font-mono text-xs ${
+                theme === 'light' 
+                  ? 'bg-slate-50 border-slate-200 text-slate-800' 
+                  : 'bg-slate-900 border-slate-800/80 text-slate-200'
+              }`}>
+                {/* Left side actions */}
+                <div className="flex items-center gap-2">
+                  {/* Mode Selector (Desktop only) */}
+                  {!isMobile && (
+                    <div className="flex items-center gap-0.5 bg-slate-200/50 dark:bg-slate-950/60 p-0.5 rounded-md border border-slate-300 dark:border-slate-800">
+                      <button
+                        onClick={() => setActiveTool('dragNode')}
+                        className={`p-1.5 rounded transition-all cursor-pointer active:scale-95 flex items-center justify-center ${
+                          activeTool === 'dragNode'
+                            ? 'bg-indigo-650 text-white shadow font-semibold'
+                            : theme === 'light' ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-405 hover:bg-slate-800/50'
+                        }`}
+                        title={sloc.dragNodeModeLabel}
+                      >
+                        <MousePointer className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setActiveTool('pan')}
+                        className={`p-1.5 rounded transition-all cursor-pointer active:scale-95 flex items-center justify-center ${
+                          activeTool === 'pan'
+                            ? 'bg-indigo-650 text-white shadow font-semibold'
+                            : theme === 'light' ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-405 hover:bg-slate-850'
+                        }`}
+                        title={sloc.panModeLabel}
+                      >
+                        <Hand className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+
+                  {!isMobile && <div className="w-[1px] h-4 bg-slate-300 dark:bg-slate-800/80 mx-0.5" />}
+
+                  {/* Left/Right / Rotation layout toggler */}
                   <button
-                    type="button"
-                    onClick={() => setShowGraphTimeline(false)}
-                    className="p-1.5 rounded hover:bg-slate-800/10 text-slate-500 hover:text-slate-350 transition-all text-xs font-mono flex items-center gap-1 cursor-pointer"
-                    title={tone === TranslationTone.ENGLISH ? 'Collapse Panel' : 'Thu gọn Panel'}
+                    onClick={() => setIsGraphVertical(v => !v)}
+                    className={`p-1.5 rounded border border-transparent hover:border-slate-350 dark:hover:border-slate-800 transition-all cursor-pointer flex items-center justify-center active:scale-95 ${
+                      theme === 'light' ? 'hover:bg-slate-100 text-slate-700' : 'hover:bg-slate-800 text-slate-300'
+                    }`}
+                    title={isGraphVertical ? "Layout Dọc. Bấm để chuyển sang Ngang (Horizontal Layout)" : "Layout Ngang. Bấm để chuyển sang Dọc (Vertical Layout)"}
                   >
-                    <EyeOff className="w-3.5 h-3.5 shrink-0" />
+                    <RotateCw className={`w-3.5 h-3.5 text-emerald-400 transition-transform duration-350 ${isGraphVertical ? 'rotate-90' : ''}`} />
                   </button>
                 </div>
+
+                {/* Right side adjustments */}
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Node width slide adjustment */}
+                  <div className="flex items-center gap-1.5 px-1" title={sloc.nodeSizeLabel}>
+                    <Move className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                    <input
+                      type="range"
+                      min="140"
+                      max="340"
+                      step="10"
+                      value={nodeWidth}
+                      onChange={(e) => setNodeWidth(parseInt(e.target.value))}
+                      className="w-16 sm:w-20 accent-indigo-505 cursor-ew-resize h-1 bg-slate-205 dark:bg-slate-800 rounded appearance-none"
+                    />
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded border leading-none font-bold font-mono transition-all ${
+                      theme === 'light'
+                        ? 'bg-indigo-50 border-indigo-200/80 text-indigo-700 shadow-sm'
+                        : 'bg-slate-900 border-slate-800 text-indigo-300 shadow-sm'
+                    }`}>
+                      {nodeWidth}px
+                    </span>
+                  </div>
+
+                  <div className="w-[1px] h-4 bg-slate-300 dark:bg-slate-800/80" />
+
+                  {/* Zoom adjustment */}
+                  <div className="flex items-center gap-0.5">
+                    <button
+                      onClick={() => setZoomScale(z => Math.max(0.3, Math.round((z - 0.1) * 10) / 10))}
+                      className={`p-1 rounded transition-colors cursor-pointer border border-transparent hover:border-slate-350 dark:hover:border-slate-805 ${
+                        theme === 'light' ? 'bg-white hover:bg-slate-100' : 'bg-slate-950 hover:bg-slate-900'
+                      }`}
+                      title={sloc.zoomOut}
+                    >
+                      <ZoomOut className="w-3.5 h-3.5 text-rose-400" />
+                    </button>
+                    <span className="w-8 text-center font-bold text-[10px]">
+                      {Math.round(zoomScale * 100)}%
+                    </span>
+                    <button
+                      onClick={() => setZoomScale(z => Math.min(2.5, Math.round((z + 0.1) * 10) / 10))}
+                      className={`p-1 rounded transition-colors cursor-pointer border border-transparent hover:border-slate-350 dark:hover:border-slate-855 ${
+                        theme === 'light' ? 'bg-white hover:bg-slate-100' : 'bg-slate-950 hover:bg-slate-900'
+                      }`}
+                      title={sloc.zoomIn}
+                    >
+                      <ZoomIn className="w-3.5 h-3.5 text-emerald-400" />
+                    </button>
+                  </div>
+
+                  <div className="w-[1px] h-4 bg-slate-300 dark:bg-slate-800/80" />
+
+                  {/* Reset Layout */}
+                  <button
+                    onClick={() => {
+                      setZoomScale(1.0);
+                      setNodeWidth(180);
+                      setResetKey(k => k + 1);
+                      setExpandedNodes({});
+                      setNodeSizes({});
+                      setConnections([]);
+                      triggerRenderTick();
+                    }}
+                    className="p-1 px-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded transition-all cursor-pointer active:scale-95 flex items-center justify-center"
+                    title={sloc.resetLayout}
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
 
               {/* Graphical representation of the Rebase squash action (Board Viewport) */}
               <div 
@@ -2683,7 +2839,7 @@ export default function App() {
                 onTouchCancel={handleTouchEnd}
                 className={`w-full h-[480px] rounded-xl border relative overflow-hidden flex items-center justify-center select-none ${
                   theme === 'light' 
-                    ? 'bg-slate-50/50 border-slate-200 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px]' 
+                    ? 'bg-slate-50/50 border-slate-205 bg-[radial-gradient(#e2e8f0_1px,transparent_1px)] [background-size:16px_16px]' 
                     : 'bg-[#090d16] border-slate-900 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px]'
                 }`}
               >
@@ -2717,60 +2873,7 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Floating HUD Controls Toolbar Overlay */}
-                <div className={`absolute top-3 right-3 z-10 flex flex-wrap items-center gap-1 p-1 rounded-lg border shadow-lg backdrop-blur-md select-none font-mono ${
-                  theme === 'light' 
-                    ? 'bg-white/95 border-slate-205 text-slate-800' 
-                    : 'bg-slate-950/90 border-slate-850 text-slate-250'
-                }`}>
-                  {/* Mode Selector (Desktop only) */}
-                  {!isMobile && (
-                    <>
-                      <div className="flex items-center gap-0.5 bg-slate-200/50 dark:bg-slate-900/60 p-0.5 rounded-md">
-                        <button
-                          onClick={() => {
-                            setActiveTool('dragNode');
-                          }}
-                          className={`p-1.5 rounded transition-all cursor-pointer active:scale-95 ${
-                            activeTool === 'dragNode'
-                              ? 'bg-indigo-600 text-white shadow font-semibold'
-                              : theme === 'light' ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400 hover:bg-slate-800/50'
-                          }`}
-                          title={sloc.dragNodeModeLabel}
-                        >
-                          <MousePointer className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setActiveTool('pan')}
-                          className={`p-1.5 rounded transition-all cursor-pointer active:scale-95 ${
-                            activeTool === 'pan'
-                              ? 'bg-indigo-600 text-white shadow font-semibold'
-                              : theme === 'light' ? 'text-slate-600 hover:bg-slate-100' : 'text-slate-400 hover:bg-slate-850'
-                          }`}
-                          title={sloc.panModeLabel}
-                        >
-                          <Hand className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                      <div className="w-[1px] h-3.5 bg-slate-300 dark:bg-slate-800/80 mx-0.5" />
-                    </>
-                  )}
-
-                  {/* Left/Right / Rotation layout toggler */}
-                  <button
-                    onClick={() => setIsGraphVertical(v => !v)}
-                    className={`p-1.5 rounded border border-transparent hover:border-slate-350 dark:hover:border-slate-800 transition-all cursor-pointer active:scale-95 ${
-                      theme === 'light' ? 'hover:bg-slate-50 text-slate-700' : 'hover:bg-slate-900 text-slate-300'
-                    }`}
-                    title={isGraphVertical ? "Layout Dọc. Bấm để chuyển sang Ngang (Horizontal Layout)" : "Layout Ngang. Bấm để chuyển sang Dọc (Vertical Layout)"}
-                  >
-                    <RotateCw className={`w-3.5 h-3.5 text-emerald-400 transition-transform duration-350 ${isGraphVertical ? 'rotate-90' : ''}`} />
-                  </button>
-
-                  <div className="w-[1px] h-3.5 bg-slate-300 dark:bg-slate-800/80 mx-0.5" />
-
-                  {/* Node width slide adjustment */}
-                  <div className="flex items-center gap-1.5 px-1" title={sloc.nodeSizeLabel}>
+                <div className="hidden sm:flex absolute top-3 right-3 z-20 items-center gap-1.5 p-1.5 rounded-lg border bg-white dark:bg-slate-900 shadow-sm" title={sloc.nodeSizeLabel}>
                     <Move className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                     <input
                       type="range"
@@ -2781,10 +2884,14 @@ export default function App() {
                       onChange={(e) => setNodeWidth(parseInt(e.target.value))}
                       className="w-14 sm:w-18 accent-indigo-500 cursor-ew-resize h-1 bg-slate-205 dark:bg-slate-800 rounded appearance-none"
                     />
-                    <span className="text-[10px] px-1 py-0.5 rounded border leading-none bg-slate-100/50 dark:bg-slate-900 border-slate-200/50 dark:border-slate-800 font-bold">
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded border leading-none font-bold font-mono transition-all ${
+                      theme === 'light'
+                        ? 'bg-indigo-50 border-indigo-200/80 text-indigo-700 shadow-sm'
+                        : 'bg-slate-900 border-slate-800 text-indigo-300 shadow-sm'
+                    }`}>
                       {nodeWidth}px
                     </span>
-                  </div>
+
 
                   <div className="w-[1px] h-3.5 bg-slate-300 dark:bg-slate-800/80 mx-0.5" />
 
@@ -3223,8 +3330,6 @@ export default function App() {
                   </div>
                 </motion.div>
               </div>
-            </div>
-            )}
 
             {/* Dynamic Active Git Operational Visualizer */}
             <GitVisualizerPanel 
@@ -3239,7 +3344,7 @@ export default function App() {
                 handleRefresh(val);
                 
                 if (val) {
-                  triggerToast('milestone', '⚡ SIMULATION RUNTIME', 'Vùng cát mô phỏng an toàn đã kích hoạt. Đập phá, commit láo thoải mái không sợ sập server!', '🧪');
+                  triggerToast('milestone', '⚡ SIMULATION RUNTIME', 'Sandbox mô phỏng an toàn đã kích hoạt. Đập phá, commit láo thoải mái không sợ sập server!', '🧪');
                 } else {
                   triggerToast('warn', '🔌 REAL GIT CONNECTED', 'Chú ý: Đã chuyển ngữ trực tiếp vào tệp tin và Repo thật trên ổ đĩa máy chủ!', '⚠️');
                 }
@@ -3429,7 +3534,9 @@ export default function App() {
                         }}
                         className={`px-2 py-0.5 text-[9px] rounded border transition-all cursor-pointer ${
                           isDivergedSimulated 
-                            ? 'bg-amber-550/15 border-amber-500/30 text-amber-300' 
+                            ? theme === 'light'
+                              ? 'bg-amber-100 hover:bg-amber-200 border-amber-400/70 text-amber-955 font-bold shadow-sm'
+                              : 'bg-amber-550/15 border-amber-500/30 text-amber-300' 
                             : theme === 'light'
                             ? 'bg-white border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-350'
                             : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-400'
@@ -3446,9 +3553,11 @@ export default function App() {
                         }}
                         className={`px-2 py-0.5 text-[9px] rounded border transition-all cursor-pointer ${
                           isDetachedHeadSimulated 
-                            ? 'bg-rose-550/15 border-rose-500/30 text-rose-300' 
+                            ? theme === 'light'
+                              ? 'bg-rose-100 hover:bg-rose-200 border-rose-400/70 text-rose-955 font-bold shadow-sm'
+                              : 'bg-rose-550/15 border-rose-500/30 text-rose-300' 
                             : theme === 'light'
-                            ? 'bg-white border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-350'
+                            ? 'bg-white border-slate-205 text-slate-500 hover:text-slate-700 hover:border-slate-350'
                             : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-400'
                         }`}
                       >
@@ -3463,9 +3572,11 @@ export default function App() {
                         }}
                         className={`px-2 py-0.5 text-[9px] rounded border transition-all cursor-pointer ${
                           isStaleBaseSimulated 
-                            ? 'bg-amber-550/15 border-amber-500/30 text-amber-300' 
+                            ? theme === 'light'
+                              ? 'bg-amber-100 hover:bg-amber-200 border-amber-400/70 text-amber-955 font-bold shadow-sm'
+                              : 'bg-amber-550/15 border-amber-500/30 text-amber-300' 
                             : theme === 'light'
-                            ? 'bg-white border-slate-200 text-slate-500 hover:text-slate-700 hover:border-slate-350'
+                            ? 'bg-white border-slate-205 text-slate-500 hover:text-slate-700 hover:border-slate-350'
                             : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-slate-400'
                         }`}
                       >
@@ -3485,12 +3596,71 @@ export default function App() {
                 <div className="flex flex-col gap-2">
                   {/* Issue A: Uncommitted Changes */}
                   {repoState.isDirty && (
-                    <div className={`border p-3 rounded-xl flex flex-col gap-2 ${theme === 'light' ? 'border-amber-200 bg-amber-500/5' : 'border-amber-500/20 bg-amber-500/5'}`}>
+                    <div className={`border p-3 rounded-xl flex flex-col gap-2 relative overflow-hidden ${theme === 'light' ? 'border-amber-200 bg-amber-500/5' : 'border-amber-500/20 bg-amber-500/5'}`}>
+                      {/* Interactive Tooltip Overlay */}
+                      {activeTooltip === 'dirty_working_tree' && (
+                        <div className={`absolute inset-0 z-40 p-3 rounded-xl flex flex-col justify-between ${
+                          theme === 'light' 
+                            ? 'bg-amber-50/98 border border-amber-300 text-slate-900' 
+                            : 'bg-slate-950/98 border border-amber-500/30 text-slate-100'
+                        } backdrop-blur-xs transition-all duration-200 animate-fade-in`}>
+                          <div className="flex flex-col gap-1.5 h-full overflow-y-auto pr-1 font-mono text-[10px]">
+                            <div className="flex items-center justify-between border-b pb-1.5 border-slate-200/50 dark:border-slate-800/80">
+                              <span className="font-bold flex items-center gap-1 text-[10.5px] text-amber-600 dark:text-amber-400 animate-pulse">
+                                <HelpCircle className="w-3.5 h-3.5" />
+                                {tone === TranslationTone.ENGLISH ? "DIAGNOSIS TIPS" : "CẨM NANG CHẨN ĐOÁN"}
+                              </span>
+                              <button 
+                                onClick={() => setActiveTooltip(null)}
+                                className={`text-[9px] px-1.5 py-0.5 rounded cursor-pointer transition-all font-sans font-semibold ${
+                                  theme === 'light' ? 'bg-slate-200/70 hover:bg-slate-250 text-slate-700' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                }`}
+                              >
+                                {tone === TranslationTone.ENGLISH ? "Close" : "Đóng"}
+                              </button>
+                            </div>
+                            <div className="space-y-2 mt-1">
+                              <div>
+                                <span className="font-bold block text-[9.5px] text-amber-700 dark:text-amber-400">
+                                  ❓ {tone === TranslationTone.ENGLISH ? "Why is this flagged?" : "Tại sao xảy ra?"}
+                                </span>
+                                <p className="leading-relaxed mt-0.5 text-[9.5px] opacity-90 font-sans">
+                                  {tooltipTexts[tone]?.dirty.why}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="font-bold block text-[9.5px] text-violet-700 dark:text-violet-400">
+                                  💡 {tone === TranslationTone.ENGLISH ? "How to resolve?" : "Cách khắc phục?"}
+                                </span>
+                                <p className="leading-relaxed mt-0.5 text-[9.5px] opacity-90 font-sans">
+                                  {tooltipTexts[tone]?.dirty.how}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="flex justify-between items-start gap-1">
                         <div className="text-[11px] font-mono leading-tight w-full">
-                          <span className={`font-bold block ${theme === 'light' ? 'text-amber-800' : 'text-amber-300'}`}>
-                            {sloc.uncommittedChangesTitle}
-                          </span>
+                          <div className="flex items-center justify-between gap-1 w-full">
+                            <span className={`font-bold block ${theme === 'light' ? 'text-amber-800' : 'text-amber-300'}`}>
+                              {sloc.uncommittedChangesTitle}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveTooltip(activeTooltip === 'dirty_working_tree' ? null : 'dirty_working_tree');
+                              }}
+                              className={`p-1 rounded-full transition-all shrink-0 hover:scale-105 active:scale-95 ${
+                                theme === 'light' ? 'hover:bg-amber-200/80 text-amber-800' : 'hover:bg-slate-800 text-amber-400'
+                              }`}
+                              title={tone === TranslationTone.ENGLISH ? "Learn why and how to resolve" : "Xem lý do và hướng giải quyết"}
+                            >
+                              <HelpCircle className="w-3.5 h-3.5 cursor-pointer animate-pulse" />
+                            </button>
+                          </div>
                           <span className={`text-[10px] block mt-0.5 ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
                             {sloc.uncommittedChangesDesc.replace("{0}", String(repoState.dirtyFiles?.length || 0))}
                           </span>
@@ -3556,13 +3726,72 @@ export default function App() {
 
                   {/* Issue B: Diverged Branch */}
                   {(isSimulation ? isDivergedSimulated : false) && (
-                    <div className={`border p-3 rounded-xl flex flex-col gap-2 ${theme === 'light' ? 'border-amber-200 bg-amber-500/5' : 'border-amber-500/20 bg-amber-500/5'}`}>
+                    <div className={`border p-3 rounded-xl flex flex-col gap-2 relative overflow-hidden ${theme === 'light' ? 'border-amber-300 bg-amber-50/80 shadow-xs' : 'border-amber-500/20 bg-amber-500/5'}`}>
+                      {/* Interactive Tooltip Overlay */}
+                      {activeTooltip === 'diverged_branch' && (
+                        <div className={`absolute inset-0 z-40 p-3 rounded-xl flex flex-col justify-between ${
+                          theme === 'light' 
+                            ? 'bg-amber-5/98 border border-amber-300 text-slate-900' 
+                            : 'bg-slate-950/98 border border-amber-500/30 text-slate-100'
+                        } backdrop-blur-xs transition-all duration-200 animate-fade-in`}>
+                          <div className="flex flex-col gap-1.5 h-full overflow-y-auto pr-1 font-mono text-[10px]">
+                            <div className="flex items-center justify-between border-b pb-1.5 border-slate-200/50 dark:border-slate-800/80">
+                              <span className="font-bold flex items-center gap-1 text-[10.5px] text-amber-600 dark:text-amber-400 animate-pulse">
+                                <HelpCircle className="w-3.5 h-3.5" />
+                                {tone === TranslationTone.ENGLISH ? "DIAGNOSIS TIPS" : "CẨM NANG CHẨN ĐOÁN"}
+                              </span>
+                              <button 
+                                onClick={() => setActiveTooltip(null)}
+                                className={`text-[9px] px-1.5 py-0.5 rounded cursor-pointer transition-all font-sans font-semibold ${
+                                  theme === 'light' ? 'bg-slate-200/70 hover:bg-slate-250 text-slate-700' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                }`}
+                              >
+                                {tone === TranslationTone.ENGLISH ? "Close" : "Đóng"}
+                              </button>
+                            </div>
+                            <div className="space-y-2 mt-1">
+                              <div>
+                                <span className="font-bold block text-[9.5px] text-amber-700 dark:text-amber-400">
+                                  ❓ {tone === TranslationTone.ENGLISH ? "Why is this flagged?" : "Tại sao xảy ra?"}
+                                </span>
+                                <p className="leading-relaxed mt-0.5 text-[9.5px] opacity-90 font-sans">
+                                  {tooltipTexts[tone]?.diverged.why}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="font-bold block text-[9.5px] text-violet-700 dark:text-violet-400">
+                                  💡 {tone === TranslationTone.ENGLISH ? "How to resolve?" : "Cách khắc phục?"}
+                                </span>
+                                <p className="leading-relaxed mt-0.5 text-[9.5px] opacity-90 font-sans">
+                                  {tooltipTexts[tone]?.diverged.how}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="flex justify-between items-start gap-1">
-                        <div className="text-[11px] font-mono leading-tight">
-                          <span className={`font-bold block ${theme === 'light' ? 'text-amber-800' : 'text-amber-300'}`}>
-                            {sloc.divergedTitle}
-                          </span>
-                          <span className={`text-[10px] block mt-0.5 ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+                        <div className="text-[11px] font-mono leading-tight w-full">
+                          <div className="flex items-center justify-between gap-1 w-full">
+                            <span className={`font-bold block ${theme === 'light' ? 'text-amber-955' : 'text-amber-300'}`}>
+                              {sloc.divergedTitle}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveTooltip(activeTooltip === 'diverged_branch' ? null : 'diverged_branch');
+                              }}
+                              className={`p-1 rounded-full transition-all shrink-0 hover:scale-105 active:scale-95 ${
+                                theme === 'light' ? 'hover:bg-amber-200/85 text-amber-955' : 'hover:bg-slate-800 text-amber-400'
+                              }`}
+                              title={tone === TranslationTone.ENGLISH ? "Learn why and how to resolve" : "Xem lý do và hướng giải quyết"}
+                            >
+                              <HelpCircle className="w-3.5 h-3.5 cursor-pointer animate-pulse" />
+                            </button>
+                          </div>
+                          <span className={`text-[10px] block mt-0.5 ${theme === 'light' ? 'text-slate-700' : 'text-slate-400'}`}>
                             {sloc.divergedDesc}
                           </span>
                         </div>
@@ -3609,13 +3838,72 @@ export default function App() {
 
                   {/* Issue C: Detached HEAD */}
                   {(isSimulation ? isDetachedHeadSimulated : false) && (
-                    <div className={`border p-3 rounded-xl flex flex-col gap-2 ${theme === 'light' ? 'border-rose-200 bg-rose-500/5' : 'border-rose-500/20 bg-rose-500/5'}`}>
+                    <div className={`border p-3 rounded-xl flex flex-col gap-2 relative overflow-hidden ${theme === 'light' ? 'border-rose-300 bg-rose-50/80 shadow-xs' : 'border-rose-500/20 bg-rose-500/5'}`}>
+                      {/* Interactive Tooltip Overlay */}
+                      {activeTooltip === 'detached_head' && (
+                        <div className={`absolute inset-0 z-40 p-3 rounded-xl flex flex-col justify-between ${
+                          theme === 'light' 
+                            ? 'bg-rose-50/98 border border-rose-205 text-slate-900' 
+                            : 'bg-slate-950/98 border border-rose-500/30 text-slate-100'
+                        } backdrop-blur-xs transition-all duration-200 animate-fade-in`}>
+                          <div className="flex flex-col gap-1.5 h-full overflow-y-auto pr-1 font-mono text-[10px]">
+                            <div className="flex items-center justify-between border-b pb-1.5 border-slate-200/50 dark:border-slate-800/80">
+                              <span className="font-bold flex items-center gap-1 text-[10.5px] text-rose-600 dark:text-rose-400 animate-pulse">
+                                <HelpCircle className="w-3.5 h-3.5" />
+                                {tone === TranslationTone.ENGLISH ? "DIAGNOSIS TIPS" : "CẨM NANG CHẨN ĐOÁN"}
+                              </span>
+                              <button 
+                                onClick={() => setActiveTooltip(null)}
+                                className={`text-[9px] px-1.5 py-0.5 rounded cursor-pointer transition-all font-sans font-semibold ${
+                                  theme === 'light' ? 'bg-slate-200/70 hover:bg-slate-250 text-slate-700' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                }`}
+                              >
+                                {tone === TranslationTone.ENGLISH ? "Close" : "Đóng"}
+                              </button>
+                            </div>
+                            <div className="space-y-2 mt-1">
+                              <div>
+                                <span className="font-bold block text-[9.5px] text-rose-700 dark:text-rose-400">
+                                  ❓ {tone === TranslationTone.ENGLISH ? "Why is this flagged?" : "Tại sao xảy ra?"}
+                                </span>
+                                <p className="leading-relaxed mt-0.5 text-[9.5px] opacity-90 font-sans">
+                                  {tooltipTexts[tone]?.detached.why}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="font-bold block text-[9.5px] text-violet-700 dark:text-violet-400">
+                                  💡 {tone === TranslationTone.ENGLISH ? "How to resolve?" : "Cách khắc phục?"}
+                                </span>
+                                <p className="leading-relaxed mt-0.5 text-[9.5px] opacity-90 font-sans">
+                                  {tooltipTexts[tone]?.detached.how}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="flex justify-between items-start gap-1">
-                        <div className="text-[11px] font-mono leading-tight">
-                          <span className={`font-bold block ${theme === 'light' ? 'text-rose-700' : 'text-rose-300'}`}>
-                            {sloc.detachedTitle}
-                          </span>
-                          <span className={`text-[10px] block mt-0.5 ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+                        <div className="text-[11px] font-mono leading-tight w-full">
+                          <div className="flex items-center justify-between gap-1 w-full">
+                            <span className={`font-bold block ${theme === 'light' ? 'text-rose-955 font-bold' : 'text-rose-300'}`}>
+                              {sloc.detachedTitle}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveTooltip(activeTooltip === 'detached_head' ? null : 'detached_head');
+                              }}
+                              className={`p-1 rounded-full transition-all shrink-0 hover:scale-105 active:scale-95 ${
+                                theme === 'light' ? 'hover:bg-rose-200/85 text-rose-955' : 'hover:bg-slate-800 text-rose-400'
+                              }`}
+                              title={tone === TranslationTone.ENGLISH ? "Learn why and how to resolve" : "Xem lý do và hướng giải quyết"}
+                            >
+                              <HelpCircle className="w-3.5 h-3.5 cursor-pointer animate-pulse" />
+                            </button>
+                          </div>
+                          <span className={`text-[10px] block mt-0.5 ${theme === 'light' ? 'text-slate-700' : 'text-slate-400'}`}>
                             {sloc.detachedDesc}
                           </span>
                         </div>
@@ -3631,7 +3919,7 @@ export default function App() {
                         <span className="text-slate-500">{sloc.firstAidHeader}</span>
                         <button 
                           onClick={() => handleTriggerDoctorAction('detached_head', 'recover')}
-                          className="px-1.5 py-0.5 bg-rose-600 text-white border border-rose-500/25 rounded cursor-pointer"
+                          className="px-1.5 py-0.5 bg-rose-600 text-white border border-rose-500/25 rounded cursor-pointer font-medium hover:bg-rose-500 transition-colors"
                         >
                           {sloc.rescueBranchBtn}
                         </button>
@@ -3641,13 +3929,72 @@ export default function App() {
 
                   {/* Issue D: Stale Base Branch */}
                   {(isSimulation ? isStaleBaseSimulated : false) && (
-                    <div className={`border p-3 rounded-xl flex flex-col gap-2 ${theme === 'light' ? 'border-amber-200 bg-amber-500/5' : 'border-amber-500/20 bg-amber-500/5'}`}>
+                    <div className={`border p-3 rounded-xl flex flex-col gap-2 relative overflow-hidden ${theme === 'light' ? 'border-amber-300 bg-amber-50/80 shadow-xs' : 'border-amber-500/20 bg-amber-500/5'}`}>
+                      {/* Interactive Tooltip Overlay */}
+                      {activeTooltip === 'stale_base_branch' && (
+                        <div className={`absolute inset-0 z-40 p-3 rounded-xl flex flex-col justify-between ${
+                          theme === 'light' 
+                            ? 'bg-amber-50/98 border border-amber-300 text-slate-900' 
+                            : 'bg-slate-950/98 border border-amber-500/30 text-slate-100'
+                        } backdrop-blur-xs transition-all duration-200 animate-fade-in`}>
+                          <div className="flex flex-col gap-1.5 h-full overflow-y-auto pr-1 font-mono text-[10px]">
+                            <div className="flex items-center justify-between border-b pb-1.5 border-slate-200/50 dark:border-slate-800/80">
+                              <span className="font-bold flex items-center gap-1 text-[10.5px] text-amber-600 dark:text-amber-400 animate-pulse">
+                                <HelpCircle className="w-3.5 h-3.5" />
+                                {tone === TranslationTone.ENGLISH ? "DIAGNOSIS TIPS" : "CẨM NANG CHẨN ĐOÁN"}
+                              </span>
+                              <button 
+                                onClick={() => setActiveTooltip(null)}
+                                className={`text-[9px] px-1.5 py-0.5 rounded cursor-pointer transition-all font-sans font-semibold ${
+                                  theme === 'light' ? 'bg-slate-200/70 hover:bg-slate-250 text-slate-700' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                }`}
+                              >
+                                {tone === TranslationTone.ENGLISH ? "Close" : "Đóng"}
+                              </button>
+                            </div>
+                            <div className="space-y-2 mt-1">
+                              <div>
+                                <span className="font-bold block text-[9.5px] text-amber-700 dark:text-amber-400">
+                                  ❓ {tone === TranslationTone.ENGLISH ? "Why is this flagged?" : "Tại sao xảy ra?"}
+                                </span>
+                                <p className="leading-relaxed mt-0.5 text-[9.5px] opacity-90 font-sans">
+                                  {tooltipTexts[tone]?.stale.why}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="font-bold block text-[9.5px] text-violet-700 dark:text-violet-400">
+                                  💡 {tone === TranslationTone.ENGLISH ? "How to resolve?" : "Cách khắc phục?"}
+                                </span>
+                                <p className="leading-relaxed mt-0.5 text-[9.5px] opacity-90 font-sans">
+                                  {tooltipTexts[tone]?.stale.how}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="flex justify-between items-start gap-1">
-                        <div className="text-[11px] font-mono leading-tight">
-                          <span className={`font-bold block ${theme === 'light' ? 'text-amber-800' : 'text-amber-300'}`}>
-                            {sloc.staleBaseTitle}
-                          </span>
-                          <span className={`text-[10px] block mt-0.5 ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+                        <div className="text-[11px] font-mono leading-tight w-full">
+                          <div className="flex items-center justify-between gap-1 w-full">
+                            <span className={`font-bold block ${theme === 'light' ? 'text-amber-955' : 'text-amber-305'}`}>
+                              {sloc.staleBaseTitle}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveTooltip(activeTooltip === 'stale_base_branch' ? null : 'stale_base_branch');
+                              }}
+                              className={`p-1 rounded-full transition-all shrink-0 hover:scale-105 active:scale-95 ${
+                                theme === 'light' ? 'hover:bg-amber-200/85 text-amber-955' : 'hover:bg-slate-800 text-amber-400'
+                              }`}
+                              title={tone === TranslationTone.ENGLISH ? "Learn why and how to resolve" : "Xem lý do và hướng giải quyết"}
+                            >
+                              <HelpCircle className="w-3.5 h-3.5 cursor-pointer animate-pulse" />
+                            </button>
+                          </div>
+                          <span className={`text-[10px] block mt-0.5 ${theme === 'light' ? 'text-slate-700' : 'text-slate-400'}`}>
                             {sloc.staleBaseDesc.replace("{0}", wizard.baseBranch || 'develop')}
                           </span>
                         </div>
@@ -3665,7 +4012,7 @@ export default function App() {
                           onClick={() => handleTriggerDoctorAction('stale_base_branch', 'sync_base')}
                           className={`px-1.5 py-0.5 border rounded cursor-pointer transition-colors ${
                             theme === 'light'
-                              ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                              ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300 font-medium'
                               : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-800'
                           }`}
                         >
@@ -3915,7 +4262,7 @@ export default function App() {
           </AnimatePresence>
         </div>
 
-        {/* Interactive Deep-context Git Doctor Messenger Chatbot */}
+      {/* Interactive Deep-context Git Doctor Messenger Chatbot */}
         <AiDoctorFloatingChat
           repoState={repoState}
           tone={tone}
@@ -3934,7 +4281,6 @@ export default function App() {
         <AnimatePresence>
           {confirmModal && confirmModal.isOpen && (
             <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-              {/* Backdrop with elegant blur */}
               <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -3942,7 +4288,6 @@ export default function App() {
                 onClick={() => setConfirmModal(null)}
                 className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
               />
-              {/* Modal Card */}
               <motion.div
                 initial={{ scale: 0.95, opacity: 0, y: 15 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -3954,7 +4299,6 @@ export default function App() {
                     : 'bg-[#0f172a] border-slate-800 text-slate-100'
                 }`}
               >
-                {/* Alert Icon and Title */}
                 <div className="flex items-start gap-3.5 mb-4">
                   <div className="p-2 rounded-lg bg-rose-500/10 text-rose-500 shrink-0">
                     <AlertTriangle className="w-5 h-5 animate-pulse" />
@@ -3969,7 +4313,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Action Buttons */}
                 <div className="flex justify-end gap-2.5 mt-6 pt-3 border-t border-slate-200/10 text-xs text-mono">
                   <button
                     onClick={() => setConfirmModal(null)}

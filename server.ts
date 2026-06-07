@@ -1182,6 +1182,103 @@ Bạn cần:
   });
 });
 
+// AI-powered block-level conflict resolution using Gemini 3.5 Flash
+app.post('/api/resolve-block-ai', async (req, res) => {
+  const { filepath, oursText, theirsText, tone } = req.body;
+  if (oursText === undefined || theirsText === undefined) {
+    return res.status(400).json({ error: 'oursText or theirsText is missing.' });
+  }
+
+  // Fallback offline suggestions
+  const offlineResult = (() => {
+    // Combine both blocks cleanly
+    const resolved = oursText + (theirsText ? '\n' + theirsText : '');
+    
+    let explanation = `[OFFLINE FALLBACK] Không tìm thấy GEMINI_API_KEY. Đã tự động kết hợp cả hai bản (Ours và Theirs) để giải quyết xung đột cục bộ này.`;
+    if (tone === 'vn_joke') {
+      explanation = `[OFFLINE] Không có GEMINI_API_KEY sếp ơi! Em xin phép gộp cả hai bên trái phải quấn lại làm một nhé ní!`;
+    } else if (tone === 'vn_toxic') {
+      explanation = `[OFFLINE ERR] Điền cái khóa GEMINI_API_KEY vào đi thằng khờ! Éo có AI gộp hộ thì tao nhét đại cả 2 bên lùi xùi vào đấy!`;
+    } else if (tone === 'en_pro') {
+      explanation = `[OFFLINE FALLBACK] GEMINI_API_KEY is not defined. Safely combined local and incoming blocks as fallback.`;
+    }
+    return { explanation, resolvedContent: resolved };
+  })();
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (apiKey) {
+    try {
+      const ai = getGeminiClient();
+      
+      let systemInstruction = "Bạn là chuyên gia Git thông thái chuyên biệt dọn dẹp các xung đột nhỏ cấp độ dòng (block-level merge conflict solver). Trả về JSON chứa explanation (giải thích ngắn gọn) và resolvedContent (đoạn mã đã gộp tối ưu).";
+      
+      if (tone === 'vn_pro') {
+        systemInstruction = "Bạn là trợ lý ảo 'Rebase Overlord Engine' chuẩn mực chuyên xử lý xung đột cục bộ. Trả về giải thích cực ngắn gọn (explanation) và mã nguồn hợp nhất (resolvedContent) thật chính xác.";
+      } else if (tone === 'vn_joke') {
+        systemInstruction = "Bạn là robot tấu hài cà khịa nhẹ. Gọi user là 'sếp' hoặc 'ní'. Giải thích ngắn gọn hóm hỉnh về gợi ý gộp này, rồi trả về đoạn mã đã hợp nhất tối ưu trong resolvedContent.";
+      } else if (tone === 'vn_toxic') {
+        systemInstruction = "Bạn là AI chửi dạo toxic cộc lốc cà khịa thói quen code ẩu. Sỉ nhục lập trình viên siêu ngắn gọn vì gây conflict, rồi trả về đoạn mã hợp nhất chính xác tuyệt đối trong resolvedContent.";
+      } else if (tone === 'en_pro') {
+        systemInstruction = "You are a polite, concise Git block-level conflict resolver. Provide a very short explanation of how you merged these lines, and return the resolved content in resolvedContent.";
+      }
+
+      const promptUser = `Hãy giải quyết xung đột cục bộ (merge block conflict) ở file: "${filepath || 'source_code'}"
+Chúng ta có 2 phiên bản mã nguồn cần gộp:
+
+LÀN A (OURS - Bản Hiện Tại/Base):
+\`\`\`
+${oursText}
+\`\`\`
+
+LÀN B (THEIRS - Bản Incoming/Feature):
+\`\`\`
+${theirsText}
+\`\`\`
+
+Bạn cần:
+1. Giải thích siêu ngắn gọn giải pháp tối ưu (1 câu duy nhất) cho thuộc tính "explanation".
+2. Ghép nối hoặc lựa chọn thông minh 2 đoạn mã trên tạo thành mã nguồn hoàn chỉnh ở thuộc tính "resolvedContent". Đảm bảo mã nguồn logic, sạch sẽ, không chữa bất kỳ dấu vết marker xung đột nào như <<<<<<<, =======, >>>>>>>!`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.5-flash',
+        contents: promptUser,
+        config: {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              explanation: {
+                type: Type.STRING,
+                description: "Giải thích siêu ngắn gọn (tối đa 1-2 câu)."
+              },
+              resolvedContent: {
+                type: Type.STRING,
+                description: "Đoạn mã đã hợp nhất tinh tế, logic, không còn marker."
+              }
+            },
+            required: ["explanation", "resolvedContent"]
+          }
+        }
+      });
+
+      const responseText = response.text?.trim() || '{}';
+      try {
+        const geminiResult = JSON.parse(responseText);
+        if (geminiResult.explanation && geminiResult.resolvedContent !== undefined) {
+          return res.json(geminiResult);
+        }
+      } catch (parseErr) {
+        console.error("Failed to parse block AI resolve output:", responseText, parseErr);
+      }
+    } catch (geminiErr: any) {
+      console.error("Gemini block API call failed:", geminiErr);
+    }
+  }
+
+  return res.json(offlineResult);
+});
+
 // AI-powered conflict resolution and explanation using Gemini 3.5 Flash
 app.post('/api/resolve-conflict-ai', async (req, res) => {
   const { filepath, content, tone } = req.body;
