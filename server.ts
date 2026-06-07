@@ -2077,22 +2077,24 @@ app.post('/api/update/apply', (req, res) => {
   const { version } = req.body;
   const installerPath = (global as any).downloadedInstallerPath;
 
-  if (version) {
-    updatePackageVersion(version);
-    saveVersionPatch(version); // Save writable version override for persistent read on next boot
-  }
-
   const platform = process.platform;
   const isHeadlessOrWeb = !process.versions.electron && (process.env.PORT === '3000' || platform === 'linux');
+  const isReal = (global as any).isRealDownloadedInstaller;
 
   if (isHeadlessOrWeb) {
+    if (version) {
+      updatePackageVersion(version);
+      saveVersionPatch(version); // Save writable version override for persistent read on next boot
+    }
     console.log(`[UPDATER] Headless/Web environment detected, virtual update to version ${version || 'latest'} completed.`);
     return res.json({ success: true, message: 'Update applied to web workspace successfully! Reloading...', virtual: true });
   }
 
-  const isReal = (global as any).isRealDownloadedInstaller;
-
   if (!isReal) {
+    if (version) {
+      updatePackageVersion(version);
+      saveVersionPatch(version); // Save writable version override for persistent read on next boot
+    }
     console.log(`[UPDATER] Simulated/Virtual update requested or real download failed. Performing smooth virtual patch to version ${version || 'latest'}.`);
     // Excellent! No process exit, keeps the server alive so client reload is fully supported!
     return res.json({ 
@@ -2102,6 +2104,9 @@ app.post('/api/update/apply', (req, res) => {
     });
   }
 
+  // REAL UPDATE PATH:
+  // Do NOT write version_patch.json or package.json here because the real installer will update the source files natively on disk.
+  // This prevents fake version numbers on failed/cancelled OS manual installations.
   if (!installerPath || !fs.existsSync(installerPath)) {
     return res.status(404).json({ error: 'Installer file is missing, please download again.' });
   }
@@ -2113,32 +2118,34 @@ app.post('/api/update/apply', (req, res) => {
   setTimeout(() => {
     try {
       if (platform === 'win32') {
-        const { spawn, exec: winExec } = require('child_process');
-        // Use standard Windows shell initiation block to bypass sandbox constraints and trigger UAC if needed
+        const { spawn } = require('child_process');
+        console.log('[UPDATER] Spawning Windows installer in detached mode:', installerPath);
         try {
-          winExec(`start "" "${installerPath}"`, (err: any) => {
-            if (err) {
-              console.warn('[UPDATER] Shell-start trigger returned non-zero, falling back to direct detached spawning...', err);
-              const child = spawn(installerPath, [], {
-                detached: true,
-                stdio: 'ignore'
-              });
-              child.unref();
-            }
-          });
-        } catch (spawnErr) {
-          console.error('[UPDATER] Failed shell execution, direct direct spawn execution attempted:', spawnErr);
           const child = spawn(installerPath, [], {
             detached: true,
             stdio: 'ignore'
           });
           child.unref();
+        } catch (spawnErr) {
+          console.error('[UPDATER] Direct spawn failed, attempting spawn with shell...', spawnErr);
+          try {
+            const child = spawn(installerPath, [], {
+              detached: true,
+              stdio: 'ignore',
+              shell: true
+            });
+            child.unref();
+          } catch (shellErr) {
+            console.error('[UPDATER] All spawning attempts failed:', shellErr);
+          }
         }
       } else if (platform === 'darwin') {
+        const { exec } = require('child_process');
         exec(`open "${installerPath}"`, (err) => {
           if (err) console.error('Failed to mount DMG on macOS:', err);
         });
       } else {
+        const { exec } = require('child_process');
         exec(`xdg-open "${installerPath}" || open "${installerPath}"`, (err) => {
           if (err) console.error('Failed to run setup on Linux:', err);
         });
