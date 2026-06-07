@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useDragControls } from 'motion/react';
 import { 
   GitBranch, 
   HelpCircle, 
@@ -32,7 +32,10 @@ import {
   RefreshCw,
   Move,
   Eye,
-  EyeOff
+  EyeOff,
+  ArrowUpCircle,
+  ArrowDownCircle,
+  Search
 } from 'lucide-react';
 
 import { 
@@ -437,6 +440,335 @@ async function safeParseError(res: Response, fallbackMsg: string): Promise<strin
   }
 }
 
+interface CommitNodeCardProps {
+  c: Commit;
+  theme: 'light' | 'dark';
+  tone: TranslationTone;
+  activeTool: 'pan' | 'dragNode';
+  isMobile: boolean;
+  wizard: WizardState;
+  expandedNodes: Record<string, boolean>;
+  setExpandedNodes: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  nodeSizes: Record<string, { width: number; height: number }>;
+  isSimulation: boolean;
+  track: number;
+  isGraphVertical: boolean;
+  nodeWidth: number;
+  nodeRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
+  updateConnectionPaths: () => void;
+  triggerRenderTick: () => void;
+  handleResizeStart: (e: React.PointerEvent, sha: string, dir: 'w' | 'h' | 'both') => void;
+  hoveredSha: string | null;
+  setHoveredSha: (sha: string | null) => void;
+  fetchCommitFiles: (sha: string) => void;
+  loadingFilesShas: Record<string, boolean>;
+  commitFiles: Record<string, Array<{ filepath: string; status: string }>>;
+  isTouchOnly: boolean;
+}
+
+function CommitNodeCard({
+  c,
+  theme,
+  tone,
+  activeTool,
+  isMobile,
+  wizard,
+  expandedNodes,
+  setExpandedNodes,
+  nodeSizes,
+  isSimulation,
+  track,
+  isGraphVertical,
+  nodeWidth,
+  nodeRefs,
+  updateConnectionPaths,
+  triggerRenderTick,
+  handleResizeStart,
+  hoveredSha,
+  setHoveredSha,
+  fetchCommitFiles,
+  loadingFilesShas,
+  commitFiles,
+  isTouchOnly,
+}: CommitNodeCardProps) {
+  const dragControls = useDragControls();
+
+  const isSelect = wizard.selectedCommits.includes(c.sha) || wizard.selectedCommits.length === 0;
+  const isExpanded = !!expandedNodes[c.sha];
+  const customSz = nodeSizes[c.sha];
+  const finalWidth = customSz?.width ?? (isExpanded ? nodeWidth + 120 : nodeWidth);
+  const finalHeight = customSz?.height ?? (isExpanded ? 140 : 80);
+
+  let nodeOffsetX = 0;
+  let nodeOffsetY = 0;
+  if (isSimulation) {
+    if (isGraphVertical) {
+      if (track === 0) nodeOffsetX = -180;
+      if (track === 2) nodeOffsetX = 180;
+    } else {
+      if (track === 0) nodeOffsetY = -110;
+      if (track === 2) nodeOffsetY = 110;
+    }
+  }
+
+  return (
+    <motion.div
+      ref={(el) => {
+        nodeRefs.current[c.sha] = el;
+      }}
+      drag={!isMobile && activeTool === 'dragNode'}
+      dragControls={dragControls}
+      dragListener={false}
+      dragConstraints={false}
+      dragElastic={0.2}
+      layout
+      whileDrag={{
+        scale: 1.03,
+        zIndex: 50,
+        boxShadow: theme === 'light' ? '0 10px 20px rgba(0,0,0,0.1)' : '0 10px 25px rgba(0,0,0,0.4)',
+      }}
+      onDrag={() => {
+        updateConnectionPaths();
+      }}
+      onDragEnd={() => {
+        updateConnectionPaths();
+      }}
+      onMouseEnter={() => {
+        setHoveredSha(c.sha);
+        fetchCommitFiles(c.sha);
+      }}
+      onMouseLeave={() => {
+        setHoveredSha(null);
+      }}
+      style={{
+        width: `${finalWidth}px`,
+        height: customSz?.height ? `${finalHeight}px` : 'auto',
+        minHeight: customSz?.height ? `${finalHeight}px` : undefined,
+        marginLeft: isGraphVertical ? `${nodeOffsetX}px` : undefined,
+        marginTop: !isGraphVertical ? `${nodeOffsetY}px` : undefined,
+      }}
+      className={`flex flex-col items-stretch p-3 text-left border rounded-xl hover:shadow-md transition-colors duration-150 relative shrink-0 ${
+        !isMobile && activeTool === 'dragNode' ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
+      } ${
+        theme === 'light'
+          ? 'bg-white border-slate-200/80 shadow-sm text-slate-800'
+          : 'bg-slate-900/60 border-slate-800 text-slate-100 shadow'
+      }`}
+    >
+      {/* Top header of node */}
+      <div className="flex items-center justify-between gap-1.5 mb-2 pointer-events-auto">
+        <div className="flex items-center gap-1 min-w-0 flex-1">
+          <span
+            className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border shrink-0 ${
+              isSelect
+                ? 'bg-indigo-500/10 text-indigo-500 border-indigo-200/50 dark:bg-indigo-500/20 dark:text-indigo-400 dark:border-indigo-500/30'
+                : 'bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-950 dark:text-slate-500 dark:border-slate-900'
+            }`}
+          >
+            {isExpanded ? c.sha : c.sha.substring(0, 7)}
+          </span>
+
+          {/* Branch Track Badge */}
+          {isSimulation && track === 0 && (
+            <span className="text-[8px] font-mono font-bold px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 uppercase tracking-wider scale-[0.9] origin-left truncate max-w-[70px]">
+              develop
+            </span>
+          )}
+          {isSimulation && track === 2 && (
+            <span className="text-[8px] font-mono font-bold px-1 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 uppercase tracking-wider scale-[0.9] origin-left truncate max-w-[70px]" title="origin/remote">
+              origin/remote
+            </span>
+          )}
+          {isSimulation && track === 1 && c.isMergeCommit && (
+            <span className="text-[8px] font-mono font-bold px-1 py-0.5 rounded bg-fuchsia-500/15 text-fuchsia-400 border border-fuchsia-500/20 uppercase tracking-wider scale-[0.9] origin-left truncate max-w-[70px]">
+              merge
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5 select-none shrink-0">
+          {/* Hover Grab Handle Indicator */}
+          {!isMobile && activeTool === 'dragNode' && (
+            <Move
+              onPointerDown={(e) => {
+                e.preventDefault();
+                dragControls.start(e);
+              }}
+              className="w-3.5 h-3.5 text-slate-400 hover:text-indigo-400 cursor-grab active:cursor-grabbing transition-colors"
+              title="Nhấn giữ để di chuyển (Hold to drag)"
+            />
+          )}
+
+          {/* Maximize / Collapse Resize Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpandedNodes((prev) => ({ ...prev, [c.sha]: !prev[c.sha] }));
+              setTimeout(() => {
+                updateConnectionPaths();
+                triggerRenderTick();
+              }, 80);
+            }}
+            className={`p-1 rounded cursor-pointer transition-colors ${
+              theme === 'light' ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-slate-800 text-slate-400'
+            }`}
+            title={isExpanded ? "Collapse Details" : "Expand to view details"}
+          >
+            {isExpanded ? (
+              <Minimize2 className="w-3 h-3 text-rose-400" />
+            ) : (
+              <Maximize2 className="w-3 h-3 text-emerald-400" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Body of node */}
+      <div className="flex flex-col gap-1.5 flex-1 overflow-hidden">
+        <span
+          className={`text-[11px] font-medium leading-tight ${
+            isExpanded ? 'whitespace-normal block break-words text-xs' : 'truncate block w-full text-[10px]'
+          } ${
+            isSelect ? (theme === 'light' ? 'text-slate-800' : 'text-slate-100') : 'text-slate-400 line-through opacity-60'
+          }`}
+          title={c.message}
+        >
+          {c.message}
+        </span>
+
+        {/* Smooth framer-motion expanded detailed contents */}
+        <AnimatePresence>
+          {isExpanded && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="border-t border-dashed border-slate-700 mt-2 pt-2 flex flex-col gap-1 text-[10px] font-mono text-slate-400"
+            >
+              {c.type && (
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold shrink-0 text-slate-500">Type:</span>
+                  <span
+                    className={`px-1 py-0.2 rounded font-black uppercase text-[8px] ${
+                      c.type === 'feat'
+                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                        : c.type === 'fix'
+                        ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                        : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                    }`}
+                  >
+                    {c.type}
+                  </span>
+                </div>
+              )}
+
+              {c.author && (
+                <div className="truncate">
+                  <span className="font-bold text-slate-500 text-[9px]">Author:</span> {c.author}
+                </div>
+              )}
+
+              {c.date && (
+                <div className="text-[9px]">
+                  <span className="font-bold text-slate-500">Date:</span> {c.date}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Custom Drag-to-Resize Handles on Board Borders (hidden on touch machines) */}
+      {!isTouchOnly && (
+        <>
+          {/* Right side resize handle */}
+          <div
+            onPointerDown={(e) => handleResizeStart(e, c.sha, 'w')}
+            className="absolute top-0 right-0 w-2 h-full cursor-ew-resize hover:bg-indigo-500/30 active:bg-indigo-500/40 transition-colors z-20 group"
+            title="Kéo để chỉnh độ rộng (Drag to resize width)"
+          >
+            <div className="w-1 h-1/3 bg-slate-400/25 group-hover:bg-indigo-400/80 rounded mx-auto my-auto top-1/3 relative" />
+          </div>
+
+          {/* Bottom side resize handle */}
+          <div
+            onPointerDown={(e) => handleResizeStart(e, c.sha, 'h')}
+            className="absolute bottom-0 left-0 h-2 w-full cursor-ns-resize hover:bg-indigo-500/30 active:bg-indigo-500/40 transition-colors z-20 group"
+            title="Kéo để chỉnh chiều cao (Drag to resize height)"
+          >
+            <div className="h-1 w-1/3 bg-slate-400/25 group-hover:bg-indigo-400/80 rounded mx-auto my-auto left-1/3 relative" />
+          </div>
+
+          {/* Bottom-right diagonal resize handle */}
+          <div
+            onPointerDown={(e) => handleResizeStart(e, c.sha, 'both')}
+            className="absolute bottom-0 right-0 w-4.5 h-4.5 cursor-se-resize hover:bg-indigo-500/50 hover:scale-110 active:scale-95 transition-all z-30 flex items-center justify-center rounded-bl group-hover:bg-indigo-500/10"
+            title="Chỉnh cả 2 chiều (Resize both width and height)"
+          >
+            <svg
+              className="w-3 h-3 text-slate-400 group-hover:text-indigo-400 pointer-events-none"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={3.5}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 19H5m14 0V5" />
+            </svg>
+          </div>
+        </>
+      )}
+
+      {/* Interactive hover tooltip previewing file changes */}
+      <AnimatePresence>
+        {hoveredSha === c.sha && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, x: 10 }}
+            animate={{ opacity: 1, scale: 1, x: 0 }}
+            exit={{ opacity: 0, scale: 0.95, x: 10 }}
+            transition={{ duration: 0.15 }}
+            style={{
+              width: '260px',
+            }}
+            className={`absolute left-[103%] top-0 z-55 p-3.5 rounded-xl border-2 shadow-2xl flex flex-col gap-2.5 backdrop-blur-md font-sans text-xs ${
+              theme === 'light'
+                ? 'bg-white/95 border-indigo-100 text-slate-800 shadow-slate-300/60'
+                : 'bg-slate-950/95 border-indigo-900/80 text-slate-100 shadow-black/90'
+            }`}
+          >
+            <div className="flex items-center justify-between border-b pb-1.5 border-dashed border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-1.5 font-bold font-mono text-[10px]">
+                <span className="text-indigo-400">#</span>
+                <span>{translate('commit_files_changed', tone)}</span>
+              </div>
+              <span className="text-[9px] font-mono opacity-60">{c.sha.substring(0, 7)}</span>
+            </div>
+
+            {loadingFilesShas[c.sha] ? (
+              <div className="flex items-center gap-2 py-3 justify-center text-[10px] text-slate-400 animate-pulse font-mono">
+                <RefreshCw className="w-3 h-3 animate-spin text-indigo-400" />
+                <span>{translate('commit_files_loading', tone)}</span>
+              </div>
+            ) : !commitFiles[c.sha] || commitFiles[c.sha].length === 0 ? (
+              <div className="text-[10px] text-slate-500 py-3 text-center italic font-mono">
+                {translate('commit_files_none', tone)}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1 max-h-[140px] overflow-y-auto pr-1">
+                {commitFiles[c.sha].map((file, fi) => (
+                  <div key={fi} className="flex items-center gap-1.5 text-[9.5px] font-mono truncate text-slate-300">
+                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
+                    <span className="truncate">{file.filepath}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}
+
 export default function App() {
   // Configs persistent states with localStorage fallback
   const [tone, setTone] = React.useState<TranslationTone>(() => {
@@ -537,6 +869,11 @@ export default function App() {
   const [isGraphVertical, setIsGraphVertical] = React.useState<boolean>(true);
   const [activeTool, setActiveTool] = React.useState<'pan' | 'dragNode'>('dragNode');
   const [resetKey, setResetKey] = React.useState<number>(0);
+
+  // Dense graph handle with pagination, limits, and search filtering
+  const [maxVisibleCommits, setMaxVisibleCommits] = React.useState<number | 'all'>(10);
+  const [commitPageOffset, setCommitPageOffset] = React.useState<number>(0);
+  const [commitSearchTerm, setCommitSearchTerm] = React.useState<string>('');
 
   // File changes preview tooltip state
   const [hoveredSha, setHoveredSha] = React.useState<string | null>(null);
@@ -681,6 +1018,82 @@ export default function App() {
     };
   });
 
+  const activeCommitsForSquash = repoState.commits.filter(c => c.selected);
+
+  // Filter commits based on search/filtering (message, author, SHA, type, status)
+  const filteredCommitsForSquash = React.useMemo(() => {
+    if (!commitSearchTerm.trim()) return activeCommitsForSquash;
+    const term = commitSearchTerm.toLowerCase();
+    return activeCommitsForSquash.filter(c => 
+      c.message.toLowerCase().includes(term) || 
+      c.sha.toLowerCase().includes(term) ||
+      (c.type && c.type.toLowerCase().includes(term)) ||
+      (c.author && c.author.toLowerCase().includes(term))
+    );
+  }, [activeCommitsForSquash, commitSearchTerm]);
+
+  // Paginated window representing dense layout
+  const paginatedCommitsForSquash = React.useMemo(() => {
+    if (maxVisibleCommits === 'all') return filteredCommitsForSquash;
+    const size = maxVisibleCommits;
+    const startIdx = commitPageOffset * size;
+    return filteredCommitsForSquash.slice(startIdx, startIdx + size);
+  }, [filteredCommitsForSquash, maxVisibleCommits, commitPageOffset]);
+
+  // Adjust page offset if index is out of scope
+  React.useEffect(() => {
+    if (maxVisibleCommits === 'all') {
+      setCommitPageOffset(0);
+      return;
+    }
+    const size = maxVisibleCommits;
+    const maxPageIdx = Math.max(0, Math.ceil(filteredCommitsForSquash.length / size) - 1);
+    if (commitPageOffset > maxPageIdx) {
+      setCommitPageOffset(maxPageIdx);
+    }
+  }, [filteredCommitsForSquash.length, maxVisibleCommits, commitPageOffset]);
+
+  // Git Branch Metrics (Ahead & Behind metrics analytics)
+  const branchMetrics = React.useMemo(() => {
+    const currentName = repoState.currentBranch;
+    const currentMeta = repoState.branches.find(b => b.name === currentName);
+    
+    // Fallbacks or real numbers
+    let aheadCount = currentMeta?.aheadCount ?? 0;
+    let behindCount = currentMeta?.behindCount ?? 0;
+    
+    // If we have activeCommitsForSquash we can calculate track indices too (track 1 is feature, track 0 is develop)
+    const commitsTrack1 = repoState.commits.filter(c => c.selected && c.track === 1);
+    const commitsTrack0 = repoState.commits.filter(c => c.track === 0);
+    
+    if (isSimulation) {
+      if (currentName === 'develop') {
+        aheadCount = 3;
+        behindCount = 2;
+      } else if (currentName.startsWith('feature/payment')) {
+        aheadCount = commitsTrack1.length || 5;
+        behindCount = commitsTrack0.length || 2;
+      } else if (currentName === 'feature/auth-oauth') {
+        aheadCount = 0;
+        behindCount = 3;
+      } else {
+        aheadCount = commitsTrack1.length || 3;
+        behindCount = commitsTrack0.length || 2;
+      }
+    } else {
+      // In real repo mode, use counts or commits calculation
+      aheadCount = currentMeta?.aheadCount ?? commitsTrack1.length;
+      behindCount = currentMeta?.behindCount ?? commitsTrack0.length;
+    }
+    
+    return {
+      ahead: aheadCount,
+      behind: behindCount,
+      total: repoState.commits.length,
+      actionable: activeCommitsForSquash.length
+    };
+  }, [repoState.commits, repoState.branches, repoState.currentBranch, isSimulation, activeCommitsForSquash.length]);
+
   // DOM references for measuring lines connect position dynamic calculation
   const boardRef = React.useRef<HTMLDivElement>(null);
   const viewportRef = React.useRef<HTMLDivElement>(null);
@@ -703,22 +1116,22 @@ export default function App() {
           let next = prev + (e.deltaY < 0 ? zoomStep : -zoomStep);
           next = Math.round(next * 100) / 100;
 
-          if (next >= 2.5) {
+          if (next >= 5.0) {
             if (!limitCooldown) {
-              triggerToast('owl', '🔍 CHẠM TRẦN KÍNH LÚP', 'Phóng to cực hạn 250%! Code to như bánh xe bò rồi sếp ơi!', '🦖');
+              triggerToast('owl', '🔍 CHẠM TRẦN KÍNH LÚP', 'Phóng to cực hạn 500%! Code to như bánh xe bò rồi sếp ơi!', '🦖');
               limitCooldown = true;
               setTimeout(() => { limitCooldown = false; }, 3500);
             }
-            return 2.5;
+            return 5.0;
           }
           
-          if (next <= 0.3) {
+          if (next <= 0.15) {
             if (!limitCooldown) {
-              triggerToast('info', '🔍 TẦM NHÌN VŨ TRỤ', 'Thu nhỏ kịch sàn 30%! Sắp nhìn thấy cả sơ đồ tổng thể hệ sao rồi!', '🌌');
+              triggerToast('info', '🔍 TẦM NHÌN VŨ TRỤ', 'Thu nhỏ kịch sàn 15%! Sắp nhìn thấy cả sơ đồ tổng thể hệ sao rồi!', '🌌');
               limitCooldown = true;
-              setTimeout(() => { limitCooldown = false; }, 3500);
+              setTimeout(() => { limitCooldown = false; }, 3505);
             }
-            return 0.3;
+            return 0.15;
           }
 
           return next;
@@ -808,7 +1221,7 @@ export default function App() {
       };
       
       const list: Array<{ startX: number; startY: number; endX: number; endY: number; isDash?: boolean }> = [];
-      const activeCommits = repoState.commits.filter(c => c.selected);
+      const activeCommits = paginatedCommitsForSquash;
       const activeKeys = activeCommits.map(c => c.sha);
       
       if (activeKeys.length > 0) {
@@ -886,7 +1299,7 @@ export default function App() {
       
       setConnections(list);
     });
-  }, [repoState.commits, wizard.selectedCommits, zoomScale, nodeWidth, resetKey, isGraphVertical]);
+  }, [paginatedCommitsForSquash, wizard.selectedCommits, zoomScale, nodeWidth, resetKey, isGraphVertical]);
 
   React.useEffect(() => {
     const handle = requestAnimationFrame(() => {
@@ -2563,7 +2976,7 @@ export default function App() {
     }
   };
 
-  const activeCommitsForSquash = repoState.commits.filter(c => c.selected);
+
 
   return (
     <div id="rebase-overlord-app" className={`min-h-screen transition-colors duration-205 p-4 font-sans select-none antialiased ${theme === 'light' ? 'bg-slate-50 text-slate-900' : 'bg-[#060814] text-slate-100'}`}>
@@ -2713,6 +3126,148 @@ export default function App() {
           </motion.div>
         )}
 
+        {/* Git Branch Metrics & Insights Panel */}
+        <div className={`p-4 rounded-xl border mb-3 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 font-sans text-xs transition-all ${
+          theme === 'light'
+            ? 'bg-white border-slate-200 shadow-sm'
+            : 'bg-slate-900/40 border-slate-800 text-slate-200'
+        }`}>
+          {/* Branch Status details */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className={`px-2.5 py-1 rounded-md border font-mono font-bold tracking-tight text-xs flex items-center gap-1.5 ${
+              theme === 'light' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-indigo-500/15 border-indigo-500/20 text-indigo-300'
+            }`}>
+              <GitBranch className="w-3.5 h-3.5" />
+              <span>{repoState.currentBranch}</span>
+            </div>
+
+            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-405 font-medium">
+              <span>{tone === TranslationTone.ENGLISH ? "compared to" : "so với"}</span>
+              <span className="font-mono font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-350">{repoState.baseBranch || 'develop'}</span>
+            </div>
+
+            {/* Metrics Badges */}
+            <div className="flex items-center gap-2">
+              <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold flex items-center gap-1 border ${
+                branchMetrics.ahead > 0
+                  ? (theme === 'light' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400')
+                  : 'bg-slate-100 dark:bg-slate-800 border-transparent text-slate-400'
+              }`} title={tone === TranslationTone.ENGLISH ? `${branchMetrics.ahead} ahead commits (ready to squash/rebase)` : `${branchMetrics.ahead} commit ahead (đã sẵn sàng để gộp hoặc rebase)`}>
+                <ArrowUpCircle className="w-3 h-3 text-emerald-400" />
+                <span>Ahead: {branchMetrics.ahead}</span>
+              </span>
+
+              <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold flex items-center gap-1 border ${
+                branchMetrics.behind > 0
+                  ? 'bg-amber-500/10 border-amber-505/20 text-amber-550'
+                  : 'bg-slate-100 dark:bg-slate-800 border-transparent text-slate-400'
+              }`} title={tone === TranslationTone.ENGLISH ? `${branchMetrics.behind} behind commits (develop updates exist)` : `${branchMetrics.behind} commit behind (nhánh base đã có thay đổi mới)`}>
+                <ArrowDownCircle className="w-3 h-3 text-amber-500" />
+                <span>Behind: {branchMetrics.behind}</span>
+              </span>
+
+              <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 border border-slate-200 dark:border-slate-800 font-mono text-[10px] font-semibold text-indigo-400">
+                {tone === TranslationTone.ENGLISH ? 'To Process' : 'Sẽ xử lý'}: {branchMetrics.actionable}/{branchMetrics.total} commits
+              </span>
+            </div>
+          </div>
+
+          {/* Status advice or warner based on ahead/behind metrics */}
+          {branchMetrics.behind > 0 ? (
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/5 border border-amber-500/20 text-amber-500 max-w-md text-[11px] leading-snug">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+              <span>
+                <strong>{tone === TranslationTone.ENGLISH ? "Conflict Warning:" : "Cảnh báo:"}</strong> {tone === TranslationTone.ENGLISH ? `Your branch is behind by ${branchMetrics.behind} commits. Rebasing is strongly recommended to stay updated.` : `Nhánh của bạn đang bị chậm ${branchMetrics.behind} commit so với base branch. Hãy chạy Rebase để cập nhật mã nguồn mới nhất và tránh xung đột khi merge!`}
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/25 text-emerald-400 text-[11px]">
+              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+              <span>{tone === TranslationTone.ENGLISH ? "Healthy branch! Fully up-to-date with base branch." : "Nhánh sạch sẽ, đã đồng bộ hoàn toàn với base branch!"}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Dense Commits Handler: Pagination & Search filter */}
+        <div className={`p-3 rounded-xl border mb-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs select-none ${
+          theme === 'light' ? 'bg-slate-50 border-slate-200/80 shadow-sm' : 'bg-slate-900 border-slate-800/80 text-slate-200'
+        }`}>
+          {/* Search component */}
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder={tone === TranslationTone.ENGLISH ? "Search commits by msg or SHA..." : "Tìm commit bằng SHA hoặc nội dung..."}
+              value={commitSearchTerm}
+              onChange={(e) => {
+                setCommitSearchTerm(e.target.value);
+                setCommitPageOffset(0); // reset page offset on search change
+              }}
+              className={`w-full rounded-lg pl-8 pr-2.5 py-1.5 font-sans focus:outline-none focus:border-indigo-500 border ${
+                theme === 'light' ? 'bg-white border-slate-200 text-slate-805' : 'bg-[#060814] border-slate-800 text-slate-200'
+              }`}
+            />
+          </div>
+
+          {/* Range settings and pagination */}
+          <div className="flex flex-wrap items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
+            {/* Max commits visible select */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">{tone === TranslationTone.ENGLISH ? "Nodes Limit:" : "Trượt màn hình:"}</span>
+              <select
+                value={maxVisibleCommits}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setMaxVisibleCommits(val === 'all' ? 'all' : parseInt(val, 10));
+                  setCommitPageOffset(0);
+                }}
+                className={`rounded border px-2 py-1 select-none font-mono text-[11px] focus:outline-none ${
+                  theme === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-slate-950 border-slate-850 text-slate-300'
+                }`}
+              >
+                <option value="5">5 commits</option>
+                <option value="10">10 commits ({tone === TranslationTone.ENGLISH ? 'Default' : 'Chuẩn'})</option>
+                <option value="15">15 commits</option>
+                <option value="25">25 commits</option>
+                <option value="all">{tone === TranslationTone.ENGLISH ? 'Show All' : 'Tất cả'} ({filteredCommitsForSquash.length})</option>
+              </select>
+            </div>
+
+            {/* Pagination Controls */}
+            {maxVisibleCommits !== 'all' && filteredCommitsForSquash.length > maxVisibleCommits && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={commitPageOffset === 0}
+                  onClick={() => setCommitPageOffset(prev => Math.max(0, prev - 1))}
+                  className={`p-1 px-2.5 rounded transition-all cursor-pointer font-bold select-none border border-transparent disabled:opacity-40 disabled:cursor-not-allowed ${
+                    theme === 'light' ? 'bg-white border-slate-200 hover:bg-slate-100 hover:border-slate-300 text-slate-800 shadow-sm' : 'bg-slate-950 border-slate-800 hover:bg-slate-850 text-white shadow'
+                  }`}
+                  title={tone === TranslationTone.ENGLISH ? "Newer commits" : "Commit mới hơn / Trang trước"}
+                >
+                  &larr; {tone === TranslationTone.ENGLISH ? "Newer" : "Mới hơn"}
+                </button>
+                
+                <span className="text-[10px] font-mono font-bold px-2 py-1 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/15">
+                  {commitPageOffset + 1} / {Math.ceil(filteredCommitsForSquash.length / (maxVisibleCommits as number))}
+                </span>
+
+                <button
+                  type="button"
+                  disabled={commitPageOffset >= Math.ceil(filteredCommitsForSquash.length / (maxVisibleCommits as number)) - 1}
+                  onClick={() => setCommitPageOffset(prev => prev + 1)}
+                  className={`p-1 px-2.5 rounded transition-all cursor-pointer font-bold select-none border border-transparent disabled:opacity-40 disabled:cursor-not-allowed ${
+                    theme === 'light' ? 'bg-white border-slate-200 hover:bg-slate-100 hover:border-slate-300 text-slate-800 shadow-sm' : 'bg-slate-950 border-slate-800 hover:bg-slate-850 text-white shadow'
+                  }`}
+                  title={tone === TranslationTone.ENGLISH ? "Older commits" : "Commit cũ hơn / Trang sau"}
+                >
+                  {tone === TranslationTone.ENGLISH ? "Older" : "Cũ hơn"} &rarr;
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
             {/* Clean Controls Toolbar Row (outside viewport to guarantee zero overlaps with rendered graph nodes) */}
               <div className={`flex flex-wrap items-center justify-between gap-3 p-2 mb-3.5 rounded-lg border shadow-sm select-none font-mono text-xs ${
                 theme === 'light' 
@@ -2791,7 +3346,7 @@ export default function App() {
                   {/* Zoom adjustment */}
                   <div className="flex items-center gap-0.5">
                     <button
-                      onClick={() => setZoomScale(z => Math.max(0.3, Math.round((z - 0.1) * 10) / 10))}
+                      onClick={() => setZoomScale(z => Math.max(0.15, Math.round((z - 0.1) * 10) / 10))}
                       className={`p-1 rounded transition-colors cursor-pointer border border-transparent hover:border-slate-350 dark:hover:border-slate-805 ${
                         theme === 'light' ? 'bg-white hover:bg-slate-100' : 'bg-slate-950 hover:bg-slate-900'
                       }`}
@@ -2803,7 +3358,7 @@ export default function App() {
                       {Math.round(zoomScale * 100)}%
                     </span>
                     <button
-                      onClick={() => setZoomScale(z => Math.min(2.5, Math.round((z + 0.1) * 10) / 10))}
+                      onClick={() => setZoomScale(z => Math.min(5.0, Math.round((z + 0.1) * 10) / 10))}
                       className={`p-1 rounded transition-colors cursor-pointer border border-transparent hover:border-slate-350 dark:hover:border-slate-855 ${
                         theme === 'light' ? 'bg-white hover:bg-slate-100' : 'bg-slate-950 hover:bg-slate-900'
                       }`}
@@ -2902,7 +3457,7 @@ export default function App() {
                   {/* Zoom adjustment */}
                   <div className="flex items-center gap-0.5">
                     <button
-                      onClick={() => setZoomScale(z => Math.max(0.3, Math.round((z - 0.1) * 10) / 10))}
+                      onClick={() => setZoomScale(z => Math.max(0.15, Math.round((z - 0.1) * 10) / 10))}
                       className={`p-1 rounded transition-colors cursor-pointer border border-transparent hover:border-slate-350 dark:hover:border-slate-805 ${
                         theme === 'light' ? 'bg-white hover:bg-slate-100' : 'bg-slate-950 hover:bg-slate-900'
                       }`}
@@ -2914,7 +3469,7 @@ export default function App() {
                       {Math.round(zoomScale * 100)}%
                     </span>
                     <button
-                      onClick={() => setZoomScale(z => Math.min(2.5, Math.round((z + 0.1) * 10) / 10))}
+                      onClick={() => setZoomScale(z => Math.min(5.0, Math.round((z + 0.1) * 10) / 10))}
                       className={`p-1 rounded transition-colors cursor-pointer border border-transparent hover:border-slate-350 dark:hover:border-slate-855 ${
                         theme === 'light' ? 'bg-white hover:bg-slate-100' : 'bg-slate-950 hover:bg-slate-900'
                       }`}
@@ -3038,280 +3593,40 @@ export default function App() {
                           <div className="text-slate-400 text-xs italic py-2">
                             {sloc.emptyCommits}
                           </div>
+                        ) : filteredCommitsForSquash.length === 0 ? (
+                          <div className="text-slate-400 text-xs italic py-2">
+                            {tone === TranslationTone.ENGLISH ? "No commits match your current filter." : "Không tìm thấy commit nào khớp bộ lọc tìm kiếm."}
+                          </div>
                         ) : (
-                          activeCommitsForSquash.map((c, i) => {
-                            const isSelect = wizard.selectedCommits.includes(c.sha) || wizard.selectedCommits.length === 0;
-                            const isExpanded = !!expandedNodes[c.sha];
-                            const customSz = nodeSizes[c.sha];
-                            const finalWidth = customSz?.width ?? (isExpanded ? nodeWidth + 120 : nodeWidth);
-                            const finalHeight = customSz?.height ?? (isExpanded ? 140 : 80);
-
+                          paginatedCommitsForSquash.map((c, i) => {
                             const track = c.track !== undefined ? c.track : 1;
-                            let nodeOffsetX = 0;
-                            let nodeOffsetY = 0;
-                            if (isSimulation) {
-                              if (isGraphVertical) {
-                                if (track === 0) nodeOffsetX = -180;
-                                if (track === 2) nodeOffsetX = 180;
-                              } else {
-                                if (track === 0) nodeOffsetY = -110;
-                                if (track === 2) nodeOffsetY = 110;
-                              }
-                            }
-
                             return (
                               <React.Fragment key={c.sha}>
-                                <motion.div
-                                  ref={el => { nodeRefs.current[c.sha] = el; }}
-                                  drag={!isMobile && activeTool === 'dragNode'}
-                                  dragConstraints={false}
-                                  dragElastic={0.2}
-                                  layout
-                                  whileDrag={{
-                                    scale: 1.03,
-                                    zIndex: 50,
-                                    boxShadow: theme === 'light' ? '0 10px 20px rgba(0,0,0,0.1)' : '0 10px 25px rgba(0,0,0,0.4)',
-                                  }}
-                                  onDrag={() => {
-                                    updateConnectionPaths();
-                                  }}
-                                  onDragEnd={() => {
-                                    updateConnectionPaths();
-                                  }}
-                                  onMouseEnter={() => {
-                                    setHoveredSha(c.sha);
-                                    fetchCommitFiles(c.sha);
-                                  }}
-                                  onMouseLeave={() => {
-                                    setHoveredSha(null);
-                                  }}
-                                  style={{ 
-                                    width: `${finalWidth}px`,
-                                    height: customSz?.height ? `${finalHeight}px` : 'auto',
-                                    minHeight: customSz?.height ? `${finalHeight}px` : undefined,
-                                    marginLeft: isGraphVertical ? `${nodeOffsetX}px` : undefined,
-                                    marginTop: !isGraphVertical ? `${nodeOffsetY}px` : undefined,
-                                  }}
-                                  className={`flex flex-col items-stretch p-3 text-left border rounded-xl hover:shadow-md transition-all relative ${!isMobile && activeTool === 'dragNode' ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'} ${
-                                    theme === 'light' 
-                                      ? 'bg-white border-slate-200/80 shadow-sm text-slate-800' 
-                                      : 'bg-slate-900/60 border-slate-800 text-slate-100 shadow'
-                                  }`}
-                                >
-                                  {/* Top header of node */}
-                                  <div className="flex items-center justify-between gap-1.5 mb-2 pointer-events-auto">
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                      <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${
-                                        isSelect 
-                                          ? 'bg-indigo-500/10 text-indigo-500 border-indigo-200/50 dark:bg-indigo-500/20 dark:text-indigo-400 dark:border-indigo-500/30' 
-                                          : 'bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-950 dark:text-slate-500 dark:border-slate-900'
-                                      }`}>
-                                        {isExpanded ? c.sha : c.sha.substring(0, 7)}
-                                      </span>
-
-                                      {/* Branch Track Badge */}
-                                      {isSimulation && track === 0 && (
-                                        <span className="text-[8px] font-mono font-bold px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 uppercase tracking-wider scale-[0.9] origin-left">
-                                          develop
-                                        </span>
-                                      )}
-                                      {isSimulation && track === 2 && (
-                                        <span className="text-[8px] font-mono font-bold px-1 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 uppercase tracking-wider scale-[0.9] origin-left">
-                                          origin/remote
-                                        </span>
-                                      )}
-                                      {isSimulation && track === 1 && c.isMergeCommit && (
-                                        <span className="text-[8px] font-mono font-bold px-1 py-0.5 rounded bg-fuchsia-500/15 text-fuchsia-400 border border-fuchsia-500/20 uppercase tracking-wider scale-[0.9] origin-left">
-                                          merge
-                                        </span>
-                                      )}
-                                    </div>
-                                    
-                                    <div className="flex items-center gap-1.5 select-none">
-                                      {/* Hover Grab Handle Indicator */}
-                                      {!isMobile && activeTool === 'dragNode' && (
-                                        <Move className="w-3 h-3 text-slate-400 hover:text-slate-100 cursor-move" title="Drag node content" />
-                                      )}
-                                      
-                                      {/* Maximize / Collapse Resize Button */}
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setExpandedNodes(prev => ({ ...prev, [c.sha]: !prev[c.sha] }));
-                                          setTimeout(() => {
-                                            updateConnectionPaths();
-                                            triggerRenderTick();
-                                          }, 80);
-                                        }}
-                                        className={`p-1 rounded cursor-pointer transition-colors ${
-                                          theme === 'light' ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-slate-800 text-slate-400'
-                                        }`}
-                                        title={isExpanded ? "Collapse Details" : "Expand to view details"}
-                                      >
-                                        {isExpanded ? (
-                                          <Minimize2 className="w-3 h-3 text-rose-400" />
-                                        ) : (
-                                          <Maximize2 className="w-3 h-3 text-emerald-400" />
-                                        )}
-                                      </button>
-                                    </div>
-                                  </div>
-
-                                  {/* Body of node */}
-                                  <div className="flex flex-col gap-1.5 flex-1 overflow-hidden">
-                                    <span 
-                                      className={`text-[11px] font-medium leading-tight ${
-                                        isExpanded ? 'whitespace-normal block break-words text-xs' : 'truncate block w-full text-[10px]'
-                                      } ${
-                                        isSelect ? (theme === 'light' ? 'text-slate-800' : 'text-slate-100') : 'text-slate-400 line-through opacity-60'
-                                      }`}
-                                      title={c.message}
-                                    >
-                                      {c.message}
-                                    </span>
-
-                                    {/* Smooth framer-motion expanded detailed contents */}
-                                    <AnimatePresence>
-                                      {isExpanded && (
-                                        <motion.div
-                                          initial={{ opacity: 0, height: 0 }}
-                                          animate={{ opacity: 1, height: 'auto' }}
-                                          exit={{ opacity: 0, height: 0 }}
-                                          className="border-t border-dashed border-slate-700 mt-2 pt-2 flex flex-col gap-1 text-[10px] font-mono text-slate-400"
-                                        >
-                                          {c.type && (
-                                            <div className="flex items-center gap-1.5">
-                                              <span className="font-bold shrink-0 text-slate-500">Type:</span>
-                                              <span className={`px-1 py-0.2 rounded font-black uppercase text-[8px] ${
-                                                c.type === 'feat' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                                                c.type === 'fix' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' :
-                                                'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
-                                              }`}>
-                                                {c.type}
-                                              </span>
-                                            </div>
-                                          )}
-                                          
-                                          {c.author && (
-                                            <div className="truncate">
-                                              <span className="font-bold text-slate-500 text-[9px]">Author:</span> {c.author}
-                                            </div>
-                                          )}
-                                          
-                                          {c.date && (
-                                            <div className="text-[9px]">
-                                              <span className="font-bold text-slate-500">Date:</span> {c.date}
-                                            </div>
-                                          )}
-                                        </motion.div>
-                                      )}
-                                    </AnimatePresence>
-                                  </div>
-
-                                  {/* Custom Drag-to-Resize Handles on Board Borders (hidden on touch machines) */}
-                                  {!isTouchOnly && (
-                                    <>
-                                      {/* Right side resize handle */}
-                                      <div
-                                        onPointerDown={(e) => handleResizeStart(e, c.sha, 'w')}
-                                        className="absolute top-0 right-0 w-2 h-full cursor-ew-resize hover:bg-indigo-500/30 active:bg-indigo-500/40 transition-colors z-20 group"
-                                        title="Kéo để chỉnh độ rộng (Drag to resize width)"
-                                      >
-                                        <div className="w-1 h-1/3 bg-slate-400/25 group-hover:bg-indigo-400/80 rounded mx-auto my-auto top-1/3 relative" />
-                                      </div>
-
-                                      {/* Bottom side resize handle */}
-                                      <div
-                                        onPointerDown={(e) => handleResizeStart(e, c.sha, 'h')}
-                                        className="absolute bottom-0 left-0 h-2 w-full cursor-ns-resize hover:bg-indigo-500/30 active:bg-indigo-500/40 transition-colors z-20 group"
-                                        title="Kéo để chỉnh chiều cao (Drag to resize height)"
-                                      >
-                                        <div className="h-1 w-1/3 bg-slate-400/25 group-hover:bg-indigo-400/80 rounded mx-auto my-auto left-1/3 relative" />
-                                      </div>
-
-                                      {/* Bottom-right diagonal resize handle */}
-                                      <div
-                                        onPointerDown={(e) => handleResizeStart(e, c.sha, 'both')}
-                                        className="absolute bottom-0 right-0 w-4.5 h-4.5 cursor-se-resize hover:bg-indigo-500/50 hover:scale-110 active:scale-95 transition-all z-30 flex items-center justify-center rounded-bl group-hover:bg-indigo-500/10"
-                                        title="Chỉnh cả 2 chiều (Resize both width and height)"
-                                      >
-                                        <svg className="w-3 h-3 text-slate-400 group-hover:text-indigo-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}>
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 19H5m14 0V5" />
-                                        </svg>
-                                      </div>
-                                    </>
-                                  )}
-
-                                  {/* Interactive hover tooltip previewing file changes */}
-                                  <AnimatePresence>
-                                    {hoveredSha === c.sha && (
-                                      <motion.div
-                                        initial={{ opacity: 0, scale: 0.95, x: 10 }}
-                                        animate={{ opacity: 1, scale: 1, x: 0 }}
-                                        exit={{ opacity: 0, scale: 0.95, x: 10 }}
-                                        transition={{ duration: 0.15 }}
-                                        style={{
-                                          width: '260px',
-                                        }}
-                                        className={`absolute left-[103%] top-0 z-55 p-3.5 rounded-xl border-2 shadow-2xl flex flex-col gap-2.5 backdrop-blur-md font-sans text-xs ${
-                                          theme === 'light'
-                                            ? 'bg-white/95 border-indigo-100 text-slate-800 shadow-slate-300/60'
-                                            : 'bg-slate-950/95 border-indigo-900/80 text-slate-100 shadow-black/90'
-                                        }`}
-                                      >
-                                        <div className="flex items-center justify-between border-b pb-1.5 border-dashed border-slate-200 dark:border-slate-800">
-                                          <div className="flex items-center gap-1.5 font-bold font-mono text-[10px]">
-                                            <span className="text-indigo-400">#</span>
-                                            <span>{translate('commit_files_changed', tone)}</span>
-                                          </div>
-                                          <span className="text-[9px] font-mono opacity-60">
-                                            {c.sha.substring(0, 7)}
-                                          </span>
-                                        </div>
-
-                                        {loadingFilesShas[c.sha] ? (
-                                          <div className="flex items-center gap-2 py-3 justify-center text-[10px] text-slate-400 animate-pulse font-mono">
-                                            <RefreshCw className="w-3 h-3 animate-spin text-indigo-400" />
-                                            <span>{translate('commit_files_loading', tone)}</span>
-                                          </div>
-                                        ) : !commitFiles[c.sha] || commitFiles[c.sha].length === 0 ? (
-                                          <div className="text-[10px] text-slate-505 py-3 text-center italic font-mono">
-                                            {translate('commit_files_none', tone)}
-                                          </div>
-                                        ) : (
-                                          <div className="flex flex-col gap-1.5 max-h-[180px] overflow-y-auto pr-1">
-                                            {commitFiles[c.sha].map((file, fIdx) => (
-                                              <div
-                                                key={fIdx}
-                                                className={`flex items-center justify-between gap-2 p-1.5 rounded text-[10px] font-mono ${
-                                                  theme === 'light' ? 'bg-slate-50' : 'bg-slate-900/40'
-                                                }`}
-                                              >
-                                                <span 
-                                                  className="truncate font-medium flex-1 text-left opacity-90"
-                                                  title={file.filepath}
-                                                >
-                                                  {file.filepath}
-                                                </span>
-                                                <span
-                                                  className={`px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase shrink-0 ${
-                                                    file.status === 'added'
-                                                      ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                                                      : file.status === 'deleted'
-                                                      ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20'
-                                                      : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                                                  }`}
-                                                >
-                                                  {file.status === 'added' ? 'A' : file.status === 'deleted' ? 'D' : 'M'}
-                                                </span>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        )}
-                                      </motion.div>
-                                    )}
-                                  </AnimatePresence>
-                                </motion.div>
+                                <CommitNodeCard
+                                  c={c}
+                                  theme={theme}
+                                  tone={tone}
+                                  activeTool={activeTool}
+                                  isMobile={isMobile}
+                                  wizard={wizard}
+                                  expandedNodes={expandedNodes}
+                                  setExpandedNodes={setExpandedNodes}
+                                  nodeSizes={nodeSizes}
+                                  isSimulation={isSimulation}
+                                  track={track}
+                                  isGraphVertical={isGraphVertical}
+                                  nodeWidth={nodeWidth}
+                                  nodeRefs={nodeRefs}
+                                  updateConnectionPaths={updateConnectionPaths}
+                                  triggerRenderTick={triggerRenderTick}
+                                  handleResizeStart={handleResizeStart}
+                                  hoveredSha={hoveredSha}
+                                  setHoveredSha={setHoveredSha}
+                                  fetchCommitFiles={fetchCommitFiles}
+                                  loadingFilesShas={loadingFilesShas}
+                                  commitFiles={commitFiles}
+                                  isTouchOnly={isTouchOnly}
+                                />
                               </React.Fragment>
                             );
                           })
