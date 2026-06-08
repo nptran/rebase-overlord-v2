@@ -29,6 +29,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { ConflictFile, TranslationTone } from '../types';
+import { getApiHeaders } from '../utils/apiKeyHelper';
 
 const localization = {
   [TranslationTone.PROFESSIONAL]: {
@@ -209,6 +210,109 @@ const parseConflictFile = (content: string): CodeBlock[] => {
   }
 
   return blocks;
+};
+
+interface ConflictBlockAnalysis {
+  isSimpleConflict: boolean;
+  isNonConflicting: boolean;
+  mergedProposal: string;
+  reason: string;
+}
+
+const analyzeAndMergeConflictBlock = (block: CodeBlock): ConflictBlockAnalysis => {
+  const ours = block.oursText || '';
+  const theirs = block.theirsText || '';
+
+  // 1. Non-conflicting changes: One side changed, other side has no overlap (empty)
+  if (ours === '' && theirs !== '') {
+    return {
+      isSimpleConflict: false,
+      isNonConflicting: true,
+      mergedProposal: theirs,
+      reason: 'Non-conflicting Change: Added/modified only in Theirs (Right)'
+    };
+  }
+  if (theirs === '' && ours !== '') {
+    return {
+      isSimpleConflict: false,
+      isNonConflicting: true,
+      mergedProposal: ours,
+      reason: 'Non-conflicting Change: Added/modified only in Ours (Left)'
+    };
+  }
+
+  // 2. Simple Conflict Heuristic Detection: Same lines edited but with zero actual spatial/text overlap
+  const oursLines = ours.split('\n');
+  const theirsLines = theirs.split('\n');
+
+  if (oursLines.length === theirsLines.length) {
+    let matchesHeuristic = true;
+    const mergedLines: string[] = [];
+
+    for (let i = 0; i < oursLines.length; i++) {
+      const o = oursLines[i];
+      const t = theirsLines[i];
+
+      if (o === t) {
+        mergedLines.push(o);
+        continue;
+      }
+
+      // Check for Indentation discrepancies only
+      if (o.trim() === t.trim()) {
+        const oSpaces = o.length - o.trim().length;
+        const tSpaces = t.length - t.trim().length;
+        mergedLines.push(oSpaces >= tSpaces ? o : t);
+        continue;
+      }
+
+      // Check for spatial head/tail edits (no middle collisions)
+      let commonPrefix = '';
+      let j = 0;
+      while (j < o.length && j < t.length && o[j] === t[j]) {
+        commonPrefix += o[j];
+        j++;
+      }
+
+      let commonSuffix = '';
+      let kLineO = o.length - 1;
+      let kLineT = t.length - 1;
+      while (kLineO >= j && kLineT >= j && o[kLineO] === t[kLineT]) {
+        commonSuffix = o[kLineO] + commonSuffix;
+        kLineO--;
+        kLineT--;
+      }
+
+      const oMiddle = o.substring(j, kLineO + 1);
+      const tMiddle = t.substring(j, kLineT + 1);
+
+      if (oMiddle !== '' && tMiddle !== '') {
+        // Spatial clash on same line segment
+        matchesHeuristic = false;
+        break;
+      } else {
+        // One side has an edit on start, the other on tail or none. Safety combine
+        const combined = commonPrefix + (oMiddle || tMiddle) + commonSuffix;
+        mergedLines.push(combined);
+      }
+    }
+
+    if (matchesHeuristic) {
+      return {
+        isSimpleConflict: true,
+        isNonConflicting: false,
+        mergedProposal: mergedLines.join('\n'),
+        reason: 'Simple Conflict: Disjoint changes on same line. Auto-mergeable.'
+      };
+    }
+  }
+
+  return {
+    isSimpleConflict: false,
+    isNonConflicting: false,
+    mergedProposal: '',
+    reason: 'Complex Conflict: Overlapping line segment changes'
+  };
 };
 
 // Return either the file conflict content or initial fallback for simulated payment.ts file
@@ -616,9 +720,7 @@ export default function ConflictSolver({
     try {
       const response = await fetch('/api/resolve-conflict-ai', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getApiHeaders(),
         body: JSON.stringify({
           filepath: selectedFile.filepath,
           content: activeContent, // Pass original raw content with conflict markers intact
@@ -753,6 +855,7 @@ export default function ConflictSolver({
   
   // Track resolved status per block index with independent left and right options for JetBrains style
   const [blockChoices, setBlockChoices] = React.useState<Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }>>({});
+  const [blockAnalyses, setBlockAnalyses] = React.useState<Record<number, ConflictBlockAnalysis>>({});
   const [scrollOffset, setScrollOffset] = React.useState(0);
   const activeScrollSourceRef = React.useRef<HTMLElement | null>(null);
 
@@ -1301,9 +1404,7 @@ export default function ConflictSolver({
     try {
       const response = await fetch('/api/resolve-block-ai', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getApiHeaders(),
         body: JSON.stringify({
           filepath: selectedFile?.filepath || 'source_code',
           oursText: block.oursText || '',
@@ -1365,6 +1466,7 @@ export default function ConflictSolver({
     if (selectedFile) {
       const initialChoices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }> = {};
       const initialCustoms: Record<number, string> = {};
+      const initialAnalyses: Record<number, ConflictBlockAnalysis> = {};
 
       if (selectedFile.isResolved && selectedFile.resolvedContent) {
         setEditorText(selectedFile.resolvedContent);
@@ -1372,16 +1474,47 @@ export default function ConflictSolver({
           if (b.type === 'conflict') {
             initialChoices[i] = { left: 'accepted', right: 'ignored' };
             initialCustoms[i] = b.oursText || '';
+            initialAnalyses[i] = analyzeAndMergeConflictBlock(b);
           }
         });
+        setBlockAnalyses(initialAnalyses);
       } else {
         blocks.forEach((b, i) => {
           if (b.type === 'conflict') {
-            initialChoices[i] = { left: 'pending', right: 'pending' };
-            initialCustoms[i] = '';
+            const analysis = analyzeAndMergeConflictBlock(b);
+            initialAnalyses[i] = analysis;
+
+            if (analysis.isNonConflicting || analysis.isSimpleConflict) {
+              // Automatically resolve and fill the merge results
+              if (b.oursText !== '' && b.theirsText === '') {
+                initialChoices[i] = { left: 'accepted', right: 'ignored' };
+              } else if (b.theirsText !== '' && b.oursText === '') {
+                initialChoices[i] = { left: 'ignored', right: 'accepted' };
+              } else {
+                initialChoices[i] = { left: 'accepted', right: 'accepted' };
+              }
+              initialCustoms[i] = analysis.mergedProposal;
+            } else {
+              initialChoices[i] = { left: 'pending', right: 'pending' };
+              initialCustoms[i] = '';
+            }
           }
         });
-        const initialMerged = blocks.map(b => b.type === 'normal' ? b.commonText : '').join('\n');
+        
+        setBlockAnalyses(initialAnalyses);
+
+        const initialMerged = blocks.map((b, i) => {
+          if (b.type === 'normal') {
+            return b.commonText;
+          } else {
+            const analysis = initialAnalyses[i];
+            if (analysis && (analysis.isNonConflicting || analysis.isSimpleConflict)) {
+              return analysis.mergedProposal;
+            }
+            return ''; // Leave empty for complex conflicts just like JetBrains IDE
+          }
+        }).join('\n');
+
         setEditorText(initialMerged);
       }
       setBlockChoices(initialChoices);
@@ -1390,6 +1523,7 @@ export default function ConflictSolver({
       setEditorText('');
       setBlockChoices({});
       setCustomBlockTexts({});
+      setBlockAnalyses({});
     }
   }, [selectedFile?.filepath, blocks]);
 
@@ -2100,24 +2234,57 @@ export default function ConflictSolver({
                           <span>AI Option</span>
                         </span>
                       )}
+                      {blockAnalyses[bIdx] && (
+                        (() => {
+                          const ana = blockAnalyses[bIdx];
+                          if (ana.isNonConflicting) {
+                            return (
+                              <span 
+                                className="text-[8px] font-extrabold px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/35 text-emerald-400 uppercase tracking-widest flex items-center shrink-0 cursor-help pointer-events-auto"
+                                title={ana.reason}
+                              >
+                                <span>Auto-Merged (Non-Conflicting)</span>
+                              </span>
+                            );
+                          } else if (ana.isSimpleConflict) {
+                            return (
+                              <span 
+                                className="text-[8px] font-extrabold px-1.5 py-0.5 rounded bg-teal-500/20 border border-teal-500/35 text-teal-400 uppercase tracking-widest flex items-center shrink-0 cursor-help pointer-events-auto animate-pulse"
+                                title={ana.reason}
+                              >
+                                <span>Heuristic (Simple Conflict)</span>
+                              </span>
+                            );
+                          } else {
+                            return (
+                              <span 
+                                className="text-[8px] font-extrabold px-1.5 py-0.5 rounded bg-indigo-500/20 border border-indigo-500/35 text-indigo-400 uppercase tracking-widest flex items-center shrink-0 cursor-help pointer-events-auto"
+                                title={ana.reason}
+                              >
+                                <span>Complex Conflict</span>
+                              </span>
+                            );
+                          }
+                        })()
+                      )}
                       {isPending ? (
-                        <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/35 text-indigo-400 uppercase tracking-widest animate-pulse">
+                        <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-indigo-550/20 border border-indigo-550/35 text-indigo-400 uppercase tracking-widest animate-pulse shrink-0">
                           Pending
                         </span>
                       ) : isOursOnly ? (
-                        <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/35 text-emerald-400 uppercase tracking-widest">
+                        <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/35 text-emerald-400 uppercase tracking-widest shrink-0">
                           Ours (Left)
                         </span>
                       ) : isTheirsOnly ? (
-                        <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/35 text-emerald-400 uppercase tracking-widest">
+                        <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/35 text-emerald-400 uppercase tracking-widest shrink-0">
                           Theirs (Right)
                         </span>
                       ) : isBoth ? (
-                        <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-teal-500/20 border border-teal-500/35 text-teal-400 uppercase tracking-widest">
+                        <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-teal-500/20 border border-teal-500/35 text-teal-400 uppercase tracking-widest shrink-0">
                           Both (Merged)
                         </span>
                       ) : (
-                        <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-slate-500/25 border border-slate-500/35 text-slate-400 uppercase tracking-widest">
+                        <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-slate-500/25 border border-slate-500/35 text-slate-400 uppercase tracking-widest shrink-0">
                           Ignored
                         </span>
                       )}
@@ -2445,6 +2612,27 @@ export default function ConflictSolver({
                         <Undo2 className="w-3.5 h-3.5" />
                         <span>Reset File</span>
                       </button>
+                    </div>
+                  </div>
+
+                  {/* Summary bar for automated 3-way merge resolution */}
+                  <div className={`mt-3.5 pt-3 border-t flex flex-wrap items-center justify-between text-[11px] gap-2.5 ${
+                    isLight ? 'border-slate-200 text-slate-600' : 'border-[#2d2f3c]/40 text-slate-400'
+                  }`}>
+                    <div className="flex items-center gap-1.5 font-mono">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping shrink-0" />
+                      <span>
+                        <strong>3-Way Engine:</strong> BASE revision được định vị tự động qua <code className="px-1 py-0.5 rounded bg-violet-500/10 text-violet-400 font-mono text-[10px]">git merge-base</code>.
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4 font-mono">
+                      <span className="flex items-center gap-1 text-emerald-500 font-bold">
+                        <Check className="w-3.5 h-3.5 text-emerald-500" />
+                        Tự động gộp: {Object.values(blockAnalyses).filter((a: any) => a.isNonConflicting || a.isSimpleConflict).length} blocks an toàn
+                      </span>
+                      <span className="text-slate-500 border-l pl-3 border-slate-500/30">
+                        Scroll Sync: Line-by-Line Alignment
+                      </span>
                     </div>
                   </div>
                 </div>

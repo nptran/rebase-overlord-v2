@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { TranslationTone, GitRepoState } from '../types';
 import { resolveApiUrl } from '../utils/apiResolver';
+import { getApiHeaders } from '../utils/apiKeyHelper';
 
 // A simple but comprehensive nested markdown/terminal code block element formatter
 interface FormattedMessageProps {
@@ -152,6 +153,10 @@ export default function AiDoctorFloatingChat({
   const [inputVal, setInputVal] = React.useState<string>('');
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const [hasNewResponse, setHasNewResponse] = React.useState<boolean>(false);
+  const [customApiKey, setCustomApiKey] = React.useState<string>(() => {
+    return localStorage.getItem('gemini_api_key') || '';
+  });
+  const [showKeySetting, setShowKeySetting] = React.useState<boolean>(false);
 
   // Initialize conversations
   const [messages, setMessages] = React.useState<Array<{ id: string; role: 'user' | 'model'; content: string; timestamp: string }>>([]);
@@ -298,7 +303,7 @@ export default function AiDoctorFloatingChat({
     try {
       const response = await fetch(resolveApiUrl('/api/ai-chat'), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getApiHeaders(),
         body: JSON.stringify({
           messages: nextMessages.map(msg => ({ role: msg.role, content: msg.content })),
           repoContext: repoState,
@@ -537,6 +542,60 @@ export default function AiDoctorFloatingChat({
                   </span>
                 )}
               </div>
+            </div>
+
+            {/* API Key Configuration Dropdown */}
+            <div className={`px-4 py-2 border-b text-[10px] font-mono flex flex-col gap-1.5 shrink-0 animate-fadeIn ${
+              theme === 'light' ? 'bg-indigo-50/25 border-slate-100 text-slate-750' : 'bg-slate-900/20 border-slate-800/60 text-slate-100'
+            }`}>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400 flex items-center gap-1.5 font-bold">
+                  <span>🔑 Custom Key:</span>
+                  <span className={`px-1 py-0.2 rounded text-[8px] font-mono ${
+                    customApiKey.trim()
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold'
+                      : 'bg-slate-500/10 text-slate-400 border border-slate-500/20'
+                  }`}>
+                    {customApiKey.trim() ? "Active (Local)" : "Unset (Default)"}
+                  </span>
+                </span>
+                <button 
+                  type="button"
+                  onClick={() => setShowKeySetting(!showKeySetting)}
+                  className="text-[9px] px-2 py-0.5 rounded bg-indigo-500/15 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-600 hover:text-white transition-all cursor-pointer font-bold uppercase"
+                >
+                  {showKeySetting ? 'Hide panel' : 'Configure key'}
+                </button>
+              </div>
+              {showKeySetting && (
+                <div className="flex gap-1.5 mt-1">
+                  <input
+                    type="password"
+                    value={customApiKey}
+                    onChange={(e) => {
+                      const newKey = e.target.value;
+                      setCustomApiKey(newKey);
+                      localStorage.setItem('gemini_api_key', newKey);
+                    }}
+                    placeholder="AIzaSy... (Gemini API Key)"
+                    className={`flex-1 px-2.5 py-1.5 rounded-lg text-[10px] border focus:outline-none focus:ring-1 focus:ring-indigo-500 transition-all font-mono ${
+                      theme === 'light'
+                        ? 'bg-white border-slate-200 text-slate-700'
+                        : 'bg-[#0f172a] border-slate-800 text-slate-300'
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      localStorage.setItem('gemini_api_key', customApiKey);
+                      setShowKeySetting(false);
+                    }}
+                    className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-mono font-bold text-[9px] cursor-pointer"
+                  >
+                    SAVE
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Warning banner indicating active offline rules diagnosis */}

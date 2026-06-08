@@ -47,6 +47,7 @@ import {
   ConflictFile 
 } from './types';
 import { translate } from './i18n';
+import { getApiHeaders } from './utils/apiKeyHelper';
 
 // Modules
 import RepoHeader from './components/RepoHeader';
@@ -1439,7 +1440,12 @@ export default function App() {
   // Animated Git Doctor states
   const [doctorProblem, setDoctorProblem] = React.useState<string | null>(null);
   const [doctorLoading, setDoctorLoading] = React.useState<boolean>(false);
-  const [doctorDiagnosis, setDoctorDiagnosis] = React.useState<{ explanation: string; mitigation: string } | null>(null);
+  const [doctorDiagnosis, setDoctorDiagnosis] = React.useState<{
+    dr_overlord: { explanation: string; mitigation: string };
+    dr_compiler?: { explanation: string; mitigation: string };
+    dr_schema?: { explanation: string; mitigation: string };
+  } | null>(null);
+  const [activeDoctorTab, setActiveDoctorTab] = React.useState<'overlord' | 'compiler' | 'schema'>('overlord');
   const [doctorError, setDoctorError] = React.useState<string | null>(null);
 
   // Simulated Anomalies State
@@ -2467,10 +2473,18 @@ export default function App() {
 
     if (cachedData) {
       setTimeout(() => {
-        setDoctorDiagnosis({
-          explanation: cachedData.explanation + (isAiEnabled ? " (⚡ Cached)" : " (⚡ Offline Cache)"),
-          mitigation: cachedData.mitigation + (isAiEnabled ? " (⚡ Cached)" : " (⚡ Offline Cache)")
-        });
+        const isEnglish = tone === TranslationTone.ENGLISH;
+        // Parse into multi-expert shape, fallback gracefully
+        const resolvedCache = {
+          dr_overlord: {
+            explanation: (cachedData.dr_overlord?.explanation || cachedData.explanation || (isEnglish ? "Cached overlord details" : "Thông tin chẩn trị từ bộ nhớ đệm")) + (isAiEnabled ? " (⚡ Cached)" : " (⚡ Offline Cache)"),
+            mitigation: (cachedData.dr_overlord?.mitigation || cachedData.mitigation || (isEnglish ? "Cached overlord mitigations" : "Hướng xử lý từ bộ nhớ đệm")) + (isAiEnabled ? " (⚡ Cached)" : " (⚡ Offline Cache)")
+          },
+          dr_compiler: cachedData.dr_compiler,
+          dr_schema: cachedData.dr_schema
+        };
+        setActiveDoctorTab('overlord');
+        setDoctorDiagnosis(resolvedCache);
         addLog(`🏥 [Cache Hit] Khôi phục chẩn trị AI từ bộ nhớ đệm cho triệu chứng: ${problemType}`);
         setDoctorLoading(false);
       }, 200);
@@ -2496,14 +2510,20 @@ export default function App() {
             mitigation = `${rawMitigation} Làm lẹ giải hạn đi bạn hiền bớ người ta!`;
           }
 
+          setActiveDoctorTab('overlord');
           setDoctorDiagnosis({
-            explanation,
-            mitigation
+            dr_overlord: {
+              explanation,
+              mitigation
+            }
           });
         } else {
+          setActiveDoctorTab('overlord');
           setDoctorDiagnosis({
-            explanation: isEnglish ? "Offline generic anomaly alert. AI is disabled." : "Cảnh báo bất thường cục bộ hệ thống. Trợ lý AI đang tắt.",
-            mitigation: isEnglish ? "Proceed with manual fixes." : "Thực hiện xử lý thủ công các nhánh Git."
+            dr_overlord: {
+              explanation: isEnglish ? "Offline generic anomaly alert. AI is disabled." : "Cảnh báo bất thường cục bộ hệ thống. Trợ lý AI đang tắt.",
+              mitigation: isEnglish ? "Proceed with manual fixes." : "Thực hiện xử lý thủ công các nhánh Git."
+            }
           });
         }
         setDoctorLoading(false);
@@ -2514,9 +2534,7 @@ export default function App() {
     try {
       const res = await fetch(resolveApiUrl('/api/explain-git-problem'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getApiHeaders(),
         body: JSON.stringify({
           problemType,
           tone,
@@ -2524,6 +2542,9 @@ export default function App() {
             isSimulation,
             currentBranch: repoState.currentBranch,
             dirtyFilesCount: repoState.dirtyFiles?.length || 0
+          },
+          doctorTriggerContext: {
+            files: repoState.dirtyFiles || []
           }
         })
       });
@@ -2533,10 +2554,18 @@ export default function App() {
       }
 
       const data = await res.json();
+      
+      // Structure of multi-doctor advice
       const newDgn = {
-        explanation: data.explanation || '',
-        mitigation: data.mitigation || ''
+        dr_overlord: data.dr_overlord || {
+          explanation: data.explanation || (tone === TranslationTone.ENGLISH ? "No explanation response received." : "Không nhận được phản hồi giải thích."),
+          mitigation: data.mitigation || (tone === TranslationTone.ENGLISH ? "No mitigation suggestions received." : "Không nhận được gợi ý giải pháp.")
+        },
+        dr_compiler: data.dr_compiler,
+        dr_schema: data.dr_schema
       };
+
+      setActiveDoctorTab('overlord');
       setDoctorDiagnosis(newDgn);
 
       // Save to cache
@@ -4388,26 +4417,61 @@ export default function App() {
                        ⚠️ {doctorError}
                      </div>
                   ) : doctorDiagnosis ? (
-                     <div className="flex flex-col gap-2.5">
-                       <div className="text-[10px] text-slate-300 bg-slate-950/50 p-2.5 rounded border border-[#2d2f3c]/50">
-                         <strong className="text-[9px] font-mono font-bold text-violet-300 uppercase block tracking-wider">
-                           {sloc.doctorExplanation}
-                         </strong>
-                         <p className="font-sans leading-relaxed text-slate-300 mt-0.5">
-                           {doctorDiagnosis.explanation}
-                         </p>
-                       </div>
+                     <div className="flex flex-col gap-2.5 animate-fadeIn">
+                       {/* Animated Expert Consultant Dock */}
+                       {(doctorDiagnosis.dr_compiler || doctorDiagnosis.dr_schema) && (
+                         <div className="flex gap-1.5 border-b border-[#2d2f3c]/40 pb-2">
+                           <button
+                             type="button"
+                             onClick={() => setActiveDoctorTab('overlord')}
+                             className={`flex-1 px-2 py-1 rounded-lg border text-[9px] font-mono font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                               activeDoctorTab === 'overlord'
+                                 ? 'bg-violet-600/15 border-violet-500/50 text-violet-300'
+                                 : 'bg-[#0a0b10] border-[#2d2f3c]/20 text-slate-400 hover:text-slate-300'
+                             }`}
+                           >
+                             <span>👑</span> Overlord
+                           </button>
+                           {doctorDiagnosis.dr_compiler && (
+                             <button
+                               type="button"
+                               onClick={() => setActiveDoctorTab('compiler')}
+                               className={`flex-1 px-2 py-1 rounded-lg border text-[9px] font-mono font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                                 activeDoctorTab === 'compiler'
+                                   ? 'bg-emerald-600/15 border-emerald-500/50 text-emerald-300'
+                                   : 'bg-[#0a0b10] border-[#2d2f3c]/20 text-slate-400 hover:text-slate-300'
+                               }`}
+                             >
+                               <span>💻</span> Compiler
+                             </button>
+                           )}
+                           {doctorDiagnosis.dr_schema && (
+                             <button
+                               type="button"
+                               onClick={() => setActiveDoctorTab('schema')}
+                               className={`flex-1 px-2 py-1 rounded-lg border text-[9px] font-mono font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                                 activeDoctorTab === 'schema'
+                                   ? 'bg-cyan-600/15 border-cyan-500/50 text-cyan-300'
+                                   : 'bg-[#0a0b10] border-[#2d2f3c]/20 text-slate-400 hover:text-slate-300'
+                               }`}
+                             >
+                               <span>🗃️</span> Dr. Schema
+                             </button>
+                           )}
+                         </div>
+                       )}
 
+                       {/* List affected files if working tree is dirty */}
                        {doctorProblem === 'dirty_working_tree' && repoState.dirtyFiles && repoState.dirtyFiles.length > 0 && (
-                         <div className="text-[10px] text-slate-300 bg-slate-950/50 p-2.5 rounded border border-[#2d2f3c]/50">
-                           <strong className="text-[9px] font-mono font-bold text-violet-300 uppercase block tracking-wider mb-2">
+                         <div className="text-[10px] text-slate-300 bg-slate-950/30 p-2 rounded border border-[#2d2f3c]/30 flex flex-col gap-1.5">
+                           <strong className="text-[9px] font-mono font-bold text-violet-350 uppercase block tracking-wider">
                              {sloc.dirtyFilesLabel}
                            </strong>
-                           <div className="mt-1 flex flex-col gap-1 max-h-32 overflow-y-auto pr-1">
+                           <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto pr-1">
                              {repoState.dirtyFiles.map(file => (
-                               <div key={file} className="flex items-center gap-1.5 font-mono">
-                                 <span className="w-1.2 h-1.2 rounded-full bg-amber-500 animate-pulse"></span>
-                                 <span className={`text-[10px] truncate ${theme === 'light' ? 'text-slate-800 bg-slate-100 border-slate-200' : 'text-amber-250 bg-slate-900/40 border-amber-500/10'} px-1.5 py-0.5 rounded border`}>
+                               <div key={file} className="flex items-center gap-1 font-mono text-[9px]">
+                                 <span className="w-1 h-1 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
+                                 <span className={`px-1.5 py-0.5 rounded border ${theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-705' : 'bg-slate-900/40 border-amber-500/10 text-amber-300'}`}>
                                    {file}
                                  </span>
                                </div>
@@ -4416,14 +4480,44 @@ export default function App() {
                          </div>
                        )}
 
-                       <div className="text-[10px] text-slate-300 bg-indigo-950/20 p-2.5 rounded border border-indigo-500/20">
-                         <strong className="text-[9px] font-mono font-bold text-[#a5b4fc] uppercase block tracking-wider">
-                           {sloc.doctorMitigation}
-                         </strong>
-                         <div className="font-sans leading-relaxed text-slate-200 mt-0.5 whitespace-pre-line border-l-2 border-[#a5b4fc]/30 pl-2">
-                           {doctorDiagnosis.mitigation}
-                         </div>
-                       </div>
+                       {(() => {
+                         const activeDoc = 
+                           activeDoctorTab === 'compiler' && doctorDiagnosis.dr_compiler ? doctorDiagnosis.dr_compiler :
+                           activeDoctorTab === 'schema' && doctorDiagnosis.dr_schema ? doctorDiagnosis.dr_schema :
+                           doctorDiagnosis.dr_overlord;
+
+                         const docStyle = 
+                           activeDoctorTab === 'compiler' ? { border: 'border-emerald-500/30', text: 'text-emerald-300', bg: 'bg-emerald-950/20' } :
+                           activeDoctorTab === 'schema' ? { border: 'border-cyan-500/30', text: 'text-cyan-300', bg: 'bg-cyan-950/20' } :
+                           { border: 'border-violet-500/25', text: 'text-violet-300', bg: 'bg-slate-950/50' };
+
+                         const headingLabel = 
+                           activeDoctorTab === 'compiler' ? "🩺 BÁO CÁO CÚ PHÁP (DR. COMPILER)" :
+                           activeDoctorTab === 'schema' ? "🩺 CHẨN ĐOÁN CƠ SỞ DỮ LIỆU (DR. SCHEMA)" :
+                           "🩺 THAM VẤN HỆ THỐNG (DR. OVERLORD)";
+
+                         return (
+                           <div className="flex flex-col gap-2 animate-fadeIn font-mono">
+                             <div className={`text-[10px] text-slate-350 p-2.5 rounded-lg border ${docStyle.border} ${docStyle.bg}`}>
+                               <strong className={`text-[9px] font-mono font-bold uppercase block tracking-wider ${docStyle.text}`}>
+                                 {headingLabel}
+                               </strong>
+                               <p className="font-sans leading-relaxed text-slate-200 mt-1 whitespace-pre-line text-[11px]">
+                                 {activeDoc.explanation}
+                               </p>
+                             </div>
+
+                             <div className="text-[10px] text-slate-300 bg-indigo-950/15 p-2.5 rounded-lg border border-indigo-500/15">
+                               <strong className="text-[9px] font-mono font-bold text-[#a5b4fc] uppercase block tracking-wider">
+                                 💡 CHỈ ĐỊNH ĐIỀU TRỊ (MITIGATION PLAN)
+                               </strong>
+                               <div className="font-sans leading-relaxed text-slate-250 mt-1 whitespace-pre-line border-l-2 border-indigo-500/30 pl-2 text-[11px]">
+                                 {activeDoc.mitigation}
+                               </div>
+                             </div>
+                           </div>
+                         );
+                       })()}
 
                        {/* Inject quick operation under summary based on problem */}
                        <div className="flex justify-end gap-1.5 mt-0.5">

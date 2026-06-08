@@ -9,6 +9,7 @@ import {
   Sparkles, Brain, AlertTriangle, Play, X, Info 
 } from 'lucide-react';
 import { TranslationTone } from '../types';
+import { getApiHeaders } from '../utils/apiKeyHelper';
 
 const termLoc: Record<string, Record<string, string>> = {
   [TranslationTone.PROFESSIONAL]: {
@@ -843,7 +844,7 @@ export default function TerminalPanel({
       const explainUrl = resolveApiUrl('/api/explain-git-command');
       const res = await fetch(explainUrl, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getApiHeaders(),
         body: JSON.stringify({ command: cleanCmd, tone })
       });
       if (res.ok) {
