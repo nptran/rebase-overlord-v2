@@ -207,7 +207,9 @@ export default function RepoHeader({
 
   const [checkingUpdate, setCheckingUpdate] = React.useState(false);
   const [updateInfo, setUpdateInfo] = React.useState<UpdateData | null>(null);
-  const [currentDisplayVersion, setCurrentDisplayVersion] = React.useState<string>('1.12.0');
+  const [currentDisplayVersion, setCurrentDisplayVersion] = React.useState<string>(() => {
+    return (typeof window !== 'undefined' && localStorage.getItem('rebase_overlord_patch_version')) || '1.12.0';
+  });
   const [showUpdateModal, setShowUpdateModal] = React.useState(false);
   const [downloadingUpdate, setDownloadingUpdate] = React.useState(false);
   const [downloadProgressValue, setDownloadProgressValue] = React.useState(0);
@@ -235,6 +237,7 @@ export default function RepoHeader({
           const data = await res.json();
           if (data.currentVersion) {
             setCurrentDisplayVersion(data.currentVersion);
+            localStorage.setItem('rebase_overlord_patch_version', data.currentVersion);
           }
         }
       } catch (err) {
@@ -352,11 +355,52 @@ export default function RepoHeader({
           version: updateInfo?.latestVersion
         })
       });
-      if (!res.ok) throw new Error('Failed to run update installer.');
       
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+      if (!res.ok) {
+        let errorMsg = 'Failed to run update installer.';
+        try {
+          const errorData = await res.json();
+          if (errorData && errorData.error) {
+            errorMsg = errorData.error;
+          }
+        } catch (_) {}
+        throw new Error(errorMsg);
+      }
+      
+      const resData = await res.json();
+      
+      if (resData.virtual) {
+        // VIRTUAL UPDATE PATH (Headless, web preview, or custom simulation): Correctly writes local version override
+        if (updateInfo?.latestVersion) {
+          localStorage.setItem('rebase_overlord_patch_version', updateInfo.latestVersion);
+          setCurrentDisplayVersion(updateInfo.latestVersion);
+        }
+        
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } else {
+        // REAL PHYSICAL UPDATE PATH (Real Windows/Electron App installation): 
+        // We DO NOT write simulated versions into localStorage, ensuring no fake overriding if installer fails or is cancelled!
+        // Delete potential old residual patches so native server version is loaded cleanly on restart
+        localStorage.removeItem('rebase_overlord_patch_version');
+        
+        const successMsg = tone === 'vn_joke'
+          ? '🚀 Đang đóng ứng dụng để kích hoạt bộ cài Windows thực tế! Chờ tí bản mới tái xuất giang hồ!'
+          : tone === 'vn_toxic'
+            ? '🔥 Sập tiệm tạm thời để chạy file Setup Windows thực hại! Đại ca đợi nâng cấp tí rồi re-open nha!'
+            : '🚀 Đang đóng ứng dụng để nhường chỗ cho trình cài đặt Windows thực thi. Vui lòng đợi nâng cấp hoàn tất...';
+        
+        setSuccessCheckMsg(successMsg);
+        
+        // Clear downloading states
+        setTimeout(() => {
+          setDownloadingUpdate(false);
+          setApplyingUpdate(false);
+          applyingUpdateRef.current = false;
+          setShowUpdateModal(false);
+        }, 1500);
+      }
 
     } catch (err: any) {
       setUpdateError(err.message || 'Launching installer failed.');
@@ -372,6 +416,7 @@ export default function RepoHeader({
     }
     
     try {
+      localStorage.removeItem('rebase_overlord_patch_version');
       const url = resolveApiUrl('/api/update/cancel');
       await fetch(url, { method: 'POST' });
     } catch (err) {

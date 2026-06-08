@@ -1782,41 +1782,41 @@ function fetchJson(url: string, headers: Record<string, string> = {}, redirectCo
 
 // Local version patch files helpers for Electron environments where package.json or app.asar is read-only
 const getPatchedVersion = (): string | null => {
-  try {
-    const paths = [
-      path.join(process.cwd(), 'data', 'version_patch.json'),
-      path.join(os.homedir(), '.rebase_overlord_version_patch.json')
-    ];
-    for (const p of paths) {
+  const paths = [
+    path.join(process.cwd(), 'data', 'version_patch.json'),
+    path.join(os.homedir(), '.rebase_overlord_version_patch.json')
+  ];
+  for (const p of paths) {
+    try {
       if (fs.existsSync(p)) {
         const data = JSON.parse(fs.readFileSync(p, 'utf-8'));
         if (data && data.version) {
           return data.version;
         }
       }
+    } catch (err: any) {
+      console.warn(`[UPDATER] Failed to read version patch from ${p}:`, err.message);
     }
-  } catch (err) {
-    console.warn('[UPDATER] Failed to read version patch:', err);
   }
   return null;
 };
 
 const saveVersionPatch = (version: string) => {
-  try {
-    const paths = [
-      path.join(process.cwd(), 'data', 'version_patch.json'),
-      path.join(os.homedir(), '.rebase_overlord_version_patch.json')
-    ];
-    for (const p of paths) {
+  const paths = [
+    path.join(process.cwd(), 'data', 'version_patch.json'),
+    path.join(os.homedir(), '.rebase_overlord_version_patch.json')
+  ];
+  for (const p of paths) {
+    try {
       const dir = path.dirname(p);
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
       }
       fs.writeFileSync(p, JSON.stringify({ version, patchedAt: new Date().toISOString() }, null, 2), 'utf-8');
       console.log('[UPDATER] Saved version patch to:', p);
+    } catch (err: any) {
+      console.warn(`[UPDATER] Failed to save version patch to ${p}:`, err.message);
     }
-  } catch (err) {
-    console.error('[UPDATER] Failed to save version patch:', err);
   }
 };
 
@@ -2190,23 +2190,27 @@ app.post('/api/update/cancel', (req, res) => {
   }
 
   // 3. Roll back any file state and clear version overrides
-  try {
-    const paths = [
-      path.join(process.cwd(), 'data', 'version_patch.json'),
-      path.join(os.homedir(), '.rebase_overlord_version_patch.json')
-    ];
-    for (const p of paths) {
+  const paths = [
+    path.join(process.cwd(), 'data', 'version_patch.json'),
+    path.join(os.homedir(), '.rebase_overlord_version_patch.json')
+  ];
+  for (const p of paths) {
+    try {
       if (fs.existsSync(p)) {
         fs.unlinkSync(p);
         console.log('[UPDATER] Deleted version patch config on cancel:', p);
       }
+    } catch (err: any) {
+      console.warn(`[UPDATER] Failed to delete version patch config at ${p}:`, err.message);
     }
+  }
 
+  try {
     if (originalVersionBeforeUpdate) {
       updatePackageVersion(originalVersionBeforeUpdate);
       console.log('[UPDATER] Rolled back local package/patch configuration version to original:', originalVersionBeforeUpdate);
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error('[UPDATER] Failed to roll back version files on cancel:', err);
   }
 
@@ -2228,28 +2232,29 @@ app.post('/api/update/cancel', (req, res) => {
 
 // Helper to modify package.json version
 const updatePackageVersion = (newVersion: string) => {
-  try {
-    const dir = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
-    const possiblePaths = [
-      path.join(process.cwd(), 'package.json'),
-      path.join(dir, 'package.json'),
-      path.join(dir, '..', 'package.json'),
-      path.join(process.cwd(), '..', 'package.json')
-    ];
-    for (const p of possiblePaths) {
+  const dir = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
+  const possiblePaths = [
+    path.join(process.cwd(), 'package.json'),
+    path.join(dir, 'package.json'),
+    path.join(dir, '..', 'package.json'),
+    path.join(process.cwd(), '..', 'package.json')
+  ];
+  let succeeded = false;
+  for (const p of possiblePaths) {
+    try {
       if (fs.existsSync(p)) {
         const content = fs.readFileSync(p, 'utf-8');
         const pkg = JSON.parse(content);
         pkg.version = newVersion;
         fs.writeFileSync(p, JSON.stringify(pkg, null, 2), 'utf-8');
         console.log(`[UPDATER] Successfully updated package.json version to ${newVersion} at ${p}`);
-        return true;
+        succeeded = true;
       }
+    } catch (err: any) {
+      console.warn(`[UPDATER] Failed to write package.json version at ${p}:`, err.message);
     }
-  } catch (err) {
-    console.error('[UPDATER] Failed to write package.json version:', err);
   }
-  return false;
+  return succeeded;
 };
 
 // Execute the installer
@@ -2258,9 +2263,20 @@ app.post('/api/update/apply', (req, res) => {
   const installerPath = (global as any).downloadedInstallerPath;
 
   const platform = process.platform;
-  const isHeadlessOrWeb = !process.versions.electron && (process.env.PORT === '3000' || platform === 'linux');
+  const isElectron = typeof process !== 'undefined' && process.versions && !!process.versions.electron;
+  const isHeadlessOrWeb = !isElectron && (process.env.PORT === '3000' || platform === 'linux');
   const isReal = (global as any).isRealDownloadedInstaller;
 
+  // 1. If we are running on a real desktop Electron app, but the download failed or was generic/simulated (isReal = false),
+  // we must reject immediately with a clear error block. This prevents silent fallback writing to local patch config.
+  if (isElectron && !isReal) {
+    console.error('[UPDATER] Desktop Electron environment detected, but the download was simulated or authentication failed.');
+    return res.status(400).json({
+      error: 'Không thể nâng cấp: Gói tải xuống không hợp lệ hoặc bị gián đoạn. Vui lòng thử tải lại hoặc cập nhật thủ công.'
+    });
+  }
+
+  // 2. Play sandbox or headless environments get a virtual patch
   if (isHeadlessOrWeb) {
     if (version) {
       updatePackageVersion(version);
@@ -2270,13 +2286,13 @@ app.post('/api/update/apply', (req, res) => {
     return res.json({ success: true, message: 'Update applied to web workspace successfully! Reloading...', virtual: true });
   }
 
+  // 3. Simulated environment on local desktop (if they force update or test without Electron, but process is not headless/web)
   if (!isReal) {
     if (version) {
       updatePackageVersion(version);
       saveVersionPatch(version); // Save writable version override for persistent read on next boot
     }
     console.log(`[UPDATER] Simulated/Virtual update requested or real download failed. Performing smooth virtual patch to version ${version || 'latest'}.`);
-    // Excellent! No process exit, keeps the server alive so client reload is fully supported!
     return res.json({ 
       success: true, 
       message: 'Môi trường giả lập: Đã cập nhật thành công phiên bản ảo. Đang tải lại ứng dụng...', 
@@ -2284,59 +2300,76 @@ app.post('/api/update/apply', (req, res) => {
     });
   }
 
-  // REAL UPDATE PATH:
+  // 4. REAL PHYSICAL UPDATE PATH:
   // Do NOT write version_patch.json or package.json here because the real installer will update the source files natively on disk.
   // This prevents fake version numbers on failed/cancelled OS manual installations.
   if (!installerPath || !fs.existsSync(installerPath)) {
-    return res.status(404).json({ error: 'Installer file is missing, please download again.' });
+    return res.status(404).json({ error: 'Không tìm thấy tệp tin cài đặt thực tế của bản cập nhật. Vui lòng tải lại!' });
   }
 
-  res.json({ success: true, message: 'Installer execution started, app is closing...', virtual: false });
+  console.log(`[UPDATER] Detaching and spawning installer: ${installerPath} (platform: ${platform})`);
 
-  console.log(`[UPDATER] Initiating execution of installer, platform: ${platform}, path: ${installerPath}`);
+  let spawnSucceeded = false;
+  let spawnErrorMsg = '';
 
-  setTimeout(() => {
-    try {
-      if (platform === 'win32') {
-        const { spawn } = require('child_process');
-        console.log('[UPDATER] Spawning Windows installer in detached mode:', installerPath);
+  try {
+    if (platform === 'win32') {
+      const { spawn } = require('child_process');
+      // Attempt detached direct spawn first
+      try {
+        const child = spawn(installerPath, [], {
+          detached: true,
+          stdio: 'ignore'
+        });
+        child.unref();
+        spawnSucceeded = true;
+      } catch (spawnErr: any) {
+        console.warn('[UPDATER] Direct spawn failed, trying shell=true option...', spawnErr.message);
         try {
           const child = spawn(installerPath, [], {
             detached: true,
-            stdio: 'ignore'
+            stdio: 'ignore',
+            shell: true
           });
           child.unref();
-        } catch (spawnErr) {
-          console.error('[UPDATER] Direct spawn failed, attempting spawn with shell...', spawnErr);
-          try {
-            const child = spawn(installerPath, [], {
-              detached: true,
-              stdio: 'ignore',
-              shell: true
-            });
-            child.unref();
-          } catch (shellErr) {
-            console.error('[UPDATER] All spawning attempts failed:', shellErr);
-          }
+          spawnSucceeded = true;
+        } catch (shellErr: any) {
+          console.error('[UPDATER] All Windows installer spawn strategies failed:', shellErr);
+          spawnErrorMsg = shellErr.message;
         }
-      } else if (platform === 'darwin') {
-        const { exec } = require('child_process');
-        exec(`open "${installerPath}"`, (err) => {
-          if (err) console.error('Failed to mount DMG on macOS:', err);
-        });
-      } else {
-        const { exec } = require('child_process');
-        exec(`xdg-open "${installerPath}" || open "${installerPath}"`, (err) => {
-          if (err) console.error('Failed to run setup on Linux:', err);
-        });
       }
-
-      console.log('[UPDATER] Application exiting gracefully to let installer take control.');
-      process.exit(0);
-    } catch (launchErr) {
-      console.error('[UPDATER] Crash starting installer:', launchErr);
+    } else if (platform === 'darwin') {
+      const { exec } = require('child_process');
+      exec(`open "${installerPath}"`, (err: any) => {
+        if (err) console.error('Failed to mount DMG on macOS:', err);
+      });
+      spawnSucceeded = true;
+    } else {
+      const { exec } = require('child_process');
+      exec(`xdg-open "${installerPath}" || open "${installerPath}"`, (err: any) => {
+        if (err) console.error('Failed to run setup on Linux:', err);
+      });
+      spawnSucceeded = true;
     }
-  }, 1000);
+  } catch (launchErr: any) {
+    console.error('[UPDATER] Exception during installer launch invocation:', launchErr);
+    spawnErrorMsg = launchErr.message;
+  }
+
+  if (platform === 'win32' && !spawnSucceeded) {
+    return res.status(500).json({
+      error: `Không thể khởi chạy bộ cài trên Windows: ${spawnErrorMsg || 'Cửa sổ xác nhận bị từ chối hoặc hệ thống bị lỗi quyền kiểm soát (UAC)'}. Vui lòng thử khởi động lại ứng dụng dưới quyền Administrator.`
+    });
+  }
+
+  // Real installer launched! Respond immediately to frontend so it can cleanly reload or clear and close
+  res.json({ success: true, message: 'Installer execution started, app is closing...', virtual: false });
+
+  // Let the client read the HTTP response first, then crash/exit so files can be cleanly overwritten
+  setTimeout(() => {
+    console.log('[UPDATER] Application exiting gracefully to let Windows Installer take full control.');
+    process.exit(0);
+  }, 1200);
 });
 
 // Mounting Vite dev client

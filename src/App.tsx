@@ -914,9 +914,12 @@ export default function App() {
     return (typeof window !== 'undefined' && localStorage.getItem('rebase_overlord_backend_url')) || '';
   });
 
-  const [appVersion, setAppVersion] = React.useState<string>('1.12.0');
+  const [appVersion, setAppVersion] = React.useState<string>(() => {
+    return (typeof window !== 'undefined' && localStorage.getItem('rebase_overlord_patch_version')) || '1.12.0';
+  });
   const isUpgraded = React.useMemo(() => {
-    const parts = appVersion.split('.').map(v => parseInt(v, 10) || 0);
+    const cleanVersion = appVersion.replace(/^v/, '');
+    const parts = cleanVersion.split('.').map(v => parseInt(v, 10) || 0);
     // Baseline is 1.12.0; any version greater than that is an upgrade
     if (parts[0] > 1) return true;
     if (parts[0] === 1) {
@@ -1729,9 +1732,11 @@ export default function App() {
           const data = await res.json();
           if (data.currentVersion) {
             setAppVersion(data.currentVersion);
+            localStorage.setItem('rebase_overlord_patch_version', data.currentVersion);
             
             // If we are upgraded relative to 1.12.0, celebrate!
-            const parts = data.currentVersion.split('.').map((v: string) => parseInt(v, 10) || 0);
+            const cleanVer = data.currentVersion.replace(/^v/, '');
+            const parts = cleanVer.split('.').map((v: string) => parseInt(v, 10) || 0);
             const isLatest = parts[0] > 1 || (parts[0] === 1 && (parts[1] > 12 || (parts[1] === 12 && parts[2] > 0)));
             if (isLatest) {
               const hasAnnounced = localStorage.getItem('rebase_overlord_announced_v15');
