@@ -25,7 +25,8 @@ import {
   ChevronDown,
   Bot,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  RotateCcw
 } from 'lucide-react';
 import { ConflictFile, TranslationTone } from '../types';
 
@@ -461,6 +462,95 @@ export default function ConflictSolver({
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
   const [editMode, setEditMode] = React.useState<'jetbrains' | 'raw'>('jetbrains');
   const [customBlockTexts, setCustomBlockTexts] = React.useState<Record<number, string>>({});
+  const [acceptOrder, setAcceptOrder] = React.useState<Record<number, 'left' | 'right' | null>>({});
+  const [history, setHistory] = React.useState<Array<{
+    blockChoices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }>;
+    customBlockTexts: Record<number, string>;
+    acceptOrder: Record<number, 'left' | 'right' | null>;
+    editorText: string;
+  }>>([]);
+
+  const pushCurrentToHistory = React.useCallback((
+    choices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }>,
+    customs: Record<number, string>,
+    order: Record<number, 'left' | 'right' | null>,
+    text: string
+  ) => {
+    setHistory(prev => {
+      if (prev.length > 0) {
+        const last = prev[prev.length - 1];
+        const isChoicesEqual = JSON.stringify(last.blockChoices) === JSON.stringify(choices);
+        const isCustomsEqual = JSON.stringify(last.customBlockTexts) === JSON.stringify(customs);
+        const isOrderEqual = JSON.stringify(last.acceptOrder) === JSON.stringify(order);
+        const isTextEqual = last.editorText === text;
+        if (isChoicesEqual && isCustomsEqual && isOrderEqual && isTextEqual) {
+          return prev;
+        }
+      }
+      const nextItem = {
+        blockChoices: JSON.parse(JSON.stringify(choices)),
+        customBlockTexts: { ...customs },
+        acceptOrder: { ...order },
+        editorText: text
+      };
+      const nextHistory = [...prev, nextItem];
+      if (nextHistory.length > 20) {
+        nextHistory.shift();
+      }
+      return nextHistory;
+    });
+  }, []);
+
+  const handleUndo = React.useCallback(() => {
+    setHistory(prev => {
+      if (prev.length === 0) return prev;
+      const lastState = prev[prev.length - 1];
+      
+      setBlockChoices(lastState.blockChoices);
+      setCustomBlockTexts(lastState.customBlockTexts);
+      setAcceptOrder(lastState.acceptOrder);
+      setEditorText(lastState.editorText);
+      
+      return prev.slice(0, -1);
+    });
+  }, []);
+
+  const handleResetSingleBlock = (blockIdx: number) => {
+    pushCurrentToHistory(blockChoices, customBlockTexts, acceptOrder, editorText);
+
+    const nextChoices = { ...blockChoices };
+    nextChoices[blockIdx] = { left: 'pending', right: 'pending' };
+    setBlockChoices(nextChoices);
+
+    const nextCustoms = { ...customBlockTexts };
+    delete nextCustoms[blockIdx];
+    setCustomBlockTexts(nextCustoms);
+
+    const updatedAcceptOrder = { ...acceptOrder };
+    delete updatedAcceptOrder[blockIdx];
+    setAcceptOrder(updatedAcceptOrder);
+
+    setEditorText(getMergedContent(nextChoices, nextCustoms, updatedAcceptOrder));
+  };
+
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        const activeTag = document.activeElement?.tagName.toLowerCase();
+        if (activeTag === 'textarea' && document.activeElement?.hasAttribute('rows')) {
+          e.preventDefault();
+          handleUndo();
+        } else if (activeTag !== 'input' && activeTag !== 'textarea') {
+          e.preventDefault();
+          handleUndo();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleUndo]);
 
   // Block-level AI suggestions states
   const [blockAiLoading, setBlockAiLoading] = React.useState<Record<number, boolean>>({});
@@ -568,9 +658,51 @@ export default function ConflictSolver({
     }
   };
 
+  const renderSyntaxHighlightedPreviewLine = (line: string) => {
+    if (!line) return <span>{'\u00A0'}</span>;
+    
+    // Check for comment
+    if (line.trim().startsWith('//') || line.trim().startsWith('/*') || line.trim().startsWith('*')) {
+      return <span className="text-[#6a9955] dark:text-[#6a9955]/95 italic">{line}</span>;
+    }
+
+    const regex = /(".*?"|'.*?'|`.*?`)|(\b(?:const|let|var|function|return|import|export|from|class|interface|type|async|await|if|else|for|while|switch|case|try|catch|true|false|null|undefined)\b)/g;
+    
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match;
+    let keyCounter = 0;
+
+    while ((match = regex.exec(line)) !== null) {
+      const matchIdx = match.index;
+      if (matchIdx > lastIndex) {
+        parts.push(<span key={`text-${keyCounter++}`}>{line.substring(lastIndex, matchIdx)}</span>);
+      }
+
+      if (match[1]) {
+        // String literal
+        parts.push(<span key={`str-${keyCounter++}`} className="text-[#ce9178] dark:text-[#ce9178]/95">{match[1]}</span>);
+      } else if (match[2]) {
+        // Keyword
+        const isFlow = ['if', 'else', 'for', 'while', 'switch', 'case', 'try', 'catch'].includes(match[2]);
+        const colorClass = isFlow ? "text-[#c586c0]" : "text-[#569cd6]";
+        parts.push(<span key={`kw-${keyCounter++}`} className={`${colorClass} font-semibold`}>{match[2]}</span>);
+      }
+      
+      lastIndex = regex.lastIndex;
+    }
+
+    if (lastIndex < line.length) {
+      parts.push(<span key={`text-${keyCounter++}`}>{line.substring(lastIndex)}</span>);
+    }
+
+    return <>{parts}</>;
+  };
+
   const handleApplyAiProposedContent = () => {
     if (aiProposedContent) {
       setEditorText(aiProposedContent);
+      setEditMode('raw'); // Switch to raw mode so the changes are visible in the central textarea editor
       setWasAiApplied(true);
     }
   };
@@ -769,6 +901,41 @@ export default function ConflictSolver({
 
   const blocks = React.useMemo(() => {
     return parseConflictFile(activeContent);
+  }, [activeContent]);
+
+  // Analyze activeContent structure once to distinguish line origins in preview
+  const conflictAnalysis = React.useMemo(() => {
+    const ours = new Set<string>();
+    const theirs = new Set<string>();
+    const common = new Set<string>();
+
+    if (!activeContent) return { ours, theirs, common };
+
+    const lines = activeContent.split('\n');
+    let state: 'common' | 'ours' | 'theirs' = 'common';
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (rawLine.startsWith('<<<<<<<')) {
+        state = 'ours';
+      } else if (rawLine.startsWith('=======')) {
+        state = 'theirs';
+      } else if (rawLine.startsWith('>>>>>>>')) {
+        state = 'common';
+      } else {
+        if (line) {
+          if (state === 'common') {
+            common.add(line);
+          } else if (state === 'ours') {
+            ours.add(line);
+          } else if (state === 'theirs') {
+            theirs.add(line);
+          }
+        }
+      }
+    }
+
+    return { ours, theirs, common };
   }, [activeContent]);
 
   // For each block, calculate the start line index in left pane (and right pane):
@@ -1076,7 +1243,8 @@ export default function ConflictSolver({
 
   const getMergedContent = React.useCallback((
     choices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }>,
-    customTexts: Record<number, string> = {}
+    customTexts: Record<number, string> = {},
+    orderRecord: Record<number, 'left' | 'right' | null> = acceptOrder
   ) => {
     return blocks.map((block, idx) => {
       if (block.type === 'normal') {
@@ -1091,6 +1259,12 @@ export default function ConflictSolver({
 
         // If both accepted
         if (choice.left === 'accepted' && choice.right === 'accepted') {
+          const order = orderRecord[idx];
+          if (order === 'right') {
+            // Right was accepted first, so Left goes under Right
+            return `${block.theirsText}\n${block.oursText}`;
+          }
+          // Default or Left was accepted first, so Right goes under Left
           return `${block.oursText}\n${block.theirsText}`;
         }
         // If left accepted
@@ -1117,7 +1291,7 @@ export default function ConflictSolver({
         return '';
       }
     }).join('\n');
-  }, [blocks]);
+  }, [blocks, acceptOrder]);
 
   const handleResolveBlockAi = async (bIdx: number) => {
     const block = blocks[bIdx];
@@ -1143,6 +1317,8 @@ export default function ConflictSolver({
       }
 
       const data = await response.json();
+      
+      pushCurrentToHistory(blockChoices, customBlockTexts, acceptOrder, editorText);
       
       // Update block choice to accepted/accepted
       const updatedChoices = { ...blockChoices };
@@ -1183,6 +1359,8 @@ export default function ConflictSolver({
     setBlockAiLoading({});
     setBlockAiExplanations({});
     setBlockAiApplied({});
+    setAcceptOrder({});
+    setHistory([]);
 
     if (selectedFile) {
       const initialChoices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }> = {};
@@ -1203,7 +1381,7 @@ export default function ConflictSolver({
             initialCustoms[i] = '';
           }
         });
-        const initialMerged = getMergedContent(initialChoices, initialCustoms);
+        const initialMerged = blocks.map(b => b.type === 'normal' ? b.commonText : '').join('\n');
         setEditorText(initialMerged);
       }
       setBlockChoices(initialChoices);
@@ -1213,31 +1391,43 @@ export default function ConflictSolver({
       setBlockChoices({});
       setCustomBlockTexts({});
     }
-  }, [selectedFile, activeContent, blocks, getMergedContent]);
+  }, [selectedFile?.filepath, blocks]);
 
   const handleResolveSide = (blockIdx: number, side: 'left' | 'right', action: 'accept' | 'ignore') => {
+    pushCurrentToHistory(blockChoices, customBlockTexts, acceptOrder, editorText);
     const currentChoices = blockChoices[blockIdx] || { left: 'pending', right: 'pending' };
     const updatedChoicesForBlock = { ...currentChoices };
+
+    let nextFirstAccepted = acceptOrder[blockIdx] || null;
 
     if (side === 'left') {
       if (action === 'accept') {
         updatedChoicesForBlock.left = 'accepted';
-        if (updatedChoicesForBlock.right === 'pending') {
-          updatedChoicesForBlock.right = 'ignored';
+        if (currentChoices.right !== 'accepted') {
+          nextFirstAccepted = 'left';
         }
       } else {
         updatedChoicesForBlock.left = 'ignored';
+        if (nextFirstAccepted === 'left') {
+          nextFirstAccepted = null;
+        }
       }
     } else {
       if (action === 'accept') {
         updatedChoicesForBlock.right = 'accepted';
-        if (updatedChoicesForBlock.left === 'pending') {
-          updatedChoicesForBlock.left = 'ignored';
+        if (currentChoices.left !== 'accepted') {
+          nextFirstAccepted = 'right';
         }
       } else {
         updatedChoicesForBlock.right = 'ignored';
+        if (nextFirstAccepted === 'right') {
+          nextFirstAccepted = null;
+        }
       }
     }
+
+    const updatedAcceptOrder = { ...acceptOrder, [blockIdx]: nextFirstAccepted };
+    setAcceptOrder(updatedAcceptOrder);
 
     const nextChoices = { ...blockChoices, [blockIdx]: updatedChoicesForBlock };
     setBlockChoices(nextChoices);
@@ -1245,19 +1435,43 @@ export default function ConflictSolver({
     const nextCustoms = { ...customBlockTexts };
     if (action === 'accept') {
       if (side === 'left') {
-        nextCustoms[blockIdx] = blocks[blockIdx].oursText || '';
+        if (currentChoices.right === 'accepted') {
+          // Right was accepted first, so Left goes under Right
+          nextCustoms[blockIdx] = `${blocks[blockIdx].theirsText || ''}\n${blocks[blockIdx].oursText || ''}`;
+        } else {
+          nextCustoms[blockIdx] = blocks[blockIdx].oursText || '';
+        }
       } else {
-        nextCustoms[blockIdx] = blocks[blockIdx].theirsText || '';
+        if (currentChoices.left === 'accepted') {
+          // Left was accepted first, so Right goes under Left
+          nextCustoms[blockIdx] = `${blocks[blockIdx].oursText || ''}\n${blocks[blockIdx].theirsText || ''}`;
+        } else {
+          nextCustoms[blockIdx] = blocks[blockIdx].theirsText || '';
+        }
       }
     } else {
-      nextCustoms[blockIdx] = '';
+      // action === 'ignore'
+      if (side === 'left') {
+        if (updatedChoicesForBlock.right === 'accepted') {
+          nextCustoms[blockIdx] = blocks[blockIdx].theirsText || '';
+        } else {
+          nextCustoms[blockIdx] = '';
+        }
+      } else {
+        if (updatedChoicesForBlock.left === 'accepted') {
+          nextCustoms[blockIdx] = blocks[blockIdx].oursText || '';
+        } else {
+          nextCustoms[blockIdx] = '';
+        }
+      }
     }
     setCustomBlockTexts(nextCustoms);
 
-    setEditorText(getMergedContent(nextChoices, nextCustoms));
+    setEditorText(getMergedContent(nextChoices, nextCustoms, updatedAcceptOrder));
   };
 
   const handleApplyLeft = () => {
+    pushCurrentToHistory(blockChoices, customBlockTexts, acceptOrder, editorText);
     const nextChoices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }> = {};
     const nextCustoms: Record<number, string> = {};
     blocks.forEach((block, idx) => {
@@ -1272,6 +1486,7 @@ export default function ConflictSolver({
   };
 
   const handleApplyRight = () => {
+    pushCurrentToHistory(blockChoices, customBlockTexts, acceptOrder, editorText);
     const nextChoices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }> = {};
     const nextCustoms: Record<number, string> = {};
     blocks.forEach((block, idx) => {
@@ -1286,6 +1501,7 @@ export default function ConflictSolver({
   };
 
   const handleApplyBoth = () => {
+    pushCurrentToHistory(blockChoices, customBlockTexts, acceptOrder, editorText);
     const nextChoices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }> = {};
     const nextCustoms: Record<number, string> = {};
     blocks.forEach((block, idx) => {
@@ -1300,6 +1516,7 @@ export default function ConflictSolver({
   };
 
   const handleResetMerge = () => {
+    pushCurrentToHistory(blockChoices, customBlockTexts, acceptOrder, editorText);
     const nextChoices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }> = {};
     const nextCustoms: Record<number, string> = {};
     blocks.forEach((block, idx) => {
@@ -1341,6 +1558,38 @@ export default function ConflictSolver({
     ? hasPendingBlocks
     : (editorText.includes('<<<<<<<') || editorText.includes('=======') || editorText.includes('>>>>>>>'));
 
+  const getBlockVal = React.useCallback((bIdx: number, block: CodeBlock): string => {
+    const choice = blockChoices[bIdx] || { left: 'pending', right: 'pending' };
+    
+    // Get current text value for this block
+    let blockVal = customBlockTexts[bIdx] !== undefined ? customBlockTexts[bIdx] : '';
+
+    // Fallback if not customized but side is approved
+    if (customBlockTexts[bIdx] === undefined || customBlockTexts[bIdx] === '') {
+      if (choice.left === 'accepted' && choice.right === 'accepted') {
+        const order = acceptOrder[bIdx];
+        if (order === 'right') {
+          blockVal = `${block.theirsText}\n${block.oursText}`;
+        } else {
+          blockVal = `${block.oursText}\n${block.theirsText}`;
+        }
+      } else if (choice.left === 'accepted') {
+        blockVal = block.oursText || '';
+      } else if (choice.right === 'accepted') {
+        blockVal = block.theirsText || '';
+      } else if (choice.left === 'ignored' && choice.right === 'ignored') {
+        blockVal = '';
+      } else if (choice.left === 'ignored' && choice.right === 'pending') {
+        blockVal = block.theirsText || '';
+      } else if (choice.right === 'ignored' && choice.left === 'pending') {
+        blockVal = block.oursText || '';
+      } else {
+        blockVal = ''; // Pending -> totally blank like in JetBrains!
+      }
+    }
+    return blockVal;
+  }, [blockChoices, customBlockTexts, acceptOrder]);
+
   const totalMarkerBlocks = editMode === 'jetbrains'
     ? blocks.filter((b, i) => b.type === 'conflict' && (blockChoices[i]?.left === 'pending' || blockChoices[i]?.right === 'pending')).length
     : countOccurrences(editorText, '<<<<<<<');
@@ -1380,6 +1629,7 @@ export default function ConflictSolver({
             const theirsLines = block.theirsText ? block.theirsText.split('\n') : [''];
             const maxLines = Math.max(oursLines.length, theirsLines.length);
             const choice = blockChoices[bIdx] || { left: 'pending', right: 'pending' };
+            const blockVal = getBlockVal(bIdx, block);
 
             return Array.from({ length: maxLines }).map((_, lIdx) => {
               const line = oursLines[lIdx];
@@ -1388,30 +1638,53 @@ export default function ConflictSolver({
               const currentGlobalLineIdx = globalLineCounter++;
               
               const isIgnored = choice.left === 'ignored';
-              const isAccepted = choice.left === 'accepted';
+              const isLineInMerged = hasLine && blockVal.split('\n').includes(line || '');
+              const isGrayLine = !hasLine && lIdx < theirsLines.length && blockVal.split('\n').includes(theirsLines[lIdx] || '');
               
               return (
                 <div 
                   key={`c-L-${bIdx}-${lIdx}`} 
                   data-left-line={currentGlobalLineIdx}
                   className={`flex relative min-h-[20px] items-center ${
-                    isAccepted
-                      ? isLight 
-                        ? 'bg-emerald-50 text-emerald-800 border-l-2 border-emerald-500'
-                        : 'bg-emerald-950/20 text-emerald-400 border-l-2 border-emerald-500/80'
-                      : isIgnored
-                        ? isLight
-                          ? 'bg-slate-100/70 text-slate-400/85 border-l-2 border-slate-300 line-through decoration-slate-400'
-                          : 'bg-slate-900/40 text-slate-500/80 border-l-2 border-slate-700/50 line-through decoration-slate-600/50'
-                        : isLight
-                          ? 'bg-rose-50 text-rose-800 border-l-2 border-rose-450'
-                          : 'bg-rose-950/20 text-[#f28b82] border-l-2 border-rose-500/80'
+                    isIgnored
+                      ? isLight
+                        ? 'bg-slate-100/70 text-slate-400/85 border-l-2 border-slate-300 line-through decoration-slate-400'
+                        : 'bg-slate-900/40 text-slate-500/80 border-l-2 border-slate-700/50 line-through decoration-slate-600/50'
+                      : hasLine
+                        ? isLineInMerged
+                          ? isLight 
+                            ? 'bg-emerald-50 text-emerald-800 border-l-2 border-emerald-500'
+                            : 'bg-emerald-950/20 text-emerald-400 border-l-2 border-emerald-500/80'
+                          : isLight
+                            ? 'bg-rose-50 text-rose-800 border-l-2 border-rose-450'
+                            : 'bg-rose-950/20 text-[#f28b82] border-l-2 border-rose-500/80'
+                        : isGrayLine
+                          ? isLight
+                            ? 'bg-slate-100/50 text-slate-450 border-l-2 border-dashed border-slate-350'
+                            : 'bg-[#1b1c23]/60 text-slate-500/80 border-l-2 border-dashed border-[#2d2f3c]'
+                          : ''
                   }`}
                 >
                   <div className={`w-9 text-right pr-2 select-none border-r font-mono text-[10px] font-bold shrink-0 ${
-                    isLight 
-                      ? 'text-rose-700 bg-rose-100/50 border-rose-200' 
-                      : 'text-rose-550 bg-rose-950/30 border-[#2d2f3c]/60'
+                    isIgnored
+                      ? isLight
+                        ? 'text-slate-400 bg-slate-100/40 border-slate-200/50'
+                        : 'text-slate-600 bg-slate-900/20 border-[#2d2f3c]/60'
+                      : hasLine
+                        ? isLineInMerged
+                          ? isLight 
+                            ? 'text-emerald-700 bg-emerald-100/50 border-emerald-200' 
+                            : 'text-emerald-550 bg-emerald-950/30 border-emerald-550/40'
+                          : isLight 
+                            ? 'text-rose-700 bg-rose-100/50 border-rose-200' 
+                            : 'text-rose-550 bg-rose-950/30 border-[#2d2f3c]/60'
+                        : isGrayLine
+                          ? isLight
+                            ? 'text-slate-405 bg-slate-100/60 border-slate-200'
+                            : 'text-slate-550 bg-[#1b1c23] border-[#2d2f3c]/60'
+                          : isLight
+                            ? 'text-slate-400 bg-slate-50 border-slate-200'
+                            : 'text-slate-605 bg-[#17181c] border-[#2d2f3c]/60'
                   }`}>
                     {currNum || '\u00A0'}
                   </div>
@@ -1521,6 +1794,7 @@ export default function ConflictSolver({
             const theirsLines = block.theirsText ? block.theirsText.split('\n') : [''];
             const maxLines = Math.max(oursLines.length, theirsLines.length);
             const choice = blockChoices[bIdx] || { left: 'pending', right: 'pending' };
+            const blockVal = getBlockVal(bIdx, block);
 
             return Array.from({ length: maxLines }).map((_, lIdx) => {
               const line = theirsLines[lIdx];
@@ -1529,30 +1803,53 @@ export default function ConflictSolver({
               const currentGlobalLineIdx = globalLineCounter++;
               
               const isIgnored = choice.right === 'ignored';
-              const isAccepted = choice.right === 'accepted';
+              const isLineInMerged = hasLine && blockVal.split('\n').includes(line || '');
+              const isGrayLine = !hasLine && lIdx < oursLines.length && blockVal.split('\n').includes(oursLines[lIdx] || '');
               
               return (
                 <div 
                   key={`c-R-${bIdx}-${lIdx}`} 
                   data-right-line={currentGlobalLineIdx}
                   className={`flex relative min-h-[20px] items-center ${
-                    isAccepted
-                      ? isLight 
-                        ? 'bg-emerald-50 text-emerald-800 border-r-2 border-emerald-500'
-                        : 'bg-emerald-950/20 text-emerald-400 border-r-2 border-emerald-500/80'
-                      : isIgnored
-                        ? isLight
-                          ? 'bg-slate-100/70 text-slate-400/85 border-r-2 border-slate-300 line-through decoration-slate-400'
-                          : 'bg-slate-900/40 text-slate-500/80 border-r-2 border-slate-700/50 line-through decoration-slate-600/50'
-                        : isLight
-                          ? 'bg-amber-50 text-amber-900 border-r-2 border-amber-500'
-                          : 'bg-[#3d2f1f]/50 text-amber-300 border-r-2 border-amber-500/80'
+                    isIgnored
+                      ? isLight
+                        ? 'bg-slate-100/70 text-slate-400/85 border-r-2 border-slate-300 line-through decoration-slate-400'
+                        : 'bg-slate-900/40 text-slate-500/80 border-r-2 border-slate-700/50 line-through decoration-slate-600/50'
+                      : hasLine
+                        ? isLineInMerged
+                          ? isLight 
+                            ? 'bg-emerald-50 text-emerald-800 border-r-2 border-emerald-500'
+                            : 'bg-emerald-950/20 text-emerald-400 border-r-2 border-emerald-500/80'
+                          : isLight
+                            ? 'bg-rose-50 text-rose-800 border-r-2 border-rose-450'
+                            : 'bg-rose-950/20 text-[#f28b82] border-r-2 border-rose-500/80'
+                        : isGrayLine
+                          ? isLight
+                            ? 'bg-slate-100/50 text-slate-450 border-r-2 border-dashed border-slate-350'
+                            : 'bg-[#1b1c23]/60 text-slate-500/80 border-r-2 border-dashed border-[#2d2f3c]'
+                          : ''
                   }`}
                 >
                   <div className={`w-9 text-right pr-2 select-none border-r font-mono text-[10px] font-bold shrink-0 ${
-                    isLight 
-                      ? 'text-amber-700 bg-amber-100/50 border-amber-200' 
-                      : 'text-amber-550 bg-amber-950/30 border-[#2d2f3c]/60'
+                    isIgnored
+                      ? isLight
+                        ? 'text-slate-400 bg-slate-100/40 border-slate-205/50'
+                        : 'text-slate-600 bg-slate-900/20 border-[#2d2f3c]/60'
+                      : hasLine
+                        ? isLineInMerged
+                          ? isLight 
+                            ? 'text-emerald-700 bg-emerald-100/50 border-emerald-200' 
+                            : 'text-emerald-550 bg-emerald-950/30 border-emerald-550/40'
+                          : isLight 
+                            ? 'text-rose-705 bg-rose-100/50 border-rose-200' 
+                            : 'text-rose-550 bg-rose-950/30 border-[#2d2f3c]/60'
+                        : isGrayLine
+                          ? isLight
+                            ? 'text-slate-405 bg-slate-100/60 border-slate-200'
+                            : 'text-slate-550 bg-[#1b1c23] border-[#2d2f3c]/60'
+                          : isLight
+                            ? 'text-slate-405 bg-slate-50 border-slate-200'
+                            : 'text-slate-605 bg-[#17181c] border-[#2d2f3c]/60'
                   }`}>
                     {currNum || '\u00A0'}
                   </div>
@@ -1670,7 +1967,12 @@ export default function ConflictSolver({
             // Fallback if not customized but side is approved
             if (customBlockTexts[bIdx] === undefined || customBlockTexts[bIdx] === '') {
               if (choice.left === 'accepted' && choice.right === 'accepted') {
-                blockVal = `${block.oursText}\n${block.theirsText}`;
+                const order = acceptOrder[bIdx];
+                if (order === 'right') {
+                  blockVal = `${block.theirsText}\n${block.oursText}`;
+                } else {
+                  blockVal = `${block.oursText}\n${block.theirsText}`;
+                }
               } else if (choice.left === 'accepted') {
                 blockVal = block.oursText || '';
               } else if (choice.right === 'accepted') {
@@ -1709,8 +2011,8 @@ export default function ConflictSolver({
                         : 'border-emerald-500/30 bg-emerald-500/15'
                       : isTheirsOnly
                         ? isLight
-                          ? 'border-amber-200 bg-amber-50/75'
-                          : 'border-amber-500/30 bg-[#3d2f1f]/30'
+                          ? 'border-emerald-200 bg-emerald-50/75'
+                          : 'border-emerald-500/30 bg-emerald-500/15'
                         : isBoth
                           ? isLight
                             ? 'border-teal-200 bg-teal-50/75'
@@ -1730,13 +2032,13 @@ export default function ConflictSolver({
                         ? isLight
                           ? 'text-emerald-700 bg-emerald-50/80 border-emerald-200'
                           : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                        : isTheirsOnly
-                          ? isLight
-                            ? 'text-amber-700 bg-amber-50/80 border-amber-200'
-                            : 'text-amber-505 bg-amber-500/10 border-amber-500/20'
-                          : isLight
-                            ? 'text-slate-550 bg-slate-50 border-slate-200'
-                            : 'text-slate-500 bg-slate-800/20 border-[#2d2f3c]/60'
+                      : isTheirsOnly
+                        ? isLight
+                          ? 'text-emerald-700 bg-emerald-50/80 border-emerald-200'
+                          : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+                        : isLight
+                          ? 'text-slate-550 bg-slate-50 border-slate-200'
+                          : 'text-slate-500 bg-slate-800/20 border-[#2d2f3c]/60'
                   }`}>
                     {blockLines.map((_, li) => {
                       const blockLineNum = lineNum++;
@@ -1771,7 +2073,24 @@ export default function ConflictSolver({
                       }
                     />
 
-                    <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-80 select-none pointer-events-none">
+                    <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-100 select-none pointer-events-none">
+                      {!isPending && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleResetSingleBlock(bIdx);
+                          }}
+                          className={`pointer-events-auto px-1.5 py-0.5 text-[8px] font-mono font-extrabold uppercase rounded border cursor-pointer hover:scale-105 active:scale-95 transition-all flex items-center gap-1 shadow-sm ${
+                            isLight 
+                              ? 'bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-700' 
+                              : 'bg-rose-950/20 hover:bg-rose-950/50 border border-rose-500/30 text-rose-400'
+                          }`}
+                          title="Hoàn tác thay đổi của khối này (Reset block)"
+                        >
+                          <RotateCcw className="w-2.5 h-2.5" />
+                          <span>Reset Block</span>
+                        </button>
+                      )}
                       {blockAiApplied[bIdx] && (
                         <span 
                           className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-violet-500/20 border border-violet-500/35 text-violet-400 uppercase tracking-widest flex items-center gap-1 cursor-help pointer-events-auto"
@@ -1790,7 +2109,7 @@ export default function ConflictSolver({
                           Ours (Left)
                         </span>
                       ) : isTheirsOnly ? (
-                        <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/35 text-amber-505 uppercase tracking-widest font-mono">
+                        <span className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-500/35 text-emerald-400 uppercase tracking-widest">
                           Theirs (Right)
                         </span>
                       ) : isBoth ? (
@@ -2048,6 +2367,85 @@ export default function ConflictSolver({
                   <div className={`flex items-center gap-2 text-[10px] uppercase font-bold ${isLight ? 'text-slate-600' : 'text-slate-450'}`}>
                     <span className="h-2 w-2 rounded-full bg-amber-550 animate-pulse"></span>
                     {selectedFile.isResolved ? loc.statusResolved : `${loc.statusConflict} (${blocks.filter(b => b.type === 'conflict').length} Block)`}
+                  </div>
+                </div>
+
+                {/* JB BULK CONTROL PANEL */}
+                <div className={`p-4 rounded-xl border shrink-0 animate-fade-in ${
+                  isLight 
+                    ? 'bg-slate-50 border-slate-205 shadow-inner' 
+                    : 'bg-[#14151b] border-[#2d2f3c]/60'
+                }`}>
+                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <Shuffle className="w-4 h-4 text-violet-400" />
+                      <span className={`text-xs font-mono font-bold uppercase tracking-wide ${
+                        isLight ? 'text-slate-800' : 'text-slate-205'
+                      }`}>
+                        {tone === TranslationTone.ENGLISH ? "BATCH SOLVER ACTION RAILS" : "CÔNG CỤ GỘP NHANH JETBRAINS"}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 w-full md:w-auto">
+                      <button
+                        onClick={handleApplyLeft}
+                        className={`px-3 py-1.5 text-xs font-mono rounded cursor-pointer transition-all active:scale-95 flex items-center gap-1 ${
+                          isLight 
+                            ? 'bg-indigo-50 hover:bg-indigo-100 border border-indigo-250 text-indigo-700 shadow-sm' 
+                            : 'bg-[#1d2333] hover:bg-indigo-900/50 border border-indigo-500/30 hover:border-indigo-500 text-indigo-300'
+                        }`}
+                      >
+                        <span>{"Accept All Left >>"}</span>
+                      </button>
+                      <button
+                        onClick={handleApplyRight}
+                        className={`px-3 py-1.5 text-xs font-mono rounded cursor-pointer transition-all active:scale-95 flex items-center gap-1 ${
+                          isLight 
+                            ? 'bg-amber-50 hover:bg-amber-100 border border-amber-250 text-amber-850 shadow-sm' 
+                            : 'bg-[#332615] hover:bg-amber-950/50 border border-amber-500/30 hover:border-amber-500 text-amber-300'
+                        }`}
+                      >
+                        <span>{"<< Accept All Right"}</span>
+                      </button>
+                      <button
+                        onClick={handleApplyBoth}
+                        className={`px-3 py-1.5 text-xs font-mono rounded cursor-pointer transition-all active:scale-95 flex items-center gap-1 ${
+                          isLight 
+                            ? 'bg-violet-50 hover:bg-violet-100 border border-violet-250 text-violet-750 shadow-sm' 
+                            : 'bg-violet-950/40 hover:bg-violet-950/70 border border-violet-500/20 hover:border-violet-500 text-violet-300'
+                        }`}
+                      >
+                        <span>Merge Both Chunks</span>
+                      </button>
+                      <button
+                        onClick={handleUndo}
+                        disabled={history.length === 0}
+                        className={`px-3 py-1.5 text-xs font-mono rounded cursor-pointer transition-all active:scale-95 flex items-center gap-1 border ${
+                          history.length === 0
+                            ? isLight
+                              ? 'bg-slate-50 border-slate-200 text-slate-300 cursor-not-allowed opacity-50'
+                              : 'bg-slate-50/10 border-slate-800 text-slate-600 cursor-not-allowed opacity-50'
+                            : isLight 
+                              ? 'bg-white hover:bg-slate-50 border-slate-205 text-indigo-750 shadow-sm' 
+                              : 'bg-[#212330] hover:bg-[#2d3043] border-[#3f4152] text-indigo-400'
+                        }`}
+                        title="Hoàn tác bước trước (Ctrl+Z)"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        <span>Undo ({history.length})</span>
+                      </button>
+                      <button
+                        onClick={handleResetMerge}
+                        className={`px-3 py-1.5 text-xs font-mono rounded cursor-pointer transition-all active:scale-95 flex items-center gap-1 border ${
+                          isLight 
+                            ? 'bg-white hover:bg-slate-100 border-slate-205 text-slate-700 shadow-sm' 
+                            : 'bg-[#282a36] hover:bg-slate-800 border-[#44475a]/30 text-slate-400'
+                        }`}
+                      >
+                        <Undo2 className="w-3.5 h-3.5" />
+                        <span>Reset File</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -2321,7 +2719,8 @@ export default function ConflictSolver({
                           btnRunLoading: "🔮 Đang múa bùa phép...",
                           btnApply: "🚀 Táng luôn code của AI vào kết quả",
                           successAlert: "🚀 Hoạt cảnh hoàn hảo! Đã tống khứ conflict marker và táng code giải cứu của AI vào khung kết quả. Đại ca kiểm tra lại rồi chốt nha!",
-                          explanationLabel: "🧙 Báo cáo phân tích quỷ quái của AI:"
+                          explanationLabel: "🧙 Báo cáo phân tích quỷ quái của AI:",
+                          previewLabel: "🔮 Preview bản code thần thánh gộp bởi AI:"
                         };
                       case TranslationTone.TOXIC:
                         return {
@@ -2331,7 +2730,8 @@ export default function ConflictSolver({
                           btnRunLoading: "💩 Đang cào rác, đợi xíu...",
                           btnApply: "🔥 Lắp code AI nắn gân rác của mày",
                           successAlert: "🔥 Ok đã cào rác sạch sẽ, đè code AI vào trung tâm rồi đấy. Đọc phần chửi bới của AI bên dưới mà sửa đổi nết code đi con trai!",
-                          explanationLabel: "💀 AI sỉ nhục thẳng mặt:"
+                          explanationLabel: "💀 AI sỉ nhục thẳng mặt:",
+                          previewLabel: "💀 Xem trước cái thành quả AI gộp lại cho tụi mày:"
                         };
                       case TranslationTone.ENGLISH:
                         return {
@@ -2341,7 +2741,8 @@ export default function ConflictSolver({
                           btnRunLoading: "🧠 Running AI Synthesis...",
                           btnApply: "⚡ Apply AI Merged Suggestion",
                           successAlert: "✓ AI-proposed solution loaded! Review the combined results inside the center editor and make any final custom adjustments as required.",
-                          explanationLabel: "🧠 AI Conflict Analysis Report:"
+                          explanationLabel: "🧠 AI Conflict Analysis Report:",
+                          previewLabel: "🔍 Preview AI Proposed Merged Code:"
                         };
                       case TranslationTone.PROFESSIONAL:
                       default:
@@ -2352,7 +2753,8 @@ export default function ConflictSolver({
                           btnRunLoading: "🔄 Đang phân tích logic...",
                           btnApply: "⚡ Áp dụng giải pháp hợp nhất từ AI",
                           successAlert: "🎉 Đã tự động giải quyết xung đột thành công! Toàn bộ mã nguồn sạch của AI đã được điền vào khung trung tâm. Bạn vẫn có thể xem chi tiết hoặc sửa tay tiếp.",
-                          explanationLabel: "📝 Báo cáo phân tích xung đột từ AI:"
+                          explanationLabel: "📝 Báo cáo phân tích xung đột từ AI:",
+                          previewLabel: "🔍 Xem trước mã nguồn hợp nhất đề xuất từ AI:"
                         };
                     }
                   };
@@ -2440,6 +2842,129 @@ export default function ConflictSolver({
                           }`}>
                             {aiExplanation}
                           </div>
+
+                          {aiProposedContent && (
+                            <div className="flex flex-col gap-1.5 mt-3 select-none">
+                              <span className="text-[10px] font-mono font-black text-violet-400 uppercase tracking-widest flex items-center gap-1">
+                                <Code2 className="w-3.5 h-3.5 text-violet-400 animate-pulse" />
+                                {aiLabels.previewLabel}
+                              </span>
+
+                              {/* Legend Panel */}
+                              {(() => {
+                                const getBadgeLabels = () => {
+                                  switch (tone) {
+                                    case TranslationTone.JOKE:
+                                      return {
+                                        ours: "HÀNG CỦA SẾP (OURS)",
+                                        theirs: "HÀNG ĐỐI THỦ (THEIRS)",
+                                        ai: "AI MÚA BÙA"
+                                      };
+                                    case TranslationTone.TOXIC:
+                                      return {
+                                        ours: "CODE CỦA MÀY (OURS)",
+                                        theirs: "RÁC BÊN KIA (THEIRS)",
+                                        ai: "AI GÁNH CÕNG LƯNG"
+                                      };
+                                    case TranslationTone.ENGLISH:
+                                      return {
+                                        ours: "OURS (LEFT)",
+                                        theirs: "THEIRS (RIGHT)",
+                                        ai: "AI SYNTHESIS"
+                                      };
+                                    case TranslationTone.PROFESSIONAL:
+                                    default:
+                                      return {
+                                        ours: "GIỮ OURS (LEFT)",
+                                        theirs: "GIỮ THEIRS (RIGHT)",
+                                        ai: "AI SỬA/THÊM MỚI"
+                                      };
+                                  }
+                                };
+                                const badgeLabels = getBadgeLabels();
+                                return (
+                                  <div className={`flex flex-wrap items-center gap-4 text-[10px] font-mono px-3 py-1.5 border border-dashed rounded-lg mb-1.5 ${
+                                    isLight 
+                                      ? 'bg-slate-100/50 border-slate-200' 
+                                      : 'bg-[#15161e] border-[#2d2f3c]/40'
+                                  }`}>
+                                    <span className={isLight ? 'text-slate-500 font-bold' : 'text-slate-400 font-bold'}>Màu chỉ thị / Colors:</span>
+                                    <span className="flex items-center gap-1.5 font-bold text-sky-500">
+                                      <span className="w-2.5 h-2.5 rounded-full bg-sky-500/20 border border-sky-400" />
+                                      {badgeLabels.ours}
+                                    </span>
+                                    <span className="flex items-center gap-1.5 font-bold text-emerald-500">
+                                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/20 border border-emerald-450" />
+                                      {badgeLabels.theirs}
+                                    </span>
+                                    <span className="flex items-center gap-1.5 font-bold text-amber-500">
+                                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500/20 border border-amber-450 animate-pulse" />
+                                      {badgeLabels.ai}
+                                    </span>
+                                  </div>
+                                );
+                              })()}
+
+                              <div className={`border rounded-lg p-3.5 max-h-72 overflow-y-auto font-mono text-[11px] leading-relaxed select-text text-left scrollbar-thin ${
+                                isLight 
+                                  ? 'bg-slate-50 border-slate-205 text-slate-805 scrollbar-thumb-slate-300' 
+                                  : 'bg-[#0b0c10] border-[#2d2f3c]/60 text-slate-300 scrollbar-thumb-slate-805'
+                              }`}>
+                                {aiProposedContent.split('\n').map((line, idx) => {
+                                  const trimmed = line.trim();
+                                  let lineBgClass = '';
+                                  let borderClass = 'border-l-[3px] border-transparent pl-2.5';
+                                  let badgeTag = '';
+                                  let badgeTagColor = '';
+
+                                  if (trimmed) {
+                                    if (conflictAnalysis.ours.has(trimmed) && !conflictAnalysis.common.has(trimmed)) {
+                                      lineBgClass = isLight 
+                                        ? 'bg-sky-50 text-[#0c4a6e] hover:bg-sky-100/80' 
+                                        : 'bg-sky-950/15 text-sky-200 hover:bg-sky-950/25';
+                                      borderClass = 'border-l-[3px] border-sky-500/60 pl-2.5';
+                                      badgeTag = 'OURS';
+                                      badgeTagColor = 'text-sky-500 bg-sky-500/10 border border-sky-500/20';
+                                    } else if (conflictAnalysis.theirs.has(trimmed) && !conflictAnalysis.common.has(trimmed)) {
+                                      lineBgClass = isLight 
+                                        ? 'bg-emerald-50 text-[#064e3b] hover:bg-emerald-100/80' 
+                                        : 'bg-emerald-950/15 text-emerald-200 hover:bg-emerald-950/25';
+                                      borderClass = 'border-l-[3px] border-emerald-500/60 pl-2.5';
+                                      badgeTag = 'THEIRS';
+                                      badgeTagColor = 'text-emerald-500 bg-emerald-500/10 border border-emerald-500/20';
+                                    } else if (!conflictAnalysis.common.has(trimmed)) {
+                                      lineBgClass = isLight 
+                                        ? 'bg-amber-50 text-[#78350f] hover:bg-amber-100/80 font-medium' 
+                                        : 'bg-amber-950/20 text-amber-200 hover:bg-amber-950/30';
+                                      borderClass = 'border-l-[3px] border-amber-500/70 pl-2.5';
+                                      badgeTag = 'AI';
+                                      badgeTagColor = 'text-amber-500 bg-amber-500/10 border border-amber-500/20 animate-pulse';
+                                    } else {
+                                      lineBgClass = isLight ? 'hover:bg-slate-100/60' : 'hover:bg-[#1a1c24]/30';
+                                    }
+                                  } else {
+                                    lineBgClass = isLight ? 'hover:bg-slate-100/60' : 'hover:bg-[#1a1c24]/30';
+                                  }
+
+                                  return (
+                                    <div className={`flex select-text min-h-[22px] items-center relative group transition-all duration-100 ${lineBgClass}`} key={idx}>
+                                      <span className={`w-8 select-none text-right pr-2 border-r mr-3 font-mono text-[9px] font-bold ${
+                                        isLight ? 'text-slate-400 border-slate-200' : 'text-slate-650 border-[#2d2f3c]/25'
+                                      }`}>{idx + 1}</span>
+                                      <span className={`text-left font-mono whitespace-pre flex-1 overflow-x-auto ${borderClass}`}>
+                                        {renderSyntaxHighlightedPreviewLine(line)}
+                                      </span>
+                                      {badgeTag && (
+                                        <span className={`absolute right-2 px-1.5 py-0.2 text-[8px] font-mono font-black rounded uppercase tracking-wider select-none ${badgeTagColor}`}>
+                                          {badgeTag}
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                           
                           {aiProposedContent && !wasAiApplied && (
                             <div className="mt-2 text-right">
@@ -2468,70 +2993,13 @@ export default function ConflictSolver({
                   );
                 })()}
 
-                {/* JB BULK CONTROL PANEL */}
+                {/* SAVE & SUBMIT ACTION PANEL */}
                 <div className={`p-4 rounded-xl border mt-auto shrink-0 animate-fade-in ${
                   isLight 
                     ? 'bg-slate-50 border-slate-205 shadow-inner' 
                     : 'bg-[#14151b] border-[#2d2f3c]/60'
                 }`}>
-                  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <Shuffle className="w-4 h-4 text-violet-400" />
-                      <span className={`text-xs font-mono font-bold uppercase tracking-wide ${
-                        isLight ? 'text-slate-800' : 'text-slate-205'
-                      }`}>
-                        {tone === TranslationTone.ENGLISH ? "BATCH SOLVER ACTION RAILS" : "CÔNG CỤ GỘP NHANH JETBRAINS"}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2 w-full md:w-auto">
-                      <button
-                        onClick={handleApplyLeft}
-                        className={`px-3 py-1.5 text-xs font-mono rounded cursor-pointer transition-all active:scale-95 flex items-center gap-1 ${
-                          isLight 
-                            ? 'bg-indigo-50 hover:bg-indigo-100 border border-indigo-250 text-indigo-700 shadow-sm' 
-                            : 'bg-[#1d2333] hover:bg-indigo-900/50 border border-indigo-500/30 hover:border-indigo-500 text-indigo-300'
-                        }`}
-                      >
-                        <span>« Accept All Left (Ours)</span>
-                      </button>
-                      <button
-                        onClick={handleApplyRight}
-                        className={`px-3 py-1.5 text-xs font-mono rounded cursor-pointer transition-all active:scale-95 flex items-center gap-1 ${
-                          isLight 
-                            ? 'bg-amber-50 hover:bg-amber-100 border border-amber-250 text-amber-850 shadow-sm' 
-                            : 'bg-[#332615] hover:bg-amber-950/50 border border-amber-500/30 hover:border-amber-500 text-amber-300'
-                        }`}
-                      >
-                        <span>Accept All Right (Theirs) »</span>
-                      </button>
-                      <button
-                        onClick={handleApplyBoth}
-                        className={`px-3 py-1.5 text-xs font-mono rounded cursor-pointer transition-all active:scale-95 flex items-center gap-1 ${
-                          isLight 
-                            ? 'bg-violet-50 hover:bg-violet-100 border border-violet-250 text-violet-750 shadow-sm' 
-                            : 'bg-violet-950/40 hover:bg-violet-950/70 border border-violet-500/20 hover:border-violet-500 text-violet-300'
-                        }`}
-                      >
-                        <span>Merge Both Chunks</span>
-                      </button>
-                      <button
-                        onClick={handleResetMerge}
-                        className={`px-3 py-1.5 text-xs font-mono rounded cursor-pointer transition-all active:scale-95 flex items-center gap-1 border ${
-                          isLight 
-                            ? 'bg-white hover:bg-slate-100 border-slate-205 text-slate-700 shadow-sm' 
-                            : 'bg-[#282a36] hover:bg-slate-800 border-[#44475a]/30 text-slate-400'
-                        }`}
-                      >
-                        <Undo2 className="w-3.5 h-3.5" />
-                        <span>Reset File</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className={`flex justify-end mt-4 border-t pt-4 ${
-                    isLight ? 'border-slate-205' : 'border-[#2d2f3c]/45'
-                  }`}>
+                  <div className="flex justify-end">
                     <button
                       onClick={handleResolveSubmit}
                       disabled={isCurrentlyDirty}

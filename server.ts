@@ -1210,16 +1210,23 @@ app.post('/api/resolve-block-ai', async (req, res) => {
     try {
       const ai = getGeminiClient();
       
-      let systemInstruction = "Bạn là chuyên gia Git thông thái chuyên biệt dọn dẹp các xung đột nhỏ cấp độ dòng (block-level merge conflict solver). Trả về JSON chứa explanation (giải thích ngắn gọn) và resolvedContent (đoạn mã đã gộp tối ưu).";
+      let systemInstruction = "Bạn là chuyên gia Git thông thái chuyên gỡ xung đột nhỏ cấp độ dòng (block-level merge conflict solver). Trả về JSON chứa explanation (giải thích ngắn gọn) và resolvedContent (mã nguồn đã gộp).";
       
+      const strictRules = `
+QUY TẮC BẢO CHẨN CODE TUYỆT ĐỐI (TRÁNH TỰ Ý ĐỔI CODE):
+1. KHÔNG được tự ý viết thêm/thay đổi code ngầm (ví dụ: đổi tên biến, thêm hàm logic mới không có trong cả 2 nhánh, thay đổi cú pháp khi không cần thiết). Luôn tận dụng code sẵn có ở OURS và THEIRS.
+2. LUÔN ưu tiên hàng đầu giải pháp lấy nguyên văn nguyên khối code của LÀN A (OURS) hoặc LÀN B (THEIRS), hoặc đấu ghép nối tiếp nguyên văn cả 2 làn lại với nhau (không thay đổi dù chỉ một ký tự).
+3. Chỉ khi nào hai bên xung đột chồng chéo gây lỗi biên dịch nghiêm trọng (ví dụ: trùng lặp khai báo, import chồng lấn, hoặc chữ ký hàm bị lệch nhau) thì mới được chỉnh sửa/phối trộn tối thiểu để giữ mã nguồn hoạt động.
+4. Nếu có bất cứ sự chỉnh sửa, phối trộn hay thêm bớt mã nguồn mới nào dù là nhỏ nhất, bạn PHẢI nêu rõ lý do tại sao cần gộp/phối trộn và chỉ thị cụ thể dòng nào đã thay đổi trong phần 'explanation' để người dùng phê duyệt.`;
+
       if (tone === 'vn_pro') {
-        systemInstruction = "Bạn là trợ lý ảo 'Rebase Overlord Engine' chuẩn mực chuyên xử lý xung đột cục bộ. Trả về giải thích cực ngắn gọn (explanation) và mã nguồn hợp nhất (resolvedContent) thật chính xác.";
+        systemInstruction = "Bạn là trợ lý ảo 'Rebase Overlord Engine' chuẩn mực chuyên xử lý xung đột cục bộ. Trả về giải thích cực ngắn gọn (explanation) và mã nguồn hợp nhất (resolvedContent) thật chính xác." + strictRules;
       } else if (tone === 'vn_joke') {
-        systemInstruction = "Bạn là robot tấu hài cà khịa nhẹ. Gọi user là 'sếp' hoặc 'ní'. Giải thích ngắn gọn hóm hỉnh về gợi ý gộp này, rồi trả về đoạn mã đã hợp nhất tối ưu trong resolvedContent.";
+        systemInstruction = "Bạn là robot tấu hài cà khịa nhẹ. Gọi user là 'sếp' hoặc 'ní'. Giải thích ngắn gọn hóm hỉnh về gợi ý gộp này, rồi trả về đoạn mã đã hợp nhất tối ưu trong resolvedContent." + strictRules;
       } else if (tone === 'vn_toxic') {
-        systemInstruction = "Bạn là AI chửi dạo toxic cộc lốc cà khịa thói quen code ẩu. Sỉ nhục lập trình viên siêu ngắn gọn vì gây conflict, rồi trả về đoạn mã hợp nhất chính xác tuyệt đối trong resolvedContent.";
+        systemInstruction = "Bạn là AI chửi dạo toxic cộc lốc cà khịa thói quen code ẩu. Sỉ nhục lập trình viên siêu ngắn gọn vì gây conflict, rồi trả về đoạn mã hợp nhất chính xác tuyệt đối trong resolvedContent." + strictRules;
       } else if (tone === 'en_pro') {
-        systemInstruction = "You are a polite, concise Git block-level conflict resolver. Provide a very short explanation of how you merged these lines, and return the resolved content in resolvedContent.";
+        systemInstruction = "You are a polite, concise Git block-level conflict resolver. Provide a very short explanation of how you merged these lines, and return the resolved content in resolvedContent." + strictRules;
       }
 
       const promptUser = `Hãy giải quyết xung đột cục bộ (merge block conflict) ở file: "${filepath || 'source_code'}"
@@ -1235,9 +1242,9 @@ LÀN B (THEIRS - Bản Incoming/Feature):
 ${theirsText}
 \`\`\`
 
-Bạn cần:
-1. Giải thích siêu ngắn gọn giải pháp tối ưu (1 câu duy nhất) cho thuộc tính "explanation".
-2. Ghép nối hoặc lựa chọn thông minh 2 đoạn mã trên tạo thành mã nguồn hoàn chỉnh ở thuộc tính "resolvedContent". Đảm bảo mã nguồn logic, sạch sẽ, không chữa bất kỳ dấu vết marker xung đột nào như <<<<<<<, =======, >>>>>>>!`;
+Bạn cần tuân thủ nghiêm ngặt:
+1. Giải thích siêu ngắn gọn giải pháp tối ưu và lý do (1 câu duy nhất) vào thuộc tính "explanation". Nếu bạn có thay đổi, chỉnh sửa/phối trộn từ ngữ/logic thay vì giữ nguyên văn OURS hay THEIRS, hãy nêu rõ dòng nào đã sửa để user phê duyệt.
+2. Ghép nối hoặc lựa chọn thông minh 2 đoạn mã trên tạo thành mã nguồn hoàn chỉnh ở thuộc tính "resolvedContent". Đảm bảo mã nguồn logic, tuyệt đối không tự ý sờ mó hoặc thay đổi các đoạn code hoạt động ổn định của hai bên khi không có lý do vững chắc!`;
 
       const response = await ai.models.generateContent({
         model: 'gemini-3.5-flash',
@@ -1330,14 +1337,21 @@ app.post('/api/resolve-conflict-ai', async (req, res) => {
       
       let systemInstruction = "Bạn là chuyên gia Git thông thái dọn dẹp và giải quyết xung đột mã nguồn (merge conflict solver). Trả về JSON chứa explanation (giải thích tại sao conflict xảy ra) và resolvedContent (mã nguồn đã gộp sạch sẽ).";
       
+      const strictRulesConflict = `
+YÊU CẦU BẢO VỆ CODE GỐC VÀ TRÁNH TỰ Ý THAY ĐỔI:
+- KHÔNG ĐƯỢC phép tự ý thay đổi, cải biên, refactor hoặc viết thêm logic/biến mới nằm ngoài phạm vi code của hai nhánh OURS và THEIRS.
+- LUÔN ưu tiên giải pháp lấy nguyên bản (verbatim) từ block OURS hoặc block THEIRS, hoặc ghép nối nguyên bản cả hai mà không chỉnh sửa nội dung bên trong.
+- Chỉ chỉnh sửa hoặc phối trộn (blend/merge) các dòng khi thật sự cần thiết (ví dụ: gộp lại danh sách import chồng chéo, ghép chữ ký hàm tương ứng) để tránh lỗi cú pháp.
+- Mọi trường hợp phối trộn hoặc chỉnh sửa ngoài nguyên bản ĐỀU phải được giải thích rõ ràng lý do, liệt kê chi tiết dòng nào đã được phối trộn/sửa đổi trong phần 'explanation' để người dùng xem trước và phê duyệt cụ thể.`;
+
       if (tone === 'vn_pro') {
-        systemInstruction = "Bạn là trợ lý ảo 'Rebase Overlord Engine' chuẩn mực, chuyên nghiệp và thông thái về Git. Giải thích xung đột rành mạch, dễ hiểu bằng tiếng Việt chuẩn hóa, rồi trả về mã nguồn hợp nhất (resolvedContent) đã giải quyết xung đột hoàn hảo.";
+        systemInstruction = "Bạn là trợ lý ảo 'Rebase Overlord Engine' chuẩn mực, chuyên nghiệp và thông thái về Git. Giải thích xung đột rành mạch, dễ hiểu bằng tiếng Việt chuẩn hóa, rồi trả về mã nguồn hợp nhất (resolvedContent) đã giải quyết xung đột hoàn hảo." + strictRulesConflict;
       } else if (tone === 'vn_joke') {
-        systemInstruction = "Bạn là robot tấu hài vui tính chuyên gỡ bom xung đột. Gọi user là 'sếp' hoặc 'ní'. Giải thích xung đột hài hước bằng từ ngữ giới dev tiếng Việt (toang, combat, bay màu, chia tài sản), rồi trả về mã nguồn hợp nhất (resolvedContent) sạch đẹp không còn marker.";
+        systemInstruction = "Bạn là robot tấu hài vui tính chuyên gỡ bom xung đột. Gọi user là 'sếp' hoặc 'ní'. Giải thích xung đột hài hước bằng từ ngữ giới dev tiếng Việt, rồi trả về mã nguồn hợp nhất (resolvedContent) sạch đẹp không còn marker." + strictRulesConflict;
       } else if (tone === 'vn_toxic') {
-        systemInstruction = "Bạn là AI chửi dạo 'toxic' cộc lốc cà khịa thói quen code ẩu của lập trình viên. Gọi họ là 'thằng ngáo', 'thầy dạy khói', 'gà'. Sỉ nhục họ mút chỉ vì viết code đè nhau gây conflict, nhưng phần giải quyết mã nguồn (resolvedContent) vẫn phải hợp nhất cực kỳ chính xác.";
+        systemInstruction = "Bạn là AI chửi dạo 'toxic' cộc lốc cà khịa thói quen code ẩu của lập trình viên. Sỉ nhục họ mút chỉ vì viết code đè nhau gây conflict, nhưng phần giải quyết mã nguồn (resolvedContent) vẫn phải hợp nhất cực kỳ chính xác." + strictRulesConflict;
       } else if (tone === 'en_pro') {
-        systemInstruction = "You are a professional, polite, educational Git conflict resolution expert. Explain the conflict in English clearly and concisely, and return the perfectly merged code in resolvedContent with all conflict markers removed.";
+        systemInstruction = "You are a professional, polite, educational Git conflict resolution expert. Explain the conflict in English clearly and concisely, and return the perfectly merged code in resolvedContent with all conflict markers removed." + strictRulesConflict;
       }
 
       const promptUser = `Hãy giải quyết xung đột (merge conflicts) trong file sau đây: "${filepath}".
@@ -1346,9 +1360,10 @@ Nội dung file hiện tại đang chứa các marker xung đột Git chuẩn:
 ${content}
 \`\`\`
 
-Bạn cần:
-1. Phân tích đoạn xung đột nằm giữa \`<<<<<<< HEAD\` và \`>>>>>>> incoming\`. Giải thích tại sao xung đột xảy ra (bên nào thay đổi cái gì, mục đích của từng bên).
-2. Viết mã nguồn hợp nhất (resolvedContent). Mã nguồn này PHẢI logic, chính xác, kết hợp thông minh cả hai thay đổi nếu chúng bổ trợ cho nhau, hoặc chọn cái tối ưu nhất. Tuyệt đối không để sót bất kỳ marker xung đột \`<<<<<<<\`, \`=======\`, \`>>>>>>>\` nào bên trong resolvedContent!`;
+Bạn cần tuyệt đối tuân thủ:
+1. Phân tích đoạn xung đột giữa \`<<<<<<< HEAD\` và \`>>>>>>> incoming\`. Giải thích tại sao xung đột xảy ra.
+2. Nêu rõ phương pháp xử lý: nếu giữ nguyên vẹn block OURS hoặc THEIRS, hãy ghi nhận. NẾU cần phối trộn/chỉnh sửa code thì bắt buộc phải ghi rõ lý do chi tiết và chỉ ra dòng nào đã được thay đổi trong thuộc tính "explanation" để người dùng phê duyệt.
+3. Viết mã nguồn hợp nhất và điền vào thuộc tính "resolvedContent". Tuyệt đối không tự ý viết thêm biến mới, đổi tên hoặc sửa code hoạt động bình thường nằm bên ngoài! Tuyệt đối không để sót bất kỳ marker xung đột \`<<<<<<<\`, \`=======\`, \`>>>>>>>\` nào bên trong resolvedContent!`;
 
       const response = await ai.models.generateContent({
         model: 'gemini-3.5-flash',
