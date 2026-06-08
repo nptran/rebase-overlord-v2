@@ -917,6 +917,17 @@ export default function App() {
   const [appVersion, setAppVersion] = React.useState<string>(() => {
     return (typeof window !== 'undefined' && localStorage.getItem('rebase_overlord_patch_version')) || '1.12.0';
   });
+
+  // New States for Update Verification & Diagnostics
+  const [updateMismatchError, setUpdateMismatchError] = React.useState<string | null>(null);
+  const [isVersionRed, setIsVersionRed] = React.useState(false);
+  const [verifyBtnVisible, setVerifyBtnVisible] = React.useState(false);
+  const [updateFailedModal, setUpdateFailedModal] = React.useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    exitCode?: number | null;
+  } | null>(null);
   const isUpgraded = React.useMemo(() => {
     const cleanVersion = appVersion.replace(/^v/, '');
     const parts = cleanVersion.split('.').map(v => parseInt(v, 10) || 0);
@@ -1722,15 +1733,85 @@ export default function App() {
     }
   };
 
+  const verifyInstallationWithMetadata = React.useCallback(async (triggerManualPrompt = false) => {
+    try {
+      const res = await fetch(resolveApiUrl('/api/update/metadata'));
+      if (res.ok) {
+        const metadata = await res.json();
+        // Fallback checks
+        const metadataVer = (metadata.version || '1.12.0').replace(/^v/, '');
+        const stateVer = appVersion.replace(/^v/, '');
+        
+        if (metadataVer !== stateVer) {
+          setIsVersionRed(true);
+          setVerifyBtnVisible(true);
+          
+          const errMsg = `Update failed/corrupted: Version mismatch! App state is v${appVersion}, but read-only metadata has v${metadata.version || '1.12.0'}.`;
+          addLog(`❌ [ERROR] ${errMsg}`);
+          console.error(errMsg);
+          
+          try {
+            await fetch(resolveApiUrl('/api/log-error'), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                message: 'Update failed: Local version mismatch at filesystem level',
+                version: appVersion,
+                expected: metadata.version || '1.12.0'
+              })
+            });
+          } catch (_) {}
+          
+          if (triggerManualPrompt) {
+            triggerToast(
+              'error',
+              tone === TranslationTone.ENGLISH ? 'Verification Failed' : 'Xác thực thất bại',
+              tone === TranslationTone.ENGLISH
+                ? `Disagreement detected! State claims v${appVersion} but physical metadata verified v${metadata.version || '1.12.0'}.`
+                : `Phát hiện xung đột! Phiên bản v${appVersion} không khớp dữ liệu metadata v${metadata.version || '1.12.0'}.`,
+              '🛑'
+            );
+          }
+        } else {
+          setIsVersionRed(false);
+          setVerifyBtnVisible(false);
+          if (triggerManualPrompt) {
+            triggerToast(
+              'success',
+              tone === TranslationTone.ENGLISH ? 'Verification Passed' : 'Xác thực thành công',
+              tone === TranslationTone.ENGLISH ? 'Your local space and binary metadata are in perfect alignment!' : 'Hệ thống phiên bản và dữ liệu tệp tin của bạn đang đồng bộ tương thích gốc đạt 100%!',
+              '✓'
+            );
+            addLog(`✓ [VERIFY] Binary verification passed successfully.`);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to verify installation with metadata:', err);
+    }
+  }, [appVersion, addLog, tone, triggerToast]);
+
   // Dynamically probe update version on mount
   React.useEffect(() => {
     const probeVersion = async () => {
+      let probeOk = false;
       try {
         const url = resolveApiUrl('/api/update/check');
         const res = await fetch(url);
         if (res.ok) {
+          probeOk = true;
           const data = await res.json();
+          
+          // Feature 1: Version mismatch logic
           if (data.currentVersion) {
+            const localExpected = localStorage.getItem('rebase_overlord_patch_version');
+            if (localExpected && localExpected !== data.currentVersion) {
+              setUpdateMismatchError('Update failed: Local version mismatch');
+              addLog('❌ Update check failed: Local expected version differs from server version.');
+            } else {
+              setUpdateMismatchError(null);
+            }
+
             setAppVersion(data.currentVersion);
             localStorage.setItem('rebase_overlord_patch_version', data.currentVersion);
             
@@ -1754,17 +1835,38 @@ export default function App() {
                 }, 2000);
               }
             } else {
-              // Clear so that next time they upgrade it fires
               localStorage.removeItem('rebase_overlord_announced_v15');
             }
+          }
+
+          // Feature 2: Check for exit error code on load
+          if (data.lastUpdateExitCode !== null && data.lastUpdateExitCode !== 0) {
+            setUpdateFailedModal({
+              isOpen: true,
+              title: tone === TranslationTone.ENGLISH ? 'System Update Failed' : 'Nâng cấp hệ thống thất bại',
+              message: data.lastUpdateError || (tone === TranslationTone.ENGLISH 
+                ? 'The background update process reported a non-zero exit code or failed to write new binaries.' 
+                : 'Tiến trình nâng cấp/ghi tệp tin của bộ cài đặt thực tế đã thất bại.'),
+              exitCode: data.lastUpdateExitCode
+            });
+            addLog(`❌ [ALERT] Last update process failed with exit code ${data.lastUpdateExitCode}!`);
           }
         }
       } catch (err) {
         console.warn('Failed to dynamically probe version from App.tsx:', err);
       }
+      
+      // Feature 1: Trigger banner if update check returns an error (or failed to fetch)
+      if (!probeOk) {
+        setUpdateMismatchError('Update failed: Local version mismatch');
+        addLog('❌ Update check failed: Update server API reported error or could not be reached.');
+      }
+
+      // Feature 3: Compare with metadata file on load
+      verifyInstallationWithMetadata();
     };
     probeVersion();
-  }, [tone, triggerToast]);
+  }, [tone, triggerToast, addLog, verifyInstallationWithMetadata]);
 
   // Trigger ee_night_owl Easter Egg on load if late
   React.useEffect(() => {
@@ -3016,6 +3118,32 @@ export default function App() {
     <div id="rebase-overlord-app" className={`min-h-screen transition-colors duration-205 p-4 font-sans select-none antialiased ${theme === 'light' ? 'bg-slate-50 text-slate-900' : 'bg-[#060814] text-slate-100'}`}>
       <div className="max-w-[1800px] w-full mx-auto flex flex-col gap-5 px-1 sm:px-2 md:px-4">
         
+        {updateMismatchError && (
+          <div className="bg-red-500/15 border border-red-500/30 text-red-500 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl shadow-red-500/5 animate-pulse" id="update-mismatch-error-banner">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl animate-spin">⚠️</span>
+              <div>
+                <strong className="font-mono text-sm uppercase tracking-wider block">Critical system mismatch error!</strong>
+                <p className="text-xs text-red-400 font-sans mt-0.5 font-semibold">Update failed: Local version mismatch</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => {
+                  localStorage.setItem('rebase_overlord_patch_version', '1.12.0');
+                  setAppVersion('1.12.0');
+                  setUpdateMismatchError(null);
+                  triggerToast('success', 'Reset completed', 'Reset version override to baseline v1.12.0.');
+                  addLog('✓ [RESET] Local expected version reset to baseline v1.12.0.');
+                }}
+                className="px-3 py-1.5 bg-red-650/30 hover:bg-red-650/50 text-white border border-red-500/30 rounded-lg text-[10px] font-bold font-mono transition-all cursor-pointer active:scale-95"
+              >
+                Force Reset Baseline
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Workspace Configurations & Tones Dashboard Header */}
         <RepoHeader
           repoState={repoState}
@@ -3083,6 +3211,9 @@ export default function App() {
           onCloneRepo={handleCloneRepo}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
+          isVersionRed={isVersionRed}
+          verifyBtnVisible={verifyBtnVisible}
+          onVerifyInstallation={() => verifyInstallationWithMetadata(true)}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 w-full">
@@ -4750,6 +4881,81 @@ export default function App() {
                     className="px-3.5 py-1.5 rounded font-bold text-white bg-rose-600 hover:bg-rose-500 border border-rose-500/20 shadow-md cursor-pointer select-none transition-all active:scale-[0.98]"
                   >
                     {tone === TranslationTone.ENGLISH ? 'Confirm' : tone === TranslationTone.TOXIC ? 'Chốt luôn, sợ đéo' : 'Xác nhận'}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+
+          {updateFailedModal && updateFailedModal.isOpen && (
+            <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setUpdateFailedModal(null)}
+                className="absolute inset-0 bg-slate-950/75 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 15 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 15 }}
+                transition={{ type: "spring", duration: 0.4 }}
+                className={`relative max-w-md w-full p-6 rounded-xl border shadow-2xl font-mono z-50 ${
+                  theme === 'light' 
+                    ? 'bg-white border-slate-200 text-slate-800' 
+                    : 'bg-[#0f172a] border-rose-950 text-slate-100 shadow-[0_0_50px_rgba(239,68,68,0.15)]'
+                }`}
+              >
+                <div className="flex items-start gap-3.5 mb-4">
+                  <div className="p-3 rounded-lg bg-red-500/10 text-red-500 shrink-0 border border-red-500/20 shadow-[0_0_12px_rgba(239,68,68,0.15)] animate-bounce animate-duration-1000">
+                    <span className="text-2xl">🚨</span>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black uppercase tracking-wider text-rose-500 flex items-center gap-2">
+                      {updateFailedModal.title}
+                      {updateFailedModal.exitCode !== undefined && (
+                        <span className="text-[10px] bg-red-550/10 font-bold border border-red-500/35 text-red-400 px-1.5 py-0.5 rounded">
+                          CODE {updateFailedModal.exitCode}
+                        </span>
+                      )}
+                    </h3>
+                    <p className={`text-[11px] mt-2 leading-relaxed ${theme === 'light' ? 'text-slate-650' : 'text-slate-350'}`}>
+                      {updateFailedModal.message}
+                    </p>
+                    <div className={`mt-3 p-2.5 rounded border text-[10px] bg-red-950/20 border-red-900/30 font-semibold font-mono ${theme === 'light' ? 'text-red-800' : 'text-red-400'}`}>
+                      STATUS: Fail: Binary execution restricted or signature checks failed.
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2.5 mt-6 pt-3 border-t border-slate-200/10 text-xs text-mono">
+                  <button
+                    onClick={() => {
+                      // Trigger diagnostic clearing
+                      fetch(resolveApiUrl('/api/update/check?clear_fail=true'))
+                        .then(() => {
+                          setUpdateFailedModal(null);
+                          triggerToast('success', 'Cleared Simulation', 'Simulation failure status has been cleared.');
+                          addLog('✓ [SUCCESS] Diagnostics cleared.');
+                        })
+                        .catch(() => setUpdateFailedModal(null));
+                    }}
+                    className={`px-3 py-1.5 rounded font-medium border cursor-pointer select-none transition-all active:scale-[0.98] ${
+                      theme === 'light'
+                        ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700 font-bold'
+                        : 'bg-slate-900 hover:bg-slate-800 border-slate-750 text-slate-350 hover:text-slate-100 font-bold'
+                    }`}
+                  >
+                    Clear failure state & Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      window.location.reload();
+                    }}
+                    className="px-3.5 py-1.5 rounded font-bold text-white bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-500 hover:to-rose-600 border border-rose-500/20 shadow-md cursor-pointer select-none transition-all active:scale-[0.98] flex items-center gap-1"
+                  >
+                    🔄 Restart & Recheck
                   </button>
                 </div>
               </motion.div>

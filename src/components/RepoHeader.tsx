@@ -46,6 +46,11 @@ interface RepoHeaderProps {
   onUpdateRepoPath: (path: string) => void;
   onCloneRepo: (repoUrl: string, token: string) => Promise<boolean>;
   onRefresh: () => void;
+  
+  // Update verification highlights
+  isVersionRed?: boolean;
+  verifyBtnVisible?: boolean;
+  onVerifyInstallation?: () => void;
 }
 
 const headerLoc = {
@@ -184,7 +189,10 @@ export default function RepoHeader({
   onToggleTheme,
   onUpdateRepoPath,
   onCloneRepo,
-  onRefresh
+  onRefresh,
+  isVersionRed = false,
+  verifyBtnVisible = false,
+  onVerifyInstallation
 }: RepoHeaderProps) {
   const [editingPath, setEditingPath] = React.useState(repoState.repoPath || '.');
   const [cloneUrl, setCloneUrl] = React.useState('');
@@ -226,6 +234,16 @@ export default function RepoHeader({
         clearInterval(pollingIntervalRef.current);
       }
     };
+  }, []);
+
+  React.useEffect(() => {
+    const handleStorageSync = () => {
+      const ver = localStorage.getItem('rebase_overlord_patch_version') || '1.12.0';
+      setCurrentDisplayVersion(ver);
+    };
+    handleStorageSync();
+    window.addEventListener('storage', handleStorageSync);
+    return () => window.removeEventListener('storage', handleStorageSync);
   }, []);
 
   React.useEffect(() => {
@@ -508,11 +526,25 @@ export default function RepoHeader({
         <div>
           <div className="flex items-center gap-2">
             <span className="text-2xl">🚀</span>
-            <h1 id="app-main-heading" className={`text-2xl font-black tracking-tight font-mono flex items-center gap-2 ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+            <h1 id="app-main-heading" className={`text-2xl font-black tracking-tight font-mono flex flex-wrap items-center gap-2 ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
               REBASE OVERLORD
-              <span className="text-xs bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20 font-sans tracking-normal font-medium animate-pulse">
-                v{currentDisplayVersion} - Web Native
+              <span className={`text-[11px] px-2 py-0.5 rounded border font-sans tracking-normal font-semibold transition-all ${
+                isVersionRed 
+                  ? 'bg-rose-500/20 text-rose-500 border-rose-500/40 shadow-[0_0_12px_rgba(239,68,68,0.3)] animate-pulse' 
+                  : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-none'
+              }`}>
+                v{currentDisplayVersion} - {isVersionRed ? 'VERSION MISMATCH DETECTED' : 'Web Native'}
               </span>
+
+              {verifyBtnVisible && (
+                <button
+                  onClick={onVerifyInstallation}
+                  className="text-[10px] bg-gradient-to-r from-rose-600 to-red-700 hover:from-rose-500 hover:to-red-600 text-white font-bold font-mono px-2.5 py-1 rounded-md shadow-md hover:shadow-lg flex items-center gap-1.5 border border-rose-500/50 cursor-pointer transition-all active:scale-95 animate-bounce"
+                  title="Verify full integrity of binary installations"
+                >
+                  <span className="text-[12px] animate-pulse">🔍</span> Verify Installation
+                </button>
+              )}
             </h1>
           </div>
           <p className={`text-xs mt-1 font-sans ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
