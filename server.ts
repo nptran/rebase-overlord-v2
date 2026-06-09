@@ -1830,6 +1830,54 @@ function fetchJson(url: string, headers: Record<string, string> = {}, redirectCo
   });
 }
 
+const resolveInstalledVersion = (): string => {
+  let currentVersion = '1.12.0'; // Current standard package version (v1.12.0)
+  
+  // 1. High-reliability Electron version detection
+  if (typeof process !== 'undefined' && process.versions && process.versions.electron) {
+    try {
+      const electron = typeof require !== 'undefined' ? require('electron') : null;
+      if (electron) {
+        const electronApp = electron.app || electron.remote?.app;
+        if (electronApp && typeof electronApp.getVersion === 'function') {
+          const v = electronApp.getVersion();
+          if (v) {
+            currentVersion = v;
+            console.log('[UPDATE_CHECK] Successfully probed packaged app version from Electron:', currentVersion);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[UPDATE_CHECK] Failed to retrieve version from Electron process:', err);
+    }
+  }
+
+  // 2. Fallback: Search in standard directory paths for package.json
+  if (currentVersion === '1.12.0') {
+    try {
+      const dir = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
+      const possiblePaths = [
+        path.join(process.cwd(), 'package.json'),
+        path.join(dir, 'package.json'),
+        path.join(dir, '..', 'package.json'),
+        path.join(process.cwd(), '..', 'package.json')
+      ];
+      for (const p of possiblePaths) {
+        if (fs.existsSync(p)) {
+          const pkg = JSON.parse(fs.readFileSync(p, 'utf-8'));
+          if (pkg.version) {
+            currentVersion = pkg.version;
+            break;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[UPDATE_CHECK] Failed to read package.json version, using default 1.12.0', err);
+    }
+  }
+  return currentVersion;
+};
+
 // Local version patch files helpers for Electron environments where package.json or app.asar is read-only
 const getPatchedVersion = (): string | null => {
   const paths = [
@@ -1870,6 +1918,35 @@ const saveVersionPatch = (version: string) => {
   }
 };
 
+const clearVersionPatch = () => {
+  const paths = [
+    path.join(process.cwd(), 'data', 'version_patch.json'),
+    path.join(os.homedir(), '.rebase_overlord_version_patch.json')
+  ];
+  for (const p of paths) {
+    try {
+      if (fs.existsSync(p)) {
+        fs.unlinkSync(p);
+        console.log('[UPDATER] Deleted obsolete version patch file:', p);
+      }
+    } catch (err: any) {
+      console.warn(`[UPDATER] Failed to delete obsolete version patch file at ${p}:`, err.message);
+    }
+  }
+};
+
+const semverCompare = (v1: string, v2: string) => {
+  const p1 = v1.replace(/^v/, '').split('.').map(v => parseInt(v, 10) || 0);
+  const p2 = v2.replace(/^v/, '').split('.').map(v => parseInt(v, 10) || 0);
+  for (let i = 0; i < Math.max(p1.length, p2.length); i++) {
+    const n1 = p1[i] || 0;
+    const n2 = p2[i] || 0;
+    if (n1 > n2) return 1;
+    if (n2 > n1) return -1;
+  }
+  return 0;
+};
+
 // Check for updates
 app.get('/api/update/check', async (req, res) => {
   // Overwrite res.json for this check response to append lastUpdateExitCode & lastUpdateError
@@ -1891,69 +1968,23 @@ app.get('/api/update/check', async (req, res) => {
     lastUpdateError = null;
   }
 
-  let currentVersion = '1.12.0'; // Current standard package version (v1.12.0)
-  
-  // 1. High-reliability Electron version detection
-  if (typeof process !== 'undefined' && process.versions && process.versions.electron) {
-    try {
-      const electron = typeof require !== 'undefined' ? require('electron') : null;
-      if (electron) {
-        const electronApp = electron.app || electron.remote?.app;
-        if (electronApp && typeof electronApp.getVersion === 'function') {
-          currentVersion = electronApp.getVersion();
-          console.log('[UPDATE_CHECK] Successfully probed packaged app version from Electron:', currentVersion);
-        }
-      }
-    } catch (err) {
-      console.warn('[UPDATE_CHECK] Failed to retrieve version from Electron process:', err);
-    }
-  }
-
-  // 2. Fallback: Search in standard directory paths for package.json
-  if (currentVersion === '1.12.0') {
-    try {
-      const dir = typeof __dirname !== 'undefined' ? __dirname : path.dirname(fileURLToPath(import.meta.url));
-      const possiblePaths = [
-        path.join(process.cwd(), 'package.json'),
-        path.join(dir, 'package.json'),
-        path.join(dir, '..', 'package.json'),
-        path.join(process.cwd(), '..', 'package.json')
-      ];
-      for (const p of possiblePaths) {
-        if (fs.existsSync(p)) {
-          const pkg = JSON.parse(fs.readFileSync(p, 'utf-8'));
-          if (pkg.version) {
-            currentVersion = pkg.version;
-            break;
-          }
-        }
-      }
-    } catch (err) {
-      console.warn('[UPDATE_CHECK] Failed to read package.json version, using default 1.12.0', err);
-    }
-  }
+  let currentVersion = resolveInstalledVersion();
 
   // 3. Apply Local Patch Override (Highly descriptive & robust for Electron updates)
   const patchedVersion = getPatchedVersion();
   if (patchedVersion) {
-    currentVersion = patchedVersion;
-    console.log('[UPDATE_CHECK] Overriding detected version with local patch version:', currentVersion);
+    // Only apply patch override if it represents a newer version than the installed core package code
+    if (semverCompare(patchedVersion, currentVersion) > 0) {
+      currentVersion = patchedVersion;
+      console.log('[UPDATE_CHECK] Overriding detected version with local patch version:', currentVersion);
+    } else {
+      console.log(`[UPDATE_CHECK] Stale patch version (${patchedVersion}) is older than or equal to standard package version (${currentVersion}). Discarding patch file.`);
+      clearVersionPatch();
+    }
   }
 
   // Backup original detected version context so we can cleanly roll back on Cancel if ever needed
   originalVersionBeforeUpdate = currentVersion;
-
-  const semverCompare = (v1: string, v2: string) => {
-    const p1 = v1.replace(/^v/, '').split('.').map(v => parseInt(v, 10) || 0);
-    const p2 = v2.replace(/^v/, '').split('.').map(v => parseInt(v, 10) || 0);
-    for (let i = 0; i < Math.max(p1.length, p2.length); i++) {
-      const n1 = p1[i] || 0;
-      const n2 = p2[i] || 0;
-      if (n1 > n2) return 1;
-      if (n2 > n1) return -1;
-    }
-    return 0;
-  };
 
   try {
     // 1. Primary Attempt: Check Official GitHub Releases for all intermediate logs
@@ -2458,7 +2489,7 @@ app.get('/api/update/metadata', (req, res) => {
     console.error('[UPDATER] Failed to read metadata file:', err.message);
   }
   // Return default representing untouched filesystem
-  return res.json({ version: '1.12.0', status: 'original' });
+  return res.json({ version: resolveInstalledVersion(), status: 'original' });
 });
 
 // Endpoint to log error down into the live server terminal stdout

@@ -1738,7 +1738,24 @@ export default function App() {
       const res = await fetch(resolveApiUrl('/api/update/metadata'));
       if (res.ok) {
         const metadata = await res.json();
-        // Fallback checks
+        
+        // If the filesystem report is clean/original (untouched fresh install), we are in alignment
+        if (metadata.status === 'original') {
+          setIsVersionRed(false);
+          setVerifyBtnVisible(false);
+          if (triggerManualPrompt) {
+            triggerToast(
+              'success',
+              tone === TranslationTone.ENGLISH ? 'Verification Passed' : 'Xác thực thành công',
+              tone === TranslationTone.ENGLISH ? 'Your local space is running a pristine clean setup!' : 'Hệ thống đang chạy bản cài đặt sạch nguyên bản 100%!',
+              '✓'
+            );
+            addLog(`✓ [VERIFY] Pristine standard installation verified (no updates active).`);
+          }
+          return;
+        }
+
+        // Fallback checks for active updates
         const metadataVer = (metadata.version || '1.12.0').replace(/^v/, '');
         const stateVer = appVersion.replace(/^v/, '');
         
@@ -1805,7 +1822,20 @@ export default function App() {
           // Feature 1: Version mismatch logic
           if (data.currentVersion) {
             const localExpected = localStorage.getItem('rebase_overlord_patch_version');
-            if (localExpected && localExpected !== data.currentVersion) {
+            
+            const isV1GreaterThanV2 = (v1: string, v2: string) => {
+              const p1 = v1.replace(/^v/, '').split('.').map(v => parseInt(v, 10) || 0);
+              const p2 = v2.replace(/^v/, '').split('.').map(v => parseInt(v, 10) || 0);
+              for (let i = 0; i < Math.max(p1.length, p2.length); i++) {
+                const n1 = p1[i] || 0;
+                const n2 = p2[i] || 0;
+                if (n1 > n2) return true;
+                if (n2 > n1) return false;
+              }
+              return false;
+            };
+
+            if (localExpected && isV1GreaterThanV2(localExpected, data.currentVersion)) {
               setUpdateMismatchError('Update failed: Local version mismatch');
               addLog('❌ Update check failed: Local expected version differs from server version.');
             } else {
