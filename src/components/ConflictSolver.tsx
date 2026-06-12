@@ -856,7 +856,6 @@ export default function ConflictSolver({
   // Track resolved status per block index with independent left and right options for JetBrains style
   const [blockChoices, setBlockChoices] = React.useState<Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }>>({});
   const [blockAnalyses, setBlockAnalyses] = React.useState<Record<number, ConflictBlockAnalysis>>({});
-  const [scrollOffset, setScrollOffset] = React.useState(0);
   const activeScrollSourceRef = React.useRef<HTMLElement | null>(null);
 
   const mapScrollBetweenPanes = (
@@ -904,7 +903,6 @@ export default function ConflictSolver({
     
     activeScrollSourceRef.current = target;
     const top = target.scrollTop;
-    setScrollOffset(top);
 
     // Synchronize to Left, Right, or Center depending on which one was scrolled
     const isLeft = target === leftPaneContainerRef.current;
@@ -1140,7 +1138,7 @@ export default function ConflictSolver({
     const regex = getSearchRegex(stateLeftSearch.query, stateLeftSearch.matchCase, stateLeftSearch.wholeWord, stateLeftSearch.useRegex);
     if (!regex) return [];
 
-    const matches: { globalLineIdx: number; start: number; end: number; text: string }[] = [];
+    const matches: { globalLineIdx: number; start: number; end: number; text: string; globalMatchIdx: number }[] = [];
     leftLines.forEach((lineObj, globalLineIdx) => {
       const text = lineObj.text;
       regex.lastIndex = 0;
@@ -1154,7 +1152,8 @@ export default function ConflictSolver({
             globalLineIdx,
             start: match.index,
             end: match.index + match[0].length,
-            text: match[0]
+            text: match[0],
+            globalMatchIdx: matches.length
           });
         }
       } else {
@@ -1164,7 +1163,8 @@ export default function ConflictSolver({
             globalLineIdx,
             start: match.index,
             end: match.index + match[0].length,
-            text: match[0]
+            text: match[0],
+            globalMatchIdx: matches.length
           });
         }
       }
@@ -1172,12 +1172,23 @@ export default function ConflictSolver({
     return matches;
   }, [leftLines, stateLeftSearch.isOpen, stateLeftSearch.query, stateLeftSearch.matchCase, stateLeftSearch.wholeWord, stateLeftSearch.useRegex]);
 
+  const leftMatchesByLine = React.useMemo(() => {
+    const map: Record<number, typeof leftMatches> = {};
+    leftMatches.forEach(m => {
+      if (!map[m.globalLineIdx]) {
+        map[m.globalLineIdx] = [];
+      }
+      map[m.globalLineIdx].push(m);
+    });
+    return map;
+  }, [leftMatches]);
+
   const rightMatches = React.useMemo(() => {
     if (!stateRightSearch.isOpen || !stateRightSearch.query) return [];
     const regex = getSearchRegex(stateRightSearch.query, stateRightSearch.matchCase, stateRightSearch.wholeWord, stateRightSearch.useRegex);
     if (!regex) return [];
 
-    const matches: { globalLineIdx: number; start: number; end: number; text: string }[] = [];
+    const matches: { globalLineIdx: number; start: number; end: number; text: string; globalMatchIdx: number }[] = [];
     rightLines.forEach((lineObj, globalLineIdx) => {
       const text = lineObj.text;
       regex.lastIndex = 0;
@@ -1191,7 +1202,8 @@ export default function ConflictSolver({
             globalLineIdx,
             start: match.index,
             end: match.index + match[0].length,
-            text: match[0]
+            text: match[0],
+            globalMatchIdx: matches.length
           });
         }
       } else {
@@ -1201,13 +1213,25 @@ export default function ConflictSolver({
             globalLineIdx,
             start: match.index,
             end: match.index + match[0].length,
-            text: match[0]
+            text: match[0],
+            globalMatchIdx: matches.length
           });
         }
       }
     });
     return matches;
   }, [rightLines, stateRightSearch.isOpen, stateRightSearch.query, stateRightSearch.matchCase, stateRightSearch.wholeWord, stateRightSearch.useRegex]);
+
+  const rightMatchesByLine = React.useMemo(() => {
+    const map: Record<number, typeof rightMatches> = {};
+    rightMatches.forEach(m => {
+      if (!map[m.globalLineIdx]) {
+        map[m.globalLineIdx] = [];
+      }
+      map[m.globalLineIdx].push(m);
+    });
+    return map;
+  }, [rightMatches]);
 
   const middleMatches = React.useMemo(() => {
     if (!stateResultSearch.isOpen || !stateResultSearch.query) return [];
@@ -1291,10 +1315,20 @@ export default function ConflictSolver({
   const renderLineWithHighlight = (
     lineText: string,
     globalLineIdx: number,
-    paneMatches: { globalLineIdx: number; start: number; end: number; text: string }[],
+    paneMatchesOrLineMatches: any[],
     paneActiveIdx: number
   ) => {
-    const lineMatches = paneMatches.filter(m => m.globalLineIdx === globalLineIdx);
+    if (!paneMatchesOrLineMatches || paneMatchesOrLineMatches.length === 0) {
+      return <span>{lineText || '\u00A0'}</span>;
+    }
+
+    // Determine if we need to filter (backward compatibility fallback)
+    let lineMatches = paneMatchesOrLineMatches;
+    if (paneMatchesOrLineMatches[0] && paneMatchesOrLineMatches[0].globalLineIdx !== undefined && paneMatchesOrLineMatches[0].globalLineIdx !== globalLineIdx) {
+      // Filter if it's not pre-filtered
+      lineMatches = paneMatchesOrLineMatches.filter(m => m.globalLineIdx === globalLineIdx);
+    }
+
     if (lineMatches.length === 0) {
       return <span>{lineText || '\u00A0'}</span>;
     }
@@ -1303,8 +1337,9 @@ export default function ConflictSolver({
     const elements: React.ReactNode[] = [];
     let lastIndex = 0;
 
-    sortedMatches.forEach((m, matchIdx) => {
-      const globalMatchIndex = paneMatches.indexOf(m);
+    sortedMatches.forEach((m) => {
+      // Use precomputed index, or fallback to indexOf if not set
+      const globalMatchIndex = m.globalMatchIdx !== undefined ? m.globalMatchIdx : paneMatchesOrLineMatches.indexOf(m);
       const isActive = globalMatchIndex === paneActiveIdx;
 
       if (m.start > lastIndex) {
@@ -1746,6 +1781,7 @@ export default function ConflictSolver({
                   className={`flex min-h-[20px] items-center animate-fade-in ${
                     isLight ? 'hover:bg-slate-205/50' : 'hover:bg-[#202124]/40'
                   }`}
+                  style={{ contentVisibility: 'auto', containIntrinsicSize: '20px' }}
                 >
                   <div className={`w-9 text-right pr-2 select-none border-r font-mono text-[10px] shrink-0 ${
                     isLight ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-[#16171a] border-[#2d2f3c]/60 text-slate-600'
@@ -1753,7 +1789,7 @@ export default function ConflictSolver({
                     {currNum}
                   </div>
                   <div className={`pl-3 select-text whitespace-pre font-mono ${isLight ? 'text-slate-800' : 'text-slate-400'}`}>
-                    {renderLineWithHighlight(line, currentGlobalLineIdx, leftMatches, stateLeftSearch.activeIndex)}
+                    {renderLineWithHighlight(line, currentGlobalLineIdx, leftMatchesByLine[currentGlobalLineIdx] || [], stateLeftSearch.activeIndex)}
                   </div>
                 </div>
               );
@@ -1798,6 +1834,7 @@ export default function ConflictSolver({
                             : 'bg-[#1b1c23]/60 text-slate-500/80 border-l-2 border-dashed border-[#2d2f3c]'
                           : ''
                   }`}
+                  style={{ contentVisibility: 'auto', containIntrinsicSize: '20px' }}
                 >
                   <div className={`w-9 text-right pr-2 select-none border-r font-mono text-[10px] font-bold shrink-0 ${
                     isIgnored
@@ -1823,7 +1860,7 @@ export default function ConflictSolver({
                     {currNum || '\u00A0'}
                   </div>
                   <div className="pl-3 flex-1 select-text whitespace-pre pr-24 font-medium font-mono">
-                    {hasLine ? renderLineWithHighlight(line, currentGlobalLineIdx, leftMatches, stateLeftSearch.activeIndex) : ''}
+                    {hasLine ? renderLineWithHighlight(line, currentGlobalLineIdx, leftMatchesByLine[currentGlobalLineIdx] || [], stateLeftSearch.activeIndex) : ''}
                   </div>
 
                   {hasLine && lIdx === 0 && choice.left === 'pending' && (
@@ -1911,6 +1948,7 @@ export default function ConflictSolver({
                   className={`flex min-h-[20px] items-center animate-fade-in ${
                     isLight ? 'hover:bg-slate-205/50' : 'hover:bg-[#202124]/40'
                   }`}
+                  style={{ contentVisibility: 'auto', containIntrinsicSize: '20px' }}
                 >
                   <div className={`w-9 text-right pr-2 select-none border-r font-mono text-[10px] shrink-0 ${
                     isLight ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-[#16171a] border-[#2d2f3c]/60 text-slate-600'
@@ -1918,7 +1956,7 @@ export default function ConflictSolver({
                     {currNum}
                   </div>
                   <div className={`pl-3 select-text whitespace-pre font-mono ${isLight ? 'text-slate-800' : 'text-slate-400'}`}>
-                    {renderLineWithHighlight(line, currentGlobalLineIdx, rightMatches, stateRightSearch.activeIndex)}
+                    {renderLineWithHighlight(line, currentGlobalLineIdx, rightMatchesByLine[currentGlobalLineIdx] || [], stateRightSearch.activeIndex)}
                   </div>
                 </div>
               );
@@ -1963,6 +2001,7 @@ export default function ConflictSolver({
                             : 'bg-[#1b1c23]/60 text-slate-500/80 border-r-2 border-dashed border-[#2d2f3c]'
                           : ''
                   }`}
+                  style={{ contentVisibility: 'auto', containIntrinsicSize: '20px' }}
                 >
                   <div className={`w-9 text-right pr-2 select-none border-r font-mono text-[10px] font-bold shrink-0 ${
                     isIgnored
@@ -1975,7 +2014,7 @@ export default function ConflictSolver({
                             ? 'text-emerald-700 bg-emerald-100/50 border-emerald-200' 
                             : 'text-emerald-550 bg-emerald-950/30 border-emerald-550/40'
                           : isLight 
-                            ? 'text-rose-705 bg-rose-100/50 border-rose-200' 
+                            ? 'text-rose-750 bg-rose-100/50 border-rose-200' 
                             : 'text-rose-550 bg-rose-950/30 border-[#2d2f3c]/60'
                         : isGrayLine
                           ? isLight
@@ -1988,7 +2027,7 @@ export default function ConflictSolver({
                     {currNum || '\u00A0'}
                   </div>
                   <div className="pl-3 flex-1 select-text whitespace-pre pr-24 font-medium font-mono">
-                    {hasLine ? renderLineWithHighlight(line, currentGlobalLineIdx, rightMatches, stateRightSearch.activeIndex) : ''}
+                    {hasLine ? renderLineWithHighlight(line, currentGlobalLineIdx, rightMatchesByLine[currentGlobalLineIdx] || [], stateRightSearch.activeIndex) : ''}
                   </div>
 
                   {hasLine && lIdx === 0 && choice.right === 'pending' && (
@@ -2080,6 +2119,7 @@ export default function ConflictSolver({
                   className={`flex min-h-[20px] items-center ${
                     isLight ? 'hover:bg-slate-100' : 'hover:bg-[#202124]/40'
                   }`}
+                  style={{ contentVisibility: 'auto', containIntrinsicSize: '20px' }}
                 >
                   <div className={`w-9 text-right pr-2 select-none border-r font-mono text-[10px] shrink-0 ${
                     isLight ? 'bg-slate-50 border-slate-200 text-slate-400' : 'bg-[#0e0f12] border-[#2d2f3c]/60 text-slate-600'
@@ -2087,7 +2127,7 @@ export default function ConflictSolver({
                     {currNum}
                   </div>
                   <div className={`pl-3 select-text whitespace-pre font-mono ${isLight ? 'text-[#1e293b]' : 'text-slate-300'}`}>
-                    {renderLineWithHighlight(line, currNum, middleMatches, stateResultSearch.activeIndex)}
+                    {renderLineWithHighlight(line, currNum, [], stateResultSearch.activeIndex)}
                   </div>
                 </div>
               );
@@ -2789,7 +2829,7 @@ export default function ConflictSolver({
                           }`}
                         >
                           {editorText.split('\n').map((_, i) => (
-                            <div key={i} className="h-5 leading-5 px-1">{i + 1}</div>
+                            <div key={i} className="h-5 leading-5 px-1" style={{ contentVisibility: 'auto', containIntrinsicSize: '20px' }}>{i + 1}</div>
                           ))}
                         </div>
 
