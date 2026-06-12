@@ -340,30 +340,18 @@ app.get('/api/git-status', async (req, res) => {
           let aheadCount = 0;
           let behindCount = 0;
 
-          const hasLocalB = rawBranchList.includes(bName) || rawBranchList.includes(`heads/${bName}`);
-          const hasRemoteB = rawBranchList.includes(`origin/${bName}`) || rawBranchList.includes(`remotes/origin/${bName}`);
-          const bRef = hasLocalB ? bName : (hasRemoteB ? `origin/${bName}` : bName);
-
-          // Calculate ahead & behind relative to the base branch of the repository
-          try {
-            const revRes = await runCmd(`git rev-list --left-right --count ${baseRef}...${bRef}`, activeRepoPath);
-            const parts = revRes.stdout.trim().split(/\s+/);
-            if (parts.length === 2) {
-              behindCount = parseInt(parts[0], 10) || 0;
-              aheadCount = parseInt(parts[1], 10) || 0;
-            }
-          } catch (err) {
-            // fallback: compare to its own remote if baseRef comparison fails
+          // Calculate ahead & behind relative to its own remote counterpart on origin
+          if (isLocal && isRemote) {
             try {
-              if (isLocal && isRemote) {
-                const revRes = await runCmd(`git rev-list --left-right --count ${bName}...origin/${bName}`, activeRepoPath);
-                const parts = revRes.stdout.trim().split(/\s+/);
-                if (parts.length === 2) {
-                  aheadCount = parseInt(parts[0], 10) || 0;
-                  behindCount = parseInt(parts[1], 10) || 0;
-                }
+              const revRes = await runCmd(`git rev-list --left-right --count ${bName}...origin/${bName}`, activeRepoPath);
+              const parts = revRes.stdout.trim().split(/\s+/);
+              if (parts.length === 2) {
+                aheadCount = parseInt(parts[0], 10) || 0;
+                behindCount = parseInt(parts[1], 10) || 0;
               }
-            } catch (err2) {}
+            } catch (err) {
+              // ignore
+            }
           }
 
           return {
@@ -378,11 +366,32 @@ app.get('/api/git-status', async (req, res) => {
         })
     );
 
+    // Calculate separate base comparison for the current branch (for rebase/squash view)
+    let baseComparisonAhead = 0;
+    let baseComparisonBehind = 0;
+    try {
+      const hasLocalCurr = rawBranchList.includes(currBranch) || rawBranchList.includes(`heads/${currBranch}`);
+      const hasRemoteCurr = rawBranchList.includes(`origin/${currBranch}`) || rawBranchList.includes(`remotes/origin/${currBranch}`);
+      const currRef = hasLocalCurr ? currBranch : (hasRemoteCurr ? `origin/${currBranch}` : currBranch);
+
+      const revRes = await runCmd(`git rev-list --left-right --count ${baseRef}...${currRef}`, activeRepoPath);
+      const parts = revRes.stdout.trim().split(/\s+/);
+      if (parts.length === 2) {
+        baseComparisonBehind = parseInt(parts[0], 10) || 0;
+        baseComparisonAhead = parseInt(parts[1], 10) || 0;
+      }
+    } catch (err) {
+      // fallback
+    }
+
     // 5. Load last 120 commits from the base branch to spot base commits
     const baseCommitShas = new Set<string>();
     try {
-      const baseLog = await runCmd(`git rev-list --abbrev-commit -n 120 ${baseRef}`, activeRepoPath);
-      baseLog.stdout.split('\n').map(s => s.trim()).filter(Boolean).forEach(s => baseCommitShas.add(s));
+      const baseLog = await runCmd(`git rev-list -n 120 ${baseRef}`, activeRepoPath);
+      baseLog.stdout.split('\n').map(s => s.trim()).filter(Boolean).forEach(s => {
+        baseCommitShas.add(s);
+        if (s.length >= 7) baseCommitShas.add(s.substring(0, 7));
+      });
     } catch (e) {
       // Fallback: search common base branches
       for (const fallback of ['develop', 'main', 'master', 'dev']) {
@@ -392,8 +401,11 @@ app.get('/api/git-status', async (req, res) => {
           const fbRef = hasLocalFb ? fallback : (hasRemoteFb ? `origin/${fallback}` : fallback);
 
           try {
-            const baseLog = await runCmd(`git rev-list --abbrev-commit -n 120 ${fbRef}`, activeRepoPath);
-            baseLog.stdout.split('\n').map(s => s.trim()).filter(Boolean).forEach(s => baseCommitShas.add(s));
+            const baseLog = await runCmd(`git rev-list -n 120 ${fbRef}`, activeRepoPath);
+            baseLog.stdout.split('\n').map(s => s.trim()).filter(Boolean).forEach(s => {
+              baseCommitShas.add(s);
+              if (s.length >= 7) baseCommitShas.add(s.substring(0, 7));
+            });
             if (baseCommitShas.size > 0) break;
           } catch (e2) {}
         }
@@ -503,12 +515,12 @@ app.get('/api/git-status', async (req, res) => {
     let commits: any[] = [];
     if (rebaseInProgress) {
       // Fetch currently applied commits under detached HEAD/rebase state
-      const currentLogRes = await runCmd('git log --pretty="format:%h|%an|%ar|%s|%p" -n 25', activeRepoPath);
+      const currentLogRes = await runCmd('git log --pretty="format:%H|%h|%an|%ar|%s|%p" -n 25', activeRepoPath);
       const currentCommits = currentLogRes.stdout.split('\n')
         .map(line => {
           const parts = line.split('|');
-          if (parts.length < 4) return null;
-          const [sha, author, date, message, parentsRaw] = parts;
+          if (parts.length < 5) return null;
+          const [fullSha, sha, author, date, message, parentsRaw] = parts;
           const parents = parentsRaw ? parentsRaw.trim().split(/\s+/).filter(Boolean) : [];
           
           let type = 'other';
@@ -518,9 +530,9 @@ app.get('/api/git-status', async (req, res) => {
           else if (message.startsWith('docs:')) type = 'docs';
           else if (message.startsWith('chore:')) type = 'chore';
 
-          const isBase = ontoShas.has(sha) || baseCommitShas.has(sha);
+          const isBase = ontoShas.has(fullSha) || ontoShas.has(sha) || baseCommitShas.has(fullSha) || baseCommitShas.has(sha);
           // Highlight conflicting commit
-          const isConflicting = sha === stoppedSha || (stoppedSha && message.includes(stoppedSha));
+          const isConflicting = sha === stoppedSha || fullSha === stoppedSha || (stoppedSha && message.includes(stoppedSha));
 
           return { 
             sha, 
@@ -557,12 +569,12 @@ app.get('/api/git-status', async (req, res) => {
       commits = mergedCommits;
     } else {
       // Standard non-rebase case: fetch last 35 commits of HEAD
-      const logRes = await runCmd('git log --pretty="format:%h|%an|%ar|%s|%p" -n 35', activeRepoPath);
+      const logRes = await runCmd('git log --pretty="format:%H|%h|%an|%ar|%s|%p" -n 35', activeRepoPath);
       commits = logRes.stdout.split('\n')
         .map(line => {
           const parts = line.split('|');
-          if (parts.length < 4) return null;
-          const [sha, author, date, message, parentsRaw] = parts;
+          if (parts.length < 5) return null;
+          const [fullSha, sha, author, date, message, parentsRaw] = parts;
           const parents = parentsRaw ? parentsRaw.trim().split(/\s+/).filter(Boolean) : [];
           
           let type = 'other';
@@ -572,7 +584,7 @@ app.get('/api/git-status', async (req, res) => {
           else if (message.startsWith('docs:')) type = 'docs';
           else if (message.startsWith('chore:')) type = 'chore';
 
-          const isBaseCommit = baseCommitShas.has(sha);
+          const isBaseCommit = baseCommitShas.has(fullSha) || baseCommitShas.has(sha);
           const track = isBaseCommit ? 0 : 1;
 
           return { 
@@ -636,7 +648,11 @@ app.get('/api/git-status', async (req, res) => {
       conflicts: conflictedFiles,
       ghAvailable,
       ghErrorKey: ghAvailable ? '' : 'no_gh_err',
-      commandHistory: ['git status', 'git branch', 'git log -n 25']
+      commandHistory: ['git status', 'git branch', 'git log -n 25'],
+      baseComparison: {
+        ahead: baseComparisonAhead,
+        behind: baseComparisonBehind
+      }
     });
 
   } catch (error: any) {

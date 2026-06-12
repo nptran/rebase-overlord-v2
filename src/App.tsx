@@ -1096,9 +1096,9 @@ export default function App() {
         behindCount = commitsTrack0.length || 2;
       }
     } else {
-      // In real repo mode, use counts or commits calculation
-      aheadCount = currentMeta?.aheadCount ?? commitsTrack1.length;
-      behindCount = currentMeta?.behindCount ?? commitsTrack0.length;
+      // In real repo mode, use counts or commits calculation compared to the base branch of the repo
+      aheadCount = repoState.baseComparison?.ahead ?? commitsTrack1.length;
+      behindCount = repoState.baseComparison?.behind ?? commitsTrack0.length;
     }
     
     return {
@@ -1107,7 +1107,7 @@ export default function App() {
       total: repoState.commits.length,
       actionable: activeCommitsForSquash.length
     };
-  }, [repoState.commits, repoState.branches, repoState.currentBranch, isSimulation, activeCommitsForSquash.length]);
+  }, [repoState.commits, repoState.branches, repoState.currentBranch, repoState.baseComparison, isSimulation, activeCommitsForSquash.length]);
 
   // DOM references for measuring lines connect position dynamic calculation
   const boardRef = React.useRef<HTMLDivElement>(null);

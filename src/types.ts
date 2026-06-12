@@ -62,6 +62,10 @@ export interface GitRepoState {
   ghAvailable: boolean;
   ghErrorKey: string;
   commandHistory: string[];
+  baseComparison?: {
+    ahead: number;
+    behind: number;
+  };
 }
 
 export interface WizardState {
