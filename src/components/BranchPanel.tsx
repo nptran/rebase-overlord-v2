@@ -47,7 +47,9 @@ const branchLoc = {
     fetchBtn: "Fetch",
     fetchTooltip: "Lấy các thay đổi mới nhất từ tất cả các nhánh trên remote",
     pullTooltip: (n: number) => `Kéo ${n} commit mới từ remote về nhánh local này`,
-    pushTooltip: (n: number) => `Đẩy ${n} commit mới từ local này lên remote`
+    pushTooltip: (n: number) => `Đẩy ${n} commit mới từ local này lên remote`,
+    pulling: "Đang kéo dữ liệu...",
+    pushing: "Đang đẩy dữ liệu lên..."
   },
   [TranslationTone.JOKE]: {
     newBranch: "Phun nhánh mới 🌿",
@@ -71,7 +73,9 @@ const branchLoc = {
     fetchBtn: "Fetch",
     fetchTooltip: "Hóng hớt xem server có biến gì mới chưa sếp ơi",
     pullTooltip: (n: number) => `Kéo liền ${n} quà xịn xò từ remote về sếp ơi`,
-    pushTooltip: (n: number) => `Đẩy ${n} phát kiến vĩ đại lên remote đi ní`
+    pushTooltip: (n: number) => `Đẩy ${n} phát kiến vĩ đại lên remote đi ní`,
+    pulling: "Đang hút hít kéo về...",
+    pushing: "Đang rặn nốt code lên..."
   },
   [TranslationTone.TOXIC]: {
     newBranch: "Đẻ nhánh mới lẹ lên!",
@@ -95,7 +99,9 @@ const branchLoc = {
     fetchBtn: "Fetch",
     fetchTooltip: "Dò la xem đồng nghiệp nó có đè code rác lên không chứ gì nữa",
     pullTooltip: (n: number) => `Hốt ${n} đống rác mới nhất trên remote về máy đi`,
-    pushTooltip: (n: number) => `Đẩy ${n} đống phân code rác rưởi của mày lên remote đi`
+    pushTooltip: (n: number) => `Đẩy ${n} đống phân code rác rưởi của mày lên remote đi`,
+    pulling: "Đang hụt hơi hốt rác về...",
+    pushing: "Đang cố tống rác lên..."
   },
   [TranslationTone.ENGLISH]: {
     newBranch: "New Branch",
@@ -119,7 +125,9 @@ const branchLoc = {
     fetchBtn: "Fetch",
     fetchTooltip: "Fetch latest updates from all remote branches",
     pullTooltip: (n: number) => `Pull ${n} new commit${n > 1 ? 's' : ''} from remote`,
-    pushTooltip: (n: number) => `Push ${n} new commit${n > 1 ? 's' : ''} to remote`
+    pushTooltip: (n: number) => `Push ${n} new commit${n > 1 ? 's' : ''} to remote`,
+    pulling: "Pulling updates...",
+    pushing: "Pushing updates..."
   }
 };
 
@@ -166,6 +174,28 @@ export default function BranchPanel({
 }: BranchPanelProps) {
   const [search, setSearch] = React.useState('');
   const [branchToDelete, setBranchToDelete] = React.useState<string | null>(null);
+
+  // States for tracking active pulling/pushing branches
+  const [activePullBranches, setActivePullBranches] = React.useState<Record<string, boolean>>({});
+  const [activePushBranches, setActivePushBranches] = React.useState<Record<string, boolean>>({});
+
+  const handlePullBranchWithLoading = async (branchName: string) => {
+    setActivePullBranches(prev => ({ ...prev, [branchName]: true }));
+    try {
+      await onPullBranch(branchName);
+    } finally {
+      setActivePullBranches(prev => ({ ...prev, [branchName]: false }));
+    }
+  };
+
+  const handlePushBranchWithLoading = async (branchName: string) => {
+    setActivePushBranches(prev => ({ ...prev, [branchName]: true }));
+    try {
+      await onPushBranch(branchName);
+    } finally {
+      setActivePushBranches(prev => ({ ...prev, [branchName]: false }));
+    }
+  };
 
   // States for the creation modal
   const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false);
@@ -458,15 +488,26 @@ export default function BranchPanel({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onPullBranch(branch.name);
+                        if (!activePullBranches[branch.name] && !activePushBranches[branch.name]) {
+                          handlePullBranchWithLoading(branch.name);
+                        }
                       }}
-                      className={`p-1 rounded border border-transparent transition-all active:scale-90 cursor-pointer flex items-center gap-0.5 text-emerald-500 font-mono text-[10px] ${
-                        isLight ? 'hover:bg-emerald-50 hover:border-emerald-200' : 'hover:bg-emerald-500/10 hover:border-emerald-500/20'
+                      disabled={activePullBranches[branch.name] || activePushBranches[branch.name]}
+                      className={`p-1.5 rounded border border-transparent transition-all active:scale-90 flex items-center gap-1 font-mono text-[10px] ${
+                        activePullBranches[branch.name]
+                          ? (isLight ? 'bg-emerald-100 border-emerald-300 text-emerald-700 animate-pulse cursor-not-allowed' : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 animate-pulse cursor-not-allowed')
+                          : (isLight ? 'hover:bg-emerald-50 hover:border-emerald-200 text-emerald-600 cursor-pointer' : 'hover:bg-emerald-500/10 hover:border-emerald-500/20 text-emerald-500 cursor-pointer')
                       }`}
-                      title={loc.pullTooltip(branch.behindCount)}
+                      title={activePullBranches[branch.name] ? loc.pulling : loc.pullTooltip(branch.behindCount)}
                     >
-                      <ArrowDown className="w-3.5 h-3.5" />
-                      <span className="font-bold">{branch.behindCount}</span>
+                      {activePullBranches[branch.name] ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                      ) : (
+                        <ArrowDown className="w-3.5 h-3.5" />
+                      )}
+                      <span className="font-bold">
+                        {activePullBranches[branch.name] ? "..." : branch.behindCount}
+                      </span>
                     </button>
                   )}
 
@@ -475,15 +516,26 @@ export default function BranchPanel({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onPushBranch(branch.name);
+                        if (!activePullBranches[branch.name] && !activePushBranches[branch.name]) {
+                          handlePushBranchWithLoading(branch.name);
+                        }
                       }}
-                      className={`p-1 rounded border border-transparent transition-all active:scale-90 cursor-pointer flex items-center gap-0.5 text-sky-500 font-mono text-[10px] ${
-                        isLight ? 'hover:bg-sky-50 hover:border-sky-200' : 'hover:bg-sky-500/10 hover:border-sky-500/20'
+                      disabled={activePullBranches[branch.name] || activePushBranches[branch.name]}
+                      className={`p-1.5 rounded border border-transparent transition-all active:scale-90 flex items-center gap-1 font-mono text-[10px] ${
+                        activePushBranches[branch.name]
+                          ? (isLight ? 'bg-sky-100 border-sky-300 text-sky-700 animate-pulse cursor-not-allowed' : 'bg-sky-500/20 border-sky-500/40 text-sky-300 animate-pulse cursor-not-allowed')
+                          : (isLight ? 'hover:bg-sky-50 hover:border-sky-200 text-sky-600 cursor-pointer' : 'hover:bg-sky-500/10 hover:border-sky-500/20 text-sky-500 cursor-pointer')
                       }`}
-                      title={loc.pushTooltip(branch.aheadCount)}
+                      title={activePushBranches[branch.name] ? loc.pushing : loc.pushTooltip(branch.aheadCount)}
                     >
-                      <ArrowUp className="w-3.5 h-3.5" />
-                      <span className="font-bold">{branch.aheadCount}</span>
+                      {activePushBranches[branch.name] ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin text-sky-450" />
+                      ) : (
+                        <ArrowUp className="w-3.5 h-3.5" />
+                      )}
+                      <span className="font-bold">
+                        {activePushBranches[branch.name] ? "..." : branch.aheadCount}
+                      </span>
                     </button>
                   )}
 

@@ -318,29 +318,52 @@ app.get('/api/git-status', async (req, res) => {
       .map(b => b.trim())
       .filter(b => b.length > 0 && b !== 'origin' && !b.includes('->') && !b.includes('HEAD'));
     
+    // Predetermine the base branch name (develop or main/master/dev)
+    const uniqueBranchNames = Array.from(new Set(
+      rawBranchList
+        .map(b => b.replace(/^remotes\//, '').replace(/^origin\//, '').trim())
+        .filter(b => b.length > 0 && b !== 'origin' && !b.includes('HEAD') && !b.includes('->'))
+    ));
+    
+    const baseBranchName = uniqueBranchNames.find(b => ['develop', 'main', 'master', 'dev'].includes(b)) || 'develop';
+    
+    // Find proper git reference for baseBranchName so commands do not fail
+    const hasLocalBase = rawBranchList.includes(baseBranchName) || rawBranchList.includes(`heads/${baseBranchName}`);
+    const hasRemoteBase = rawBranchList.includes(`origin/${baseBranchName}`) || rawBranchList.includes(`remotes/origin/${baseBranchName}`);
+    const baseRef = hasLocalBase ? baseBranchName : (hasRemoteBase ? `origin/${baseBranchName}` : baseBranchName);
+
     const branches = await Promise.all(
-      Array.from(new Set(
-        rawBranchList
-          .map(b => b.replace(/^remotes\//, '').replace(/^origin\//, '').trim())
-          .filter(b => b.length > 0 && b !== 'origin' && !b.includes('HEAD') && !b.includes('->'))
-      ))
+      uniqueBranchNames
         .map(async bName => {
           const isLocal = rawBranchList.includes(bName) || rawBranchList.includes(`heads/${bName}`);
           const isRemote = rawBranchList.includes(`origin/${bName}`) || rawBranchList.includes(`remotes/origin/${bName}`);
           let aheadCount = 0;
           let behindCount = 0;
 
-          if (isLocal && isRemote) {
-            try {
-              const revRes = await runCmd(`git rev-list --left-right --count ${bName}...origin/${bName}`, activeRepoPath);
-              const parts = revRes.stdout.trim().split(/\s+/);
-              if (parts.length === 2) {
-                aheadCount = parseInt(parts[0], 10) || 0;
-                behindCount = parseInt(parts[1], 10) || 0;
-              }
-            } catch (err) {
-              // ignore rev-list lookup failures
+          const hasLocalB = rawBranchList.includes(bName) || rawBranchList.includes(`heads/${bName}`);
+          const hasRemoteB = rawBranchList.includes(`origin/${bName}`) || rawBranchList.includes(`remotes/origin/${bName}`);
+          const bRef = hasLocalB ? bName : (hasRemoteB ? `origin/${bName}` : bName);
+
+          // Calculate ahead & behind relative to the base branch of the repository
+          try {
+            const revRes = await runCmd(`git rev-list --left-right --count ${baseRef}...${bRef}`, activeRepoPath);
+            const parts = revRes.stdout.trim().split(/\s+/);
+            if (parts.length === 2) {
+              behindCount = parseInt(parts[0], 10) || 0;
+              aheadCount = parseInt(parts[1], 10) || 0;
             }
+          } catch (err) {
+            // fallback: compare to its own remote if baseRef comparison fails
+            try {
+              if (isLocal && isRemote) {
+                const revRes = await runCmd(`git rev-list --left-right --count ${bName}...origin/${bName}`, activeRepoPath);
+                const parts = revRes.stdout.trim().split(/\s+/);
+                if (parts.length === 2) {
+                  aheadCount = parseInt(parts[0], 10) || 0;
+                  behindCount = parseInt(parts[1], 10) || 0;
+                }
+              }
+            } catch (err2) {}
           }
 
           return {
@@ -348,25 +371,28 @@ app.get('/api/git-status', async (req, res) => {
             isLocal,
             isRemote,
             isCurrent: bName === currBranch,
-            isBase: ['main', 'master', 'develop', 'dev'].includes(bName),
+            isBase: bName === baseBranchName,
             aheadCount,
             behindCount
           };
         })
     );
 
-     // 5. Load last 25 commits with dual-branch & rebase state awareness
-    const baseBranchName = branches.find(b => b.isBase)?.name || 'develop';
+    // 5. Load last 120 commits from the base branch to spot base commits
     const baseCommitShas = new Set<string>();
     try {
-      const baseLog = await runCmd(`git rev-list --abbrev-commit -n 100 ${baseBranchName}`, activeRepoPath);
+      const baseLog = await runCmd(`git rev-list --abbrev-commit -n 120 ${baseRef}`, activeRepoPath);
       baseLog.stdout.split('\n').map(s => s.trim()).filter(Boolean).forEach(s => baseCommitShas.add(s));
     } catch (e) {
       // Fallback: search common base branches
       for (const fallback of ['develop', 'main', 'master', 'dev']) {
         if (fallback !== currBranch) {
+          const hasLocalFb = rawBranchList.includes(fallback) || rawBranchList.includes(`heads/${fallback}`);
+          const hasRemoteFb = rawBranchList.includes(`origin/${fallback}`) || rawBranchList.includes(`remotes/origin/${fallback}`);
+          const fbRef = hasLocalFb ? fallback : (hasRemoteFb ? `origin/${fallback}` : fallback);
+
           try {
-            const baseLog = await runCmd(`git rev-list --abbrev-commit -n 100 ${fallback}`, activeRepoPath);
+            const baseLog = await runCmd(`git rev-list --abbrev-commit -n 120 ${fbRef}`, activeRepoPath);
             baseLog.stdout.split('\n').map(s => s.trim()).filter(Boolean).forEach(s => baseCommitShas.add(s));
             if (baseCommitShas.size > 0) break;
           } catch (e2) {}
@@ -530,8 +556,8 @@ app.get('/api/git-status', async (req, res) => {
 
       commits = mergedCommits;
     } else {
-      // Standard non-rebase case: fetch last 25 commits of HEAD
-      const logRes = await runCmd('git log --pretty="format:%h|%an|%ar|%s|%p" -n 25', activeRepoPath);
+      // Standard non-rebase case: fetch last 35 commits of HEAD
+      const logRes = await runCmd('git log --pretty="format:%h|%an|%ar|%s|%p" -n 35', activeRepoPath);
       commits = logRes.stdout.split('\n')
         .map(line => {
           const parts = line.split('|');
@@ -558,7 +584,7 @@ app.get('/api/git-status', async (req, res) => {
             parents, 
             isMergeCommit: parents.length > 1,
             track, 
-            selected: true 
+            selected: !isBaseCommit 
           };
         })
         .filter(Boolean);
