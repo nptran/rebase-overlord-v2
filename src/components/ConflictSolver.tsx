@@ -26,7 +26,9 @@ import {
   Bot,
   Sparkles,
   RefreshCw,
-  RotateCcw
+  RotateCcw,
+  Database,
+  ShieldAlert
 } from 'lucide-react';
 import { ConflictFile, TranslationTone } from '../types';
 import { getApiHeaders } from '../utils/apiKeyHelper';
@@ -142,6 +144,49 @@ const localization = {
     statusResolved: "SUCCESSFULLY MERGED",
     quickActions: "Quick merge presets:",
     toolHelp: "Soft purple/blue indicates base development server modifications (Ours). Deep amber highlights your incoming feature commit changes (Theirs)."
+  }
+};
+
+const pbiLocalization = {
+  [TranslationTone.PROFESSIONAL]: {
+    pbiActive: "PHÂN TÍCH POWERBI HOẠT ĐỘNG 📊",
+    criticalLabel: "LỖI CRITICAL (CẦN RESOLVE BẰNG TAY HOẶC SỬA CHOICE)",
+    warningLabel: "CẢNH BÁO TÍCH HỢP (KỲ VỌNG POWERBI)",
+    emptyErrors: "✅ Tập tin Power BI hiện đã đạt kiểm duyệt hoàn chỉnh! Không phát hiện lỗi cấu trúc.",
+    guidelineTitle: "SỰ KHÁC BIỆT CỦA POWER BI:",
+    guidelineDesc: "Các thuộc tính UUID (lineageTag) và mối quan hệ cực kỳ quan trọng đối với khả năng duy trì báo cáo. Khi sáp nhập các nhánh, việc giữ cả hai bằng cách kích hoạt cả hai làn thường dẫn đến xung đột sáp nhập sâu. Chọn dòng chính xác (thay vì nhập đồng thời) hoặc sửa đổi trực tiếp các ID bị trùng.",
+    jumpToIssue: "Nhảy tới dòng lỗi",
+    fixSuggest: "Đề xuất sửa chữa:"
+  },
+  [TranslationTone.JOKE]: {
+    pbiActive: "BẢO KÊ POWERBI SIÊU CẤP VIP PRO 📊",
+    criticalLabel: "⚠️ ÔI DỒI ÔI CRITICAL (SỬA NGAY KHÔNG REBASE ĐÈN ĐỎ)",
+    warningLabel: "⚠️ CẢNH BÁO DESIGNER (SAI CÚ PHÁP LÀ ĂN CÁM CHƠI)",
+    emptyErrors: "😎 Tuyệt vời ông mặt trời! Đã dọn sạch đống phân code Power BI, không còn một vết xước!",
+    guidelineTitle: "BÍ MẬT POWER BI THẦN SẦU:",
+    guidelineDesc: "Này ní ơi, lineageTag với relationships là bùa hộ mệnh của Power BI đấy nhé. Gộp bậy gộp bạ giữ cả hai là code múa lửa ăn cám ngay! Chọn 1 bên thôi, đừng cố lấy cả 2 phe làm gì nha.",
+    jumpToIssue: "Bay ngay tới dòng lỗi",
+    fixSuggest: "Bùa phép chữa cháy:"
+  },
+  [TranslationTone.TOXIC]: {
+    pbiActive: "MÁY QUÉT CODE NGƯ POWERBI 📊",
+    criticalLabel: "❌ LỖI VÔ HỌC (THẰNG NÀO CODE TRÙNG UUID CHO ĂN CƠM TÙ GIỜ HA)",
+    warningLabel: "❌ CẢNH BÁO THIẾU NÃO LIÊN QUAN",
+    emptyErrors: "🎉 Kỳ tích cmnr! Trông vậy mà không đẻ ra lỗi Power BI nào. Cút lẹ nén rebase đi sếp!",
+    guidelineTitle: "VĂN PHÒNG CHỬI POWER BI:",
+    guidelineDesc: "Đã nói tỷ lần rồi, lineageTag là duy nhất! Thằng đần nào cứ spam 'Merge Both' giữ cả hai là tạch cụ nó report. Chọn lấy 1 nhánh thôi hoặc viết lại UUID đi, lười chảy thây!",
+    jumpToIssue: "Xem cái đống rác tại dòng này",
+    fixSuggest: "Sửa thế này mới khôn:"
+  },
+  [TranslationTone.ENGLISH]: {
+    pbiActive: "POWERBI GUARDIAN INSPECTOR ACTIVE 📊",
+    criticalLabel: "🔴 CRITICAL RESOLUTION BLOCKS (MUST CORRECT)",
+    warningLabel: "🟡 POTENTIAL MODEL RISKS",
+    emptyErrors: "✅ Power BI integrity verified! No duplicate ID tags or broken relational structures found.",
+    guidelineTitle: "POWER BI INTEGRITY DIRECTIVE:",
+    guidelineDesc: "UUIDs (lineageTag) and Relationship configurations must remain strictly unique globally. When merging conflicts, selecting 'Merge Both' is highly discouraged. Always pick one branch's revision or manually edit conflicting lines to preserve metadata uniqueness.",
+    jumpToIssue: "Jump to line",
+    fixSuggest: "Recommended repair:"
   }
 };
 
@@ -1038,6 +1083,337 @@ export default function ConflictSolver({
 
     return { ours, theirs, common };
   }, [activeContent]);
+
+  // Power BI Diagnostics Analyzer
+  const isPowerBIFile = React.useMemo(() => {
+    if (!selectedFile) return false;
+    const path = selectedFile.filepath.toLowerCase();
+    return (
+      path.endsWith('.tmdl') ||
+      path.endsWith('.json') ||
+      editorText.includes('lineageTag') ||
+      editorText.includes('relationship')
+    );
+  }, [selectedFile, editorText]);
+
+  const pbiDiagnostics = React.useMemo(() => {
+    if (!isPowerBIFile || !editorText) return null;
+    
+    const lines = editorText.split('\n');
+    const errors: Array<{
+      type: 'critical' | 'warning' | 'info';
+      title: string;
+      message: string;
+      lineNum?: number;
+      field?: string;
+      fixAction?: string;
+      ruleId: string;
+    }> = [];
+
+    // Rule 1: Duplicate lineageTags
+    // Matches lineageTag: <uuid> or "lineageTag": "<uuid>"
+    const lineageTagRegex = /(?:lineageTag|lineageTag")\s*[:=]\s*"?([a-fA-F0-9-]{36})"?/i;
+    const lineageTagMap: Record<string, number[]> = {};
+
+    // Rule 2: Defined & Referenced tables/columns/measures
+    const definedTables = new Set<string>();
+    const definedMeasures = new Set<string>();
+    const definedColumns = new Set<string>();
+
+    const tableMatches: Array<{ name: string; line: number }> = [];
+    const measureMatches: Array<{ name: string; line: number }> = [];
+    
+    // Scan all lines for definitions first
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const lineNum = i + 1;
+
+      // Extract Lineage Tags
+      const tagMatch = line.match(lineageTagRegex);
+      if (tagMatch) {
+        const uuid = tagMatch[1].toLowerCase();
+        if (!lineageTagMap[uuid]) lineageTagMap[uuid] = [];
+        lineageTagMap[uuid].push(lineNum);
+      }
+
+      // Check TMDL Definitions
+      // `table InternetSales`
+      const tmdlTableMatch = line.match(/^\s*table\s+['"]?([^'"\s]+)['"]?/i);
+      if (tmdlTableMatch) {
+        const name = tmdlTableMatch[1];
+        definedTables.add(name);
+        tableMatches.push({ name, line: lineNum });
+      }
+
+      // `measure SalesAmount = SUM(...)`
+      const tmdlMeasureMatch = line.match(/^\s*measure\s+['"]?([^'"\s=]+)['"]?\s*=/i);
+      if (tmdlMeasureMatch) {
+        const name = tmdlMeasureMatch[1];
+        definedMeasures.add(name);
+        measureMatches.push({ name, line: lineNum });
+      }
+
+      // `column CustomerKey`
+      const tmdlColMatch = line.match(/^\s*column\s+['"]?([^'"\s]+)['"]?/i);
+      if (tmdlColMatch) {
+        definedColumns.add(tmdlColMatch[1]);
+      }
+
+      // Check JSON definitions (metadata)
+      const jsonTableMatch = line.match(/"name"\s*:\s*"([^"]+)"/i);
+      if (jsonTableMatch && lines[Math.max(0, i-2)].includes('"tables"')) {
+        definedTables.add(jsonTableMatch[1]);
+      }
+    }
+
+    // Diagnostics for Rule 1: Lineage Tag Duplications
+    Object.entries(lineageTagMap).forEach(([uuid, lineNums]) => {
+      if (lineNums.length > 1) {
+        errors.push({
+          ruleId: 'dup-lineage-tag',
+          type: 'critical',
+          title: 'Duplicate LineageTag (Trùng lineageTag)',
+          message: `LineageTag ID "${uuid}" is registered on multiple distinct features (Lines: ${lineNums.join(', ')}). This causes critical deployment corruption in Power BI XMLA endpoints.`,
+          lineNum: lineNums[0],
+          fixAction: 'Choose either Left or Right conflict block exclusively to avoid duplicate merging, or manually edit one of the lineageTag strings to maintain global integrity.'
+        });
+      }
+    });
+
+    // Rule 2: Checked Tables, Column and Measure references logic
+    const relationships: Array<{
+      name: string;
+      fromT: string;
+      fromC: string;
+      toT: string;
+      toC: string;
+      lineIdx: number;
+    }> = [];
+
+    const isJson = selectedFile?.filepath.endsWith('.json') || editorText.trim().startsWith('{');
+    if (isJson) {
+      let currentRel: any = {};
+      let relLineStart = 0;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const fTableMatch = line.match(/"fromTable"\s*:\s*"([^"]+)"/i);
+        const fColMatch = line.match(/"fromColumn"\s*:\s*"([^"]+)"/i);
+        const tTableMatch = line.match(/"toTable"\s*:\s*"([^"]+)"/i);
+        const tColMatch = line.match(/"toColumn"\s*:\s*"([^"]+)"/i);
+        const relNameMatch = line.match(/"name"\s*:\s*"([^"]+)"/i);
+
+        if (relNameMatch) {
+          currentRel.name = relNameMatch[1];
+          relLineStart = i + 1;
+        }
+        if (fTableMatch) currentRel.fromT = fTableMatch[1];
+        if (fColMatch) currentRel.fromC = fColMatch[1];
+        if (tTableMatch) currentRel.toT = tTableMatch[1];
+        if (tColMatch) {
+          currentRel.toC = tColMatch[1];
+          if (currentRel.fromT && currentRel.toT) {
+            relationships.push({
+              name: currentRel.name || `relationship_${i}`,
+              fromT: currentRel.fromT,
+              fromC: currentRel.fromC || '',
+              toT: currentRel.toT,
+              toC: currentRel.toC,
+              lineIdx: relLineStart || (i + 1)
+            });
+          }
+          currentRel = {};
+        }
+      }
+    } else {
+      // TMDL Relationship parsing
+      let currentRel: any = {};
+      let relLineStart = 0;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const relStart = line.match(/^\s*relationship\s+['"]?([^'"\s]+)['"]?/i);
+        const fTable = line.match(/^\s*fromTable:\s*['"]?([^'"\s]+)['"]?/i);
+        const toTable = line.match(/^\s*toTable:\s*['"]?([^'"\s]+)['"]?/i);
+        const fCol = line.match(/^\s*fromColumn:\s*['"]?([^'"\s]+)['"]?/i);
+        const toCol = line.match(/^\s*toColumn:\s*['"]?([^'"\s]+)['"]?/i);
+
+        if (relStart) {
+          currentRel = { name: relStart[1] };
+          relLineStart = i + 1;
+        }
+        if (fTable) currentRel.fromT = fTable[1];
+        if (toTable) currentRel.toT = toTable[1];
+        if (fCol) currentRel.fromC = fCol[1];
+        if (toCol) {
+          currentRel.toC = toCol[1];
+          if (currentRel.fromT && currentRel.toT) {
+            relationships.push({
+              name: currentRel.name || `relationship_${i}`,
+              fromT: currentRel.fromT,
+              fromC: currentRel.fromC || '',
+              toT: currentRel.toT,
+              toC: currentRel.toC,
+              lineIdx: relLineStart || (i + 1)
+            });
+          }
+          currentRel = {};
+        }
+      }
+    }
+
+    // Diagnostics for Rule 3: Duplicate Relationship Pairs
+    const relSeen = new Map<string, typeof relationships[0]>();
+    relationships.forEach(r => {
+      const key = `${r.fromT.toLowerCase()}[${r.fromC.toLowerCase()}]->${r.toT.toLowerCase()}[${r.toC.toLowerCase()}]`;
+      if (relSeen.has(key)) {
+        const original = relSeen.get(key)!;
+        errors.push({
+          ruleId: 'dup-relationship',
+          type: 'critical',
+          title: 'Duplicate Relationship Declared (Trùng lặp quan hệ kết nối)',
+          message: `The exact relationship mapping from table column "${r.fromT}[${r.fromC}]" to "${r.toT}[${r.toC}]" is defined twice (defined on line ${original.lineIdx} as "${original.name}" and line ${r.lineIdx} as "${r.name}"). Power BI requires relationships to be single unique channels.`,
+          lineNum: r.lineIdx,
+          fixAction: 'Choose only one relationship branch definition or manually delete one block.'
+        });
+      } else {
+        relSeen.set(key, r);
+      }
+    });
+
+    // Diagnostics for Rule 2: Referenced objects missing definition
+    if (definedTables.size > 0) {
+      relationships.forEach(r => {
+        if (!definedTables.has(r.fromT)) {
+          errors.push({
+            ruleId: 'missing-from-table',
+            type: 'warning',
+            title: 'Relationship Table Reference Missing (Thiếu bảng tham chiếu)',
+            message: `Relationship "${r.name}" references source table "${r.fromT}" which is not defined in this file. (If your project splits tables to separate files, check that it exists in the model directory).`,
+            lineNum: r.lineIdx,
+            fixAction: `Check spelling of the table name, define "table ${r.fromT}" in TMDL structure, or keep only the legacy relationship branch.`
+          });
+        }
+        if (!definedTables.has(r.toT)) {
+          errors.push({
+            ruleId: 'missing-to-table',
+            type: 'warning',
+            title: 'Relationship Destination Table Missing',
+            message: `Relationship "${r.name}" references destination table "${r.toT}" which is not defined in this file. Verify table exists.`,
+            lineNum: r.lineIdx,
+            fixAction: `Verify destination table name spelling or define "table ${r.toT}" structure.`
+          });
+        }
+      });
+    }
+
+    // Scan TMDL formulas for measure or column broken references
+    const bracketRegex = /\[([^\]]+)\]/g;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const lineNum = i + 1;
+      
+      if (line.includes('SUM(') || line.includes('CALCULATE(') || line.includes('[') || line.includes('DIVIDE(')) {
+        let bracketMatch;
+        while ((bracketMatch = bracketRegex.exec(line)) !== null) {
+          const refName = bracketMatch[1].trim();
+          if (refName.includes('[') || refName.includes('(') || refName.includes('"') || refName.includes("'")) {
+            continue;
+          }
+          if (definedMeasures.size > 0 && !definedMeasures.has(refName) && !definedColumns.has(refName)) {
+            if (!refName.includes('[') && !line.includes(`${refName}[`) && refName.match(/^[a-zA-Z_0-9\s]+$/)) {
+              errors.push({
+                ruleId: 'missing-measure-ref',
+                type: 'warning',
+                title: 'Referenced Measure/Column Definition Missing (Thiếu định nghĩa measure/column)',
+                message: `Calculation on line ${lineNum} references "[${refName}]", but no measure or column with this name is defined in this file.`,
+                lineNum,
+                fixAction: `Define "measure ${refName} = ..." or "column ${refName}" in the active TMDL block, or correct reference name spelling.`
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Rule 4: Structural and Syntax Validations (JSON & TMDL Indentation)
+    if (isJson) {
+      try {
+        JSON.parse(editorText);
+      } catch (e: any) {
+        let errLine: number | undefined = undefined;
+        const lineMatch = e.message.match(/at position (\d+)/);
+        if (lineMatch) {
+          const pos = parseInt(lineMatch[1]);
+          errLine = editorText.slice(0, pos).split('\n').length;
+        }
+        errors.push({
+          ruleId: 'invalid-json',
+          type: 'warning',
+          title: 'Syntax Error: Invalid JSON Format',
+          message: `The active file contains invalid JSON syntax: ${e.message}. Ensuring complete formatting is essential to prevent Power BI dataset model corruption.`,
+          lineNum: errLine,
+          fixAction: `Switch to JetBrains Mode to automatically merge blocks safely, or review matching curly braces.`
+        });
+      }
+    } else {
+      // TMDL Indentation Checker: Indents must be multiples of 2 spaces
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (line.trim() === '') continue;
+        const leadingSpaces = line.search(/\S/);
+        if (leadingSpaces > 0 && leadingSpaces % 2 !== 0) {
+          errors.push({
+            ruleId: 'tmdl-indentation',
+            type: 'warning',
+            title: 'TMDL Indentation Violation (Lỗi thụt lề)',
+            message: `Line indentation of ${leadingSpaces} spaces detected on line ${i+1}. Power BI TMDL schema parser expects indents in increments of 2.`,
+            lineNum: i + 1,
+            fixAction: `Normalize indentation to ${Math.round(leadingSpaces / 2) * 2} spaces.`
+          });
+        }
+      }
+    }
+
+    return {
+      isPowerBI: true,
+      errors,
+      criticalCount: errors.filter(e => e.type === 'critical').length,
+      warningCount: errors.filter(e => e.type === 'warning').length,
+      infoCount: errors.filter(e => e.type === 'info').length
+    };
+  }, [editorText, selectedFile, isPowerBIFile]);
+
+  const jumpToLine = React.useCallback((lineNum?: number) => {
+    if (!lineNum) return;
+    if (editMode === 'raw' && textareaRef.current) {
+      const el = textareaRef.current;
+      const lines = el.value.split('\n');
+      let pos = 0;
+      for (let i = 0; i < Math.min(lineNum - 1, lines.length); i++) {
+        pos += lines[i].length + 1; // +1 for newline
+      }
+      el.focus();
+      el.setSelectionRange(pos, pos + (lines[lineNum - 1]?.length || 0));
+      
+      const lineHeight = 20; 
+      el.scrollTop = Math.max(0, (lineNum - 5) * lineHeight);
+    } else {
+      setEditMode('raw');
+      setTimeout(() => {
+        if (textareaRef.current) {
+          const el = textareaRef.current;
+          const lines = el.value.split('\n');
+          let pos = 0;
+          for (let i = 0; i < Math.min(lineNum - 1, lines.length); i++) {
+            pos += lines[i].length + 1;
+          }
+          el.focus();
+          el.setSelectionRange(pos, pos + (lines[lineNum - 1]?.length || 0));
+          const lineHeight = 20;
+          el.scrollTop = Math.max(0, (lineNum - 5) * lineHeight);
+        }
+      }, 50);
+    }
+  }, [editMode]);
 
   // For each block, calculate the start line index in left pane (and right pane):
   const leftBlockLines = React.useMemo(() => {
@@ -2515,6 +2891,11 @@ export default function ConflictSolver({
                     <div className="flex items-center gap-2 max-w-[70%] truncate" title={file.filepath}>
                       <FileCode2 className={`w-4 h-4 shrink-0 ${file.isResolved ? 'text-emerald-400' : 'text-amber-550'}`} />
                       <span className="truncate">{file.filepath}</span>
+                      {(file.filepath.endsWith('.tmdl') || file.filepath.includes('powerbi_dataset') || file.filepath.endsWith('.json')) && (
+                        <span className="text-[8px] bg-amber-500/10 text-amber-500 border border-amber-500/20 px-1 rounded-sm shrink-0 font-extrabold uppercase font-mono tracking-tight" title="Power BI Metadata Asset">
+                          PBI
+                        </span>
+                      )}
                     </div>
                     {file.isResolved ? (
                       <span className="text-[9px] bg-emerald-500/15 text-emerald-400 px-1.5 py-0.5 rounded font-extrabold uppercase shrink-0">
@@ -2915,6 +3296,145 @@ export default function ConflictSolver({
                   </div>
 
                 </div>
+
+                {/* POWERBI GUARDIAN INSPECTOR CARD */}
+                {pbiDiagnostics && (
+                  <div className={`p-4 rounded-xl border animate-fade-in flex flex-col gap-3 shrink-0 ${
+                    isLight 
+                      ? 'bg-amber-50/15 border-amber-200/60 shadow-sm' 
+                      : 'bg-[#181612]/75 border-amber-500/20'
+                  }`}>
+                    {/* Header */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-dashed pb-2.5 border-slate-700/30">
+                      <div className="flex items-center gap-2.5">
+                        <div className="relative flex select-none">
+                          <span className="animate-ping absolute inline-flex h-3 w-3 rounded-full bg-amber-450 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Database className="w-4 h-4 text-amber-500 animate-pulse" />
+                          <span className="font-mono text-xs font-extrabold tracking-wider text-amber-500">
+                            {(pbiLocalization[tone] || pbiLocalization[TranslationTone.ENGLISH]).pbiActive}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-1.5 font-mono select-none">
+                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-md ${
+                          pbiDiagnostics.criticalCount > 0 
+                            ? 'bg-rose-500/10 border border-rose-500/25 text-rose-500 font-extrabold animate-pulse'
+                            : isLight ? 'bg-slate-100 border border-slate-205 text-slate-400' : 'bg-[#1a1c23] border border-slate-700/30 text-slate-500'
+                        }`}>
+                          🔴 CRITICAL: {pbiDiagnostics.criticalCount}
+                        </span>
+                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-md ${
+                          pbiDiagnostics.warningCount > 0 
+                            ? 'bg-amber-500/10 border border-amber-500/25 text-amber-500 font-extrabold'
+                            : isLight ? 'bg-slate-100 border border-slate-205 text-slate-400' : 'bg-[#1a1c23] border border-slate-700/30 text-slate-500'
+                        }`}>
+                          🟡 RISKS: {pbiDiagnostics.warningCount}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Explanatory Info Panel */}
+                    <div className={`p-2.5 rounded-lg border text-[10px] leading-relaxed flex flex-col gap-1 ${
+                      isLight 
+                        ? 'bg-amber-50/40 border-amber-100/60 text-amber-905' 
+                        : 'bg-[#ffb000]/5 border-[#ffb000]/10 text-amber-200/70'
+                    }`}>
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <ShieldAlert className="w-3.5 h-3.5 text-amber-500" />
+                        <span>{(pbiLocalization[tone] || pbiLocalization[TranslationTone.ENGLISH]).guidelineTitle}</span>
+                      </div>
+                      <p className="font-sans italic">
+                        {(pbiLocalization[tone] || pbiLocalization[TranslationTone.ENGLISH]).guidelineDesc}
+                      </p>
+                    </div>
+
+                    {/* Violations / Reports */}
+                    <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto pr-1 select-text">
+                      {pbiDiagnostics.errors.length === 0 ? (
+                        <div className={`p-4 rounded-lg border text-center flex flex-col items-center justify-center gap-2 ${
+                          isLight 
+                            ? 'bg-emerald-50/30 border-emerald-100 text-emerald-800' 
+                            : 'bg-emerald-950/10 border-emerald-500/15 text-emerald-450'
+                        }`}>
+                          <Check className="w-5 h-5 text-emerald-500 animate-bounce" />
+                          <span className="text-[10px] font-mono font-bold">
+                            {(pbiLocalization[tone] || pbiLocalization[TranslationTone.ENGLISH]).emptyErrors}
+                          </span>
+                        </div>
+                      ) : (
+                        pbiDiagnostics.errors.map((err, idx) => {
+                          const isCrit = err.type === 'critical';
+                          return (
+                            <div 
+                              key={`${err.ruleId}_${idx}`}
+                              className={`p-3 rounded-lg border flex justify-between items-start gap-4 transition-all hover:scale-[1.002] ${
+                                isCrit 
+                                  ? isLight 
+                                    ? 'bg-rose-50/40 border-rose-150 text-rose-950 shadow-sm' 
+                                    : 'bg-rose-950/15 border-rose-500/20 text-rose-200'
+                                  : isLight
+                                    ? 'bg-amber-50/30 border-amber-150 text-amber-950 shadow-sm'
+                                    : 'bg-amber-950/10 border-amber-500/15 text-amber-200'
+                              }`}
+                            >
+                              <div className="flex-1 flex flex-col gap-1 text-[11px]">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className={`text-[8.5px] font-mono font-extrabold uppercase px-1.5 py-0.5 rounded ${
+                                    isCrit 
+                                      ? 'bg-rose-500/20 text-rose-500 border border-rose-500/30 font-black' 
+                                      : 'bg-amber-500/10 text-amber-500 border border-amber-500/30 font-semibold'
+                                  }`}>
+                                    {isCrit ? 'CRITICAL ERROR' : 'RISK/WARNING'}
+                                  </span>
+                                  {err.lineNum && (
+                                    <span 
+                                      onClick={() => jumpToLine(err.lineNum)}
+                                      className={`text-[8.5px] font-mono font-extrabold px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
+                                        isLight 
+                                          ? 'bg-slate-200 text-slate-800 hover:bg-violet-100 hover:text-violet-750' 
+                                          : 'bg-[#252834] text-slate-350 hover:bg-violet-950/60 hover:text-violet-400'
+                                      }`}
+                                    >
+                                      Line {err.lineNum} ➔
+                                    </span>
+                                  )}
+                                  <span className="font-bold underline decoration-slate-400/40">{err.title}</span>
+                                </div>
+                                <p className="font-sans leading-relaxed text-[10.5px] opacity-90 mt-1">
+                                  {err.message}
+                                </p>
+                                {err.fixAction && (
+                                  <div className="mt-1.5 pt-1 border-t border-slate-500/15 flex items-start gap-1 text-[10px] opacity-80">
+                                    <span className="font-mono font-bold text-violet-400">💡 {(pbiLocalization[tone] || pbiLocalization[TranslationTone.ENGLISH]).fixSuggest}</span>
+                                    <span className="italic">{err.fixAction}</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              {err.lineNum && (
+                                <button
+                                  onClick={() => jumpToLine(err.lineNum)}
+                                  className={`px-2.5 py-1 text-[9.5px] font-mono font-bold rounded-md cursor-pointer transition-all active:scale-95 flex items-center gap-1 shrink-0 ${
+                                    isCrit 
+                                      ? 'bg-rose-500/15 hover:bg-rose-500/30 border border-rose-500/30 text-rose-450 hover:text-rose-300' 
+                                      : 'bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-450 hover:text-amber-250'
+                                  }`}
+                                  title="Scroll editor directly to conflict mismatch line"
+                                >
+                                  <span>🚀 {(pbiLocalization[tone] || pbiLocalization[TranslationTone.ENGLISH]).jumpToIssue}</span>
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className={`text-[10px] font-sans italic flex flex-col gap-2 p-3 rounded-xl border shrink-0 ${
                   isLight 

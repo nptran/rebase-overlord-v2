@@ -2266,6 +2266,55 @@ export default function App() {
               '}'
             ].join('\n'),
             contentAfter: ''
+          },
+          {
+            filepath: 'powerbi_dataset/model.tmdl',
+            status: 'conflicted',
+            conflictsCount: 1,
+            contentBefore: [
+              'table InternetSales',
+              '  lineageTag: fdb17e41-0ed5-433b-821f-db905c102a7b',
+              '',
+              '<<<<<<< HEAD',
+              '  measure TotalSales = SUM(InternetSales[Amount])',
+              '    lineageTag: ab8d132c-7bbf-4c74-98da-de4b6f123abc',
+              '=======',
+              '  measure TotalSalesAmount = SUM(InternetSales[SalesAmount])',
+              '    lineageTag: ab8d132c-7bbf-4c74-98da-de4b6f123abc',
+              '>>>>>>> develop'
+            ].join('\n'),
+            contentAfter: ''
+          },
+          {
+            filepath: 'powerbi_dataset/relationships.json',
+            status: 'conflicted',
+            conflictsCount: 1,
+            contentBefore: [
+              '{',
+              '  "relationships": [',
+              '<<<<<<< HEAD',
+              '    {',
+              '      "name": "rel_sales_customer",',
+              '      "fromTable": "Sales",',
+              '      "fromColumn": "CustomerID",',
+              '      "toTable": "Customer",',
+              '      "toColumn": "ID",',
+              '      "lineageTag": "38da6410-b5bc-4673-aee3-127ca96013a7"',
+              '    }',
+              '=======',
+              '    {',
+              '      "name": "rel_sales_customer_alt",',
+              '      "fromTable": "Sales",',
+              '      "fromColumn": "CustomerID",',
+              '      "toTable": "Customer",',
+              '      "toColumn": "ID",',
+              '      "lineageTag": "f9b4c030-cf2f-410a-ade0-6d4590ee85ad"',
+              '    }',
+              '>>>>>>> develop',
+              '  ]',
+              '}'
+            ].join('\n'),
+            contentAfter: ''
           }
         ];
 
@@ -2280,6 +2329,8 @@ export default function App() {
         addLog(`  conflict: src/routes/payment.ts (2 conflicts)`);
         addLog(`  conflict: src/services/stripe.ts (1 conflict)`);
         addLog(`  conflict: config/keys.json (1 conflict)`);
+        addLog(`  conflict: powerbi_dataset/model.tmdl (1 conflict)`);
+        addLog(`  conflict: powerbi_dataset/relationships.json (1 conflict)`);
         addLog(`// Please use the interactive 3-Way Merge solver below to rescue your branches!`);
       }, 2000);
     } else {
