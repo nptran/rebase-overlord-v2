@@ -3917,6 +3917,7 @@ export default function App() {
               theme={theme} 
               repoState={repoState} 
               isSimulation={isSimulation}
+              isAiEnabled={isAiEnabled}
               onToggleSimulation={(val) => {
                 setIsSimulation(val);
                 addLog(`🤖 Mode toggled from Sa bàn. Simulation Playground: ${val ? 'ACTIVE' : 'OFF'}`);

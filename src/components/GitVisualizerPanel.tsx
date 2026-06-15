@@ -40,6 +40,8 @@ import {
   Layers
 } from 'lucide-react';
 import { TranslationTone, WizardState, GitRepoState } from '../types';
+import { resolveApiUrl } from '../utils/apiResolver';
+import { getApiHeaders } from '../utils/apiKeyHelper';
 
 // Let's declare our available visualization types
 export type VisualActionType = 'rebase' | 'stash' | 'merge' | 'commit' | 'push' | 'diverge' | 'fast-forward';
@@ -511,6 +513,7 @@ export default function GitVisualizerPanel({
   theme = 'dark',
   repoState,
   isSimulation = false,
+  isAiEnabled = false,
   onToggleSimulation
 }: { 
   tone: TranslationTone; 
@@ -518,6 +521,7 @@ export default function GitVisualizerPanel({
   theme?: 'light' | 'dark';
   repoState?: GitRepoState;
   isSimulation?: boolean;
+  isAiEnabled?: boolean;
   onToggleSimulation?: (val: boolean) => void;
 }) {
   const isLight = theme === 'light';
@@ -625,6 +629,212 @@ export default function GitVisualizerPanel({
 
   const [compactModeSetting, setCompactModeSetting] = useState<'auto' | 'compact' | 'detailed'>('auto');
   const [expandedCapsuleIds, setExpandedCapsuleIds] = useState<string[]>([]);
+  const [rightPanelTab, setRightPanelTab] = useState<'guide' | 'summary'>('guide');
+
+  // Store the last stable (non-rebase) repo state or diagnosis parameters
+  const [frozenDiagnosis, setFrozenDiagnosis] = useState<{
+    currentBranchName: string;
+    baseBranchName: string;
+    ahead: number;
+    behind: number;
+    splitSha: string;
+    splitMessage: string;
+    complexity: 'low' | 'medium' | 'high';
+    strategy: string;
+    detailsEn: string;
+    detailsVi: string;
+  } | null>(null);
+
+  const [frozenAiDiagnosis, setFrozenAiDiagnosis] = useState<{
+    strategy: string;
+    detailsEn: string;
+    detailsVi: string;
+    complexity: 'low' | 'medium' | 'high';
+  } | null>(null);
+
+  const [aiDiagnosis, setAiDiagnosis] = useState<{
+    strategy: string;
+    detailsEn: string;
+    detailsVi: string;
+    complexity: 'low' | 'medium' | 'high';
+  } | null>(null);
+  const [aiLoading, setAiLoading] = useState<boolean>(false);
+
+  // Helper inside component to calculate metrics
+  const computeBranchMetrics = useCallback((state: GitRepoState | undefined) => {
+    const currentBranchName = state?.currentBranch || 'feature';
+    const baseBranchName = state?.baseBranch || 'main';
+    
+    let ahead = 0;
+    let behind = 0;
+    let splitSha = 'ef12ab3';
+    let splitMessage = '';
+    let complexity: 'low' | 'medium' | 'high' = 'low';
+    let strategy = '';
+    let detailsEn = '';
+    let detailsVi = '';
+
+    if (currentBranchName.includes('-linear') || currentBranchName === 'feature/payment-linear') {
+      ahead = 5;
+      behind = 0;
+      splitSha = 'ef12ab3';
+      splitMessage = 'feat: initial stripe payload schema validation';
+      complexity = 'low';
+      strategy = 'Fast-Forward Merge (Standard FF)';
+      detailsEn = 'Your branch is perfectly linear. It can be merged directly into the base branch using standard Fast-Forward without creating any merge commits.';
+      detailsVi = 'Nhánh của bạn hoàn toàn thẳng hàng và an toàn tuyệt đối. Có thể sáp nhập trực tiếp vào nhánh base bằng chế độ Fast-Forward (HEAD di chuyển thẳng tắp, không sinh merge commit dư thừa).';
+    } else if (currentBranchName.includes('-large-history') || currentBranchName === 'feature/payment-large-history') {
+      ahead = 32;
+      behind = 0;
+      splitSha = 'ef12ab3';
+      splitMessage = 'feat: initial stripe payload schema validation';
+      complexity = 'low';
+      strategy = 'Squash & Merge / Fast-Forward';
+      detailsEn = 'Linear history but contains a large number of commits (32 commits). A Squash & Merge is highly recommended to condense the commits into a single focused commit before merging.';
+      detailsVi = 'Nhánh tuyến tính thẳng hàng nhưng có số lượng commit rất lớn (32 commits). Khuyến nghị sử dụng chiến thuật "Squash and Merge" để cô đọng toàn bộ 32 commits thành 1 commit duy nhất trước khi gộp để giữ lịch sử nhánh base gọn gàng.';
+    } else if (currentBranchName.includes('-large-nonlinear') || currentBranchName === 'feature/payment-large-nonlinear') {
+      ahead = 33;
+      behind = 6;
+      splitSha = 'base-6';
+      splitMessage = 'chore: sync developer tracking core';
+      complexity = 'high';
+      strategy = 'Interactive Rebase with --rebase-merges';
+      detailsEn = 'Extremely complex non-linear history with nested developers branch merges (Track 1 & Track 2). A standard rebase will flatten all sub-branching. Use `git rebase -i -r` to preserve the topological merges safely.';
+      detailsVi = 'Lịch sử mạng nhện cực kỳ phức tạp với các nhánh rẽ lồng nhau và nhiều luồng song song (Track 1 & Track 2). Lệnh rebase thông thường sẽ làm phẳng (flatten) toàn bộ cấu trúc nhánh của bạn. Khuyến nghị chạy `git rebase -i --rebase-merges` (-r) để vừa cập nhật base vừa bảo toàn nguyên vẹn các nhánh con.';
+    } else if (currentBranchName.includes('-nonlinear') || currentBranchName === 'feature/payment-nonlinear') {
+      ahead = 4;
+      behind = 1;
+      splitSha = 'ef12ab3';
+      splitMessage = 'feat: initial stripe payload schema validation';
+      complexity = 'medium';
+      strategy = 'Interactive Rebase or Merge Preserve';
+      detailsEn = 'The feature branch contains a local merge commit. Rebaseling without flags will flatten this merge commit. Consider checking for conflict files beforehand.';
+      detailsVi = 'Nhánh của bạn chứa một commit gộp nội bộ (Merge Commit). Việc rebase thông thường sẽ ép dẹp commit gộp này phẳng ra. Bạn nên cân nhắc sử dụng `--rebase-merges` để bảo toàn lịch sử.';
+    } else if (currentBranchName.includes('-rewrite') || currentBranchName === 'feature/payment-diverged-rewrite') {
+      ahead = 2;
+      behind = 1;
+      splitSha = 'ef12ab3';
+      splitMessage = 'feat: initial stripe payload schema validation';
+      complexity = 'high';
+      strategy = 'Interactive Rebase & Duplicate Deduplication';
+      detailsEn = 'Diverged history! The base branch has remote-only commit that overlaps in purpose/title with one of your local commits. High risk of duplicate code or conflict in files during replay rebase.';
+      detailsVi = 'Nhánh bị phân kỳ nghiêm trọng! Nhánh base đã có commit từ xa trùng tên/mục đích với commit cục bộ của bạn. Nguy cơ cực cao xảy ra xung đột lặp commit và ghi đè nội dung khi phát lại rebase.';
+    } else if (currentBranchName.includes('-stale') || currentBranchName === 'feature/payment-stale-base') {
+      ahead = 2;
+      behind = 2;
+      splitSha = 'ef12ab3';
+      splitMessage = 'feat: initial stripe payload schema validation';
+      complexity = 'medium';
+      strategy = 'Standard git rebase main';
+      detailsEn = 'The branch is stale and needs to pull 2 new commits from the base branch. Straightforward Rebase playback with low conflict risk.';
+      detailsVi = 'Nhánh của bạn bị lỗi thời (stale), đi sau nhánh base 2 commits mới. Khuyến nghị chạy rebase tiêu chuẩn đắp 2 commit tính năng lên đỉnh mới của main.';
+    } else if (currentBranchName.includes('detached') || currentBranchName.includes('HEAD')) {
+      ahead = 2;
+      behind = 0;
+      splitSha = 'ef12ab3';
+      splitMessage = 'feat: initial stripe payload schema validation';
+      complexity = 'medium';
+      strategy = 'git checkout -b <new-branch>';
+      detailsEn = 'You are in Detached HEAD state. Any new commits made here are dangling and will be lost on branch change. Save your progress instantly!';
+      detailsVi = 'Bạn đang ở trạng thái mất đầu (Detached HEAD). Mọi commit tạo ra ở đây sẽ trôi nổi tự do (dangling) và biến mất khi chuyển nhánh. Hãy lưu lại tiến trình bằng cách tạo một nhánh mới ngay lập tức!';
+    } else {
+      ahead = state?.commits?.filter(c => c.track !== 0).length || 0;
+      behind = state?.commits?.filter(c => c.track === 0).length || 0;
+      splitSha = state?.commits?.find(c => c.track === 0)?.sha || 'ef12ab3';
+      splitMessage = state?.commits?.find(c => c.track === 0)?.message || 'gốc sáp nhập';
+      complexity = behind > 3 ? 'high' : (behind > 0 ? 'medium' : 'low');
+      strategy = behind > 0 ? 'git rebase main' : 'Fast-Forward merge';
+      detailsEn = 'Analyzing branch divergence topology dynamically... Make sure to rebase clean.';
+      detailsVi = 'Đang phân tích trực quan cấu trúc nhánh... Vui lòng đảm bảo dọn dẹp các xung đột cục bộ trước khi rebase.';
+    }
+
+    return { currentBranchName, baseBranchName, ahead, behind, splitSha, splitMessage, complexity, strategy, detailsEn, detailsVi };
+  }, []);
+
+  // Update frozen state when rebase is triggered
+  useEffect(() => {
+    if (repoState?.rebaseInProgress) {
+      if (!frozenDiagnosis) {
+        setFrozenDiagnosis(computeBranchMetrics(repoState));
+      }
+      if (!frozenAiDiagnosis && aiDiagnosis) {
+        setFrozenAiDiagnosis(aiDiagnosis);
+      }
+    } else {
+      setFrozenDiagnosis(null);
+      setFrozenAiDiagnosis(null);
+    }
+  }, [repoState?.rebaseInProgress, repoState, aiDiagnosis, frozenDiagnosis, frozenAiDiagnosis, computeBranchMetrics]);
+
+  // Load and cache AI topological analysis when AI is enabled and user is looking at SUMMARY tab
+  useEffect(() => {
+    if (repoState?.rebaseInProgress) {
+      return; 
+    }
+    if (!isAiEnabled || rightPanelTab !== 'summary') {
+      return;
+    }
+
+    const commitsFingerprint = (repoState?.commits || []).map(c => c.sha + (c.isConflicting ? 'c' : '')).join(',');
+    const fingerprint = `${repoState?.currentBranch || 'feature'}_${repoState?.baseBranch || 'main'}_${commitsFingerprint}`;
+
+    // Load from Cache first
+    try {
+      const cachedStr = localStorage.getItem('rebase_overlord_visual_ai_doctor_cache');
+      if (cachedStr) {
+        const cache = JSON.parse(cachedStr);
+        if (cache[fingerprint]) {
+          setAiDiagnosis(cache[fingerprint]);
+          setAiLoading(false);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to load visual AI diagnosis cache:", e);
+    }
+
+    // Call API helper to do dynamic AI diagnosis
+    setAiLoading(true);
+    const fallbackMetrics = computeBranchMetrics(repoState);
+
+    fetch(resolveApiUrl('/api/git-doctor-topology'), {
+      method: 'POST',
+      headers: getApiHeaders(),
+      body: JSON.stringify({
+        currentBranch: repoState?.currentBranch || 'feature',
+        baseBranch: repoState?.baseBranch || 'main',
+        commits: repoState?.commits || [],
+        ahead: fallbackMetrics.ahead,
+        behind: fallbackMetrics.behind,
+        splitSha: fallbackMetrics.splitSha,
+        tone: tone
+      })
+    })
+    .then(res => {
+      if (!res.ok) throw new Error("API response error");
+      return res.json();
+    })
+    .then(data => {
+      if (data && data.strategy) {
+        try {
+          const cachedStr = localStorage.getItem('rebase_overlord_visual_ai_doctor_cache') || '{}';
+          const cache = JSON.parse(cachedStr);
+          cache[fingerprint] = data;
+          localStorage.setItem('rebase_overlord_visual_ai_doctor_cache', JSON.stringify(cache));
+        } catch (cacheErr) {
+          console.warn("Error caching AI static advice:", cacheErr);
+        }
+        setAiDiagnosis(data);
+      }
+    })
+    .catch(err => {
+      console.error("AI Doctor custom analysis request failed:", err);
+      setAiDiagnosis(null);
+    })
+    .finally(() => {
+      setAiLoading(false);
+    });
+  }, [repoState, isAiEnabled, rightPanelTab, tone, computeBranchMetrics]);
 
   useEffect(() => {
     setExpandedCapsuleIds([]);
@@ -2803,68 +3013,279 @@ export default function GitVisualizerPanel({
         </div>
 
         {/* Dynamic active step descriptions (Right - col span 4) */}
-        <div className={`lg:col-span-4 flex flex-col justify-between gap-3 p-4 border rounded-xl relative overflow-hidden ${
+        <div className={`lg:col-span-4 flex flex-col justify-between gap-3.5 p-4 border rounded-xl relative overflow-hidden transition-all duration-300 ${
           isLight ? 'border-slate-200 bg-slate-50/50' : 'border-slate-850 bg-slate-900/20'
         }`}>
           
           <div className="flex flex-col gap-3">
-            <h4 className={`text-[10px] font-mono font-bold tracking-wider uppercase flex items-center gap-1.5 ${
-              isLight ? 'text-slate-500' : 'text-slate-450'
+            {/* Right side tab header */}
+            <div className={`flex items-center gap-1 p-0.5 rounded-lg border mb-1 ${
+              isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-950/65 border-slate-800'
             }`}>
-              <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
-              <span>{loc.explanationTitle.replace('{step}', String(currentStep + 1))}</span>
-            </h4>
-
-            {/* Simulated Live narration with animation */}
-            <div className="min-h-[85px] py-1">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={`${activeAction}-${currentStep}`}
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.2 }}
-                  className={`text-xs leading-relaxed font-sans font-medium ${
-                    isLight ? 'text-slate-700' : 'text-slate-200'
-                  }`}
-                >
-                  {loc.opDescriptions[activeAction][currentStep] || "Scanning state logs..."}
-                </motion.div>
-              </AnimatePresence>
+              <button
+                type="button"
+                onClick={() => setRightPanelTab('guide')}
+                className={`flex-1 py-1.5 px-2 text-[9px] font-mono font-bold rounded-md flex items-center justify-center gap-1 cursor-pointer transition-all ${
+                  rightPanelTab === 'guide'
+                    ? (isLight ? 'bg-white text-indigo-700 shadow-sm border border-slate-200' : 'bg-indigo-600/25 text-indigo-300 border border-indigo-500/25')
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <BookOpen className="w-3 h-3 text-indigo-400" />
+                <span>{tone === TranslationTone.ENGLISH ? 'NARRATION' : 'HƯỚNG DẪN'}</span>
+              </button>
+              <button
+                type="button"
+                id="btn-trigger-rebase-dr-tab"
+                onClick={() => setRightPanelTab('summary')}
+                className={`flex-1 py-1.5 px-2 text-[9px] font-mono font-bold rounded-md flex items-center justify-center gap-1 cursor-pointer transition-all ${
+                  rightPanelTab === 'summary'
+                    ? (isLight ? 'bg-white text-emerald-700 shadow-sm border border-slate-200' : 'bg-emerald-600/25 text-emerald-300 border border-emerald-500/25')
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Sparkles className="w-3 h-3 text-emerald-400 shrink-0" />
+                <span>{tone === TranslationTone.ENGLISH ? 'GIT DOCTOR' : 'CHẨN ĐOÁN'}</span>
+              </button>
             </div>
 
-            {/* Under the hood technical references */}
-            <div className={`border-t pt-2.5 ${
-              isLight ? 'border-slate-200/60' : 'border-slate-900/80'
-            }`}>
-              <span className={`text-[9px] font-mono font-bold tracking-wider block mb-1 ${
-                isLight ? 'text-violet-700' : 'text-violet-400'
-              }`}>
-                {loc.underTheHoodLabel}
-              </span>
-              <p className={`text-[10px] leading-relaxed font-sans font-medium ${
-                isLight ? 'text-slate-650' : 'text-slate-400'
-              }`}>
-                {loc.opUnderTheHood[activeAction]}
-              </p>
-            </div>
+            {rightPanelTab === 'guide' ? (
+              <div className="flex flex-col gap-3 animate-fade-in animate-duration-250">
+                <h4 className={`text-[10px] font-mono font-bold tracking-wider uppercase flex items-center gap-1.5 ${
+                  isLight ? 'text-slate-500' : 'text-slate-450'
+                }`}>
+                  <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>{loc.explanationTitle.replace('{step}', String(currentStep + 1))}</span>
+                </h4>
+
+                {/* Simulated Live narration with animation */}
+                <div className="min-h-[85px] py-1">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={`${activeAction}-${currentStep}`}
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      transition={{ duration: 0.2 }}
+                      className={`text-xs leading-relaxed font-sans font-medium ${
+                        isLight ? 'text-slate-700' : 'text-slate-200'
+                      }`}
+                    >
+                      {loc.opDescriptions[activeAction][currentStep] || "Scanning state logs..."}
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+
+                {/* Under the hood technical references */}
+                <div className={`border-t pt-2.5 ${
+                  isLight ? 'border-slate-200/60' : 'border-slate-900/80'
+                }`}>
+                  <span className={`text-[9px] font-mono font-bold tracking-wider block mb-1 ${
+                    isLight ? 'text-violet-700' : 'text-violet-400'
+                  }`}>
+                    {loc.underTheHoodLabel}
+                  </span>
+                  <p className={`text-[10px] leading-relaxed font-sans font-medium ${
+                    isLight ? 'text-slate-650' : 'text-slate-400'
+                  }`}>
+                    {loc.opUnderTheHood[activeAction]}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3.5 animate-fade-in animate-duration-250">
+                {(() => {
+                  // Determine metrics source (frozen or live)
+                  const isRebase = !!repoState?.rebaseInProgress;
+                  const metrics = isRebase && frozenDiagnosis 
+                    ? frozenDiagnosis 
+                    : computeBranchMetrics(repoState);
+
+                  const { currentBranchName, baseBranchName, ahead, behind, splitSha, splitMessage } = metrics;
+                  const splitMsgTrunc = splitMessage.length > 40 ? splitMessage.substring(0, 37) + '...' : splitMessage;
+
+                  // Determine AI diagnostic source (frozen or live)
+                  const activeAiDiagnosis = isRebase && frozenAiDiagnosis 
+                    ? frozenAiDiagnosis 
+                    : aiDiagnosis;
+
+                  const showAi = isAiEnabled;
+
+                  if (showAi && aiLoading) {
+                    return (
+                      <div className="flex flex-col gap-3.5 py-4 select-none animate-pulse">
+                        <div className="flex items-center gap-1.5 font-mono font-bold text-[9.5px] text-violet-400">
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>
+                            {tone === TranslationTone.ENGLISH 
+                              ? 'ENGAGING AI TOPOLOGY DIAGNOSTIC OVERLORD...' 
+                              : 'ĐANG LIÊN HỆ BỆNH VIỆN AI KHÁM SÀN NHÁNH...'}
+                          </span>
+                        </div>
+                        <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-3 flex flex-col gap-2">
+                          <div className="h-2 bg-slate-800 rounded-full w-2/3"></div>
+                          <div className="h-2.5 bg-slate-800 rounded-full w-full"></div>
+                          <div className="h-2 bg-slate-800 rounded-full w-5/6"></div>
+                        </div>
+                        <div className="h-10 bg-slate-955/40 border border-slate-900 border-dashed rounded-lg"></div>
+                      </div>
+                    );
+                  }
+
+                  const finalStrategy = showAi && activeAiDiagnosis ? activeAiDiagnosis.strategy : metrics.strategy;
+                  const finalComplexity = showAi && activeAiDiagnosis ? activeAiDiagnosis.complexity : metrics.complexity;
+                  const finalDetailsEn = showAi && activeAiDiagnosis ? activeAiDiagnosis.detailsEn : metrics.detailsEn;
+                  const finalDetailsVi = showAi && activeAiDiagnosis ? activeAiDiagnosis.detailsVi : metrics.detailsVi;
+
+                  return (
+                    <>
+                      {/* Rebase locked freeze warning banner */}
+                      {isRebase && (
+                        <div className="bg-amber-500/10 border border-amber-500/25 text-amber-400 rounded-lg p-2 text-[8.5px] font-mono leading-normal select-none animate-pulse">
+                          ⚠️ {tone === TranslationTone.ENGLISH 
+                            ? 'REBASE IN PROGRESS: RECONCILIATION DIAGNOSTICS STATICALLY LOCKED FOR CLARITY.' 
+                            : 'KHÓA BẢO TOÀN LÂM SÀNG: Đang trong tiến trình REBASE. Hệ thống khóa tĩnh chẩn chẩn đoán để sếp không rối trí.'}
+                        </div>
+                      )}
+
+                      {/* Sub-header / Status */}
+                      <div className="flex items-center justify-between border-b pb-1.5 mb-0.5 border-dashed border-slate-700/20">
+                        <div className="flex items-center gap-1 font-mono font-extrabold text-[9px] text-emerald-450 select-none">
+                          {showAi ? (
+                            <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
+                          ) : (
+                            <FlaskConical className="w-3.5 h-3.5 text-emerald-400" />
+                          )}
+                          <span className={showAi ? "text-indigo-455" : ""}>
+                            {showAi 
+                              ? (tone === TranslationTone.ENGLISH ? '✨ AI TOPOLOGY EXPERT' : '✨ CHẨN ĐOÁN AI LÂM SÀNG')
+                              : (tone === TranslationTone.ENGLISH ? 'AUTO DIAGNOSTIC' : 'CHẨN ĐOÁN TỰ ĐỘNG')
+                            }
+                          </span>
+                        </div>
+                        <span className={`text-[8px] uppercase tracking-wide px-1.5 py-0.5 rounded font-mono font-bold select-none ${
+                          finalComplexity === 'low' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                          finalComplexity === 'medium' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
+                          'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                        }`}>
+                          {finalComplexity === 'low' ? (tone === TranslationTone.ENGLISH ? 'EASY / SAFE' : 'AN TOÀN') :
+                           finalComplexity === 'medium' ? (tone === TranslationTone.ENGLISH ? 'MODERATE' : 'TRUNG BÌNH') :
+                           (tone === TranslationTone.ENGLISH ? 'COMPLEX' : 'ỦA PHỨC TẠP')}
+                        </span>
+                      </div>
+
+                      {/* Overview branches cards */}
+                      <div className="grid grid-cols-2 gap-2 mt-1 select-none">
+                        <div className={`p-1.5 px-2 rounded-lg border-l-2 ${isLight ? 'bg-slate-100/50 border-indigo-400 text-slate-800' : 'bg-slate-900/40 border-indigo-500/50 text-slate-300'}`}>
+                          <span className="text-[7.5px] font-sans text-slate-450 block uppercase font-bold tracking-wider mb-0.5">
+                            {tone === TranslationTone.ENGLISH ? 'Current Branch' : 'Nhánh Hiện Tại'}
+                          </span>
+                          <span className="text-[10px] font-mono font-bold block truncate" title={currentBranchName}>
+                            🌿 {currentBranchName}
+                          </span>
+                        </div>
+                        <div className={`p-1.5 px-2 rounded-lg border-l-2 ${isLight ? 'bg-slate-100/50 border-emerald-400 text-slate-800' : 'bg-slate-900/40 border-emerald-500/50 text-slate-300'}`}>
+                          <span className="text-[7.5px] font-sans text-slate-450 block uppercase font-bold tracking-wider mb-0.5">
+                            {tone === TranslationTone.ENGLISH ? 'Base Target' : 'Nhánh base'}
+                          </span>
+                          <span className="text-[10px] font-mono font-bold block truncate" title={baseBranchName}>
+                            🎯 {baseBranchName}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Metrics details list */}
+                      <div className={`rounded-lg p-2 flex flex-col gap-1.5 border select-none ${
+                        isLight ? 'bg-indigo-50/10 border-indigo-100/50' : 'bg-slate-950/40 border-slate-850/80'
+                      }`}>
+                        <div className="flex justify-between items-center text-[10px]">
+                          <span className="text-slate-450 font-sans font-semibold flex items-center gap-1">
+                            <GitCommit className="w-3.5 h-3.5 text-indigo-400" />
+                            {tone === TranslationTone.ENGLISH ? 'Lệch trước (Ahead):' : 'Số commit rẽ nhánh (Ahead):'}
+                          </span>
+                          <span className="font-mono font-bold text-indigo-400 bg-indigo-500/10 px-1 py-0.2 rounded">
+                            +{ahead} commits
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px]">
+                          <span className="text-slate-450 font-sans font-semibold flex items-center gap-1">
+                            <GitPullRequest className="w-3.5 h-3.5 text-rose-400" />
+                            {tone === TranslationTone.ENGLISH ? 'Lệch sau (Behind):' : 'Đi sau base branch (Behind):'}
+                          </span>
+                          <span className="font-mono font-bold text-rose-400 bg-rose-500/10 px-1 py-0.2 rounded">
+                            -{behind} commits
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center text-[10px] border-t pt-1.5 mt-0.5 border-dashed border-slate-800/40">
+                          <span className="text-slate-450 font-sans font-semibold flex items-center gap-1">
+                            <GitMerge className="w-3.5 h-3.5 text-amber-400" />
+                            {tone === TranslationTone.ENGLISH ? 'Split Base Ancestor:' : 'Gốc rẽ (Fork Common Ancestor):'}
+                          </span>
+                          <span className="font-mono font-extrabold text-amber-400 bg-amber-500/10 px-1 py-0.2 rounded text-[9.5px]">
+                            {splitSha}
+                          </span>
+                        </div>
+                        {splitMessage && (
+                          <span className="text-[8.5px] font-mono text-slate-400 block px-1 truncate leading-normal italic text-right -mt-0.5">
+                            "{splitMsgTrunc}"
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Tactical description */}
+                      <div className={`rounded-xl p-2.5 border ${
+                        finalComplexity === 'low' ? (isLight ? 'bg-emerald-50/50 border-emerald-100/80 text-emerald-950' : 'bg-emerald-950/10 border-emerald-500/20 text-emerald-300') :
+                        finalComplexity === 'medium' ? (isLight ? 'bg-amber-50/50 border-amber-100/80 text-amber-950' : 'bg-amber-950/15 border-amber-500/20 text-amber-300') :
+                        (isLight ? 'bg-rose-50/50 border-rose-100/80 text-rose-950' : 'bg-rose-950/10 border-rose-500/20 text-rose-300')
+                      }`}>
+                        <span className={`text-[8.5px] font-mono font-bold uppercase tracking-widest block mb-1 flex items-center gap-1 shrink-0 ${
+                          finalComplexity === 'low' ? 'text-emerald-400' :
+                          finalComplexity === 'medium' ? 'text-amber-400' :
+                          'text-rose-400'
+                        }`}>
+                          {finalComplexity === 'low' ? <CheckCircle className="w-3 h-3 stroke-2" /> :
+                           finalComplexity === 'medium' ? <AlertOctagon className="w-3 h-3 stroke-2" /> :
+                           <Flame className="w-3 h-3 stroke-2 animate-pulse" />}
+                          {tone === TranslationTone.ENGLISH ? 'RECOMMENDED TACTIC:' : 'CHIẾN THUẬT KHẢ THI:'}
+                          {showAi && activeAiDiagnosis && (
+                            <span className="ml-auto text-[7px] text-indigo-400 font-mono bg-indigo-500/10 border border-indigo-500/20 px-1 rounded uppercase">
+                              {isRebase ? '🔒 Static AI' : '⚡ AI Cached'}
+                            </span>
+                          )}
+                        </span>
+                        
+                        <span className="text-[10px] font-mono font-black tracking-tight block mb-1.5 leading-relaxed bg-black/15 px-1.5 py-0.5 rounded border border-white/5 truncate max-w-full">
+                          {finalStrategy}
+                        </span>
+                        
+                        <p className={`text-[10px] font-sans font-medium leading-relaxed`}>
+                          {tone === TranslationTone.ENGLISH ? finalDetailsEn : finalDetailsVi}
+                        </p>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            )}
           </div>
 
           {/* Expected final outcome brief */}
-          <div className={`rounded-lg p-2.5 border mt-2 ${
-            isLight ? 'bg-indigo-50/40 border-indigo-100/60' : 'bg-indigo-950/20 border-indigo-505/10'
-          }`}>
-            <span className={`text-[9px] font-mono font-bold tracking-wider block mb-0.5 ${
-              isLight ? 'text-indigo-700' : 'text-indigo-400'
+          {rightPanelTab === 'guide' && (
+            <div className={`rounded-lg p-2.5 border mt-2 ${
+              isLight ? 'bg-indigo-50/40 border-indigo-100/60' : 'bg-indigo-950/20 border-indigo-505/10'
             }`}>
-              {loc.expectedResultLabel}
-            </span>
-            <p className={`text-[10px] font-sans font-medium leading-relaxed ${
-              isLight ? 'text-indigo-800' : 'text-indigo-300'
-            }`}>
-              {loc.opResult[activeAction]}
-            </p>
-          </div>
+              <span className={`text-[9px] font-mono font-bold tracking-wider block mb-0.5 ${
+                isLight ? 'text-indigo-700' : 'text-indigo-400'
+              }`}>
+                {loc.expectedResultLabel}
+              </span>
+              <p className={`text-[10px] font-sans font-medium leading-relaxed ${
+                isLight ? 'text-indigo-800' : 'text-indigo-300'
+              }`}>
+                {loc.opResult[activeAction]}
+              </p>
+            </div>
+          )}
 
         </div>
 

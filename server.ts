@@ -1656,6 +1656,76 @@ Bạn cần tuyệt đối tuân thủ:
   return res.json(offlineResult);
 });
 
+// AI-powered Git topology and branch assessment
+app.post('/api/git-doctor-topology', async (req, res) => {
+  const { currentBranch, baseBranch, commits, ahead, behind, splitSha, tone } = req.body;
+  const apiKey = getRequestApiKey(req);
+  
+  if (apiKey) {
+    try {
+      const ai = getGeminiClient(apiKey);
+      const systemInstruction = `You are a legendary Git Doctor and Git architecture expert.
+Your job is to analyze the dynamic Git branch topology provided by the user and return a precise, expert diagnosis of the branch's state, recommended merge/rebase tactic, and dynamic assessment detailed in the requested tone.
+
+You must respond in a strict JSON format with the following properties:
+- strategy: short text (e.g., 'Fast-Forward', 'git rebase main', 'Squash & Merge', 'Interactive Rebase with --rebase-merges')
+- detailsEn: a few clear sentences in English summarizing the state, potential conflicts, and concrete execution tips.
+- detailsVi: assessment in Vietnamese conforming strictly to the chosen tone:
+  * 'vn_pro': Standard, highly professional and concise.
+  * 'vn_joke': Playful, witty, friendly, calling the user 'ní' or 'sếp'.
+  * 'vn_toxic': Highly toxic, grumpy, calling the user 'gà', 'ngáo', teasing their Git mistakes but providing extremely accurate advice.
+  * 'en_pro': Also in professional English/standard format.
+- complexity: 'low' | 'medium' | 'high'
+
+Return ONLY a valid JSON object matching this schema. Do NOT include markdown wraps outside the JSON.`;
+
+      const promptUser = `Analyze this Git topology:
+- Current branch: ${currentBranch}
+- Base target branch: ${baseBranch}
+- Commits ahead: ${ahead}
+- Commits behind: ${behind}
+- Common ancestor (Split SHA): ${splitSha}
+- Commits list: ${JSON.stringify((commits || []).slice(0, 10).map((c: any) => ({ sha: c.sha, message: c.message, track: c.track, isConflicting: c.isConflicting })))}
+- Tone requested: ${tone || 'vn_pro'}
+
+Provide the diagnosis, tactical strategy, explanation/mitigation details, and complexity assessment.`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.5-flash',
+        contents: promptUser,
+        config: {
+          systemInstruction,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              strategy: { type: Type.STRING },
+              detailsEn: { type: Type.STRING },
+              detailsVi: { type: Type.STRING },
+              complexity: { type: Type.STRING, enum: ['low', 'medium', 'high'] }
+            },
+            required: ['strategy', 'detailsEn', 'detailsVi', 'complexity']
+          }
+        }
+      });
+
+      const responseText = response.text?.trim() || '{}';
+      try {
+        const result = JSON.parse(responseText);
+        if (result.strategy) {
+          return res.json(result);
+        }
+      } catch (parseErr) {
+        console.error("Failed to parse topological AI doctor response:", responseText, parseErr);
+      }
+    } catch (err) {
+      console.error("AI Doctor dynamic topological call query failed:", err);
+    }
+  }
+
+  return res.status(400).json({ error: "AI key missing or service error." });
+});
+
 // AI-powered contextual helper chat using Gemini 3.5 Flash
 app.post('/api/ai-chat', async (req, res) => {
   const { messages, repoContext, tone } = req.body;
