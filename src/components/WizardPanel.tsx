@@ -31,7 +31,7 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
-import { Commit, WizardState, TranslationTone } from '../types';
+import { Commit, WizardState, TranslationTone, GitRepoState } from '../types';
 import { translate } from '../i18n';
 
 const wizardLoc: Record<TranslationTone, any> = {
@@ -683,6 +683,7 @@ interface WizardPanelProps {
   onUpdateWizard: (updates: Partial<WizardState>) => void;
   onExecuteWizardRebase: () => void;
   onResetWizard: () => void;
+  repoState?: GitRepoState;
 }
 
 export default function WizardPanel({
@@ -693,7 +694,8 @@ export default function WizardPanel({
   theme = 'dark',
   onUpdateWizard,
   onExecuteWizardRebase,
-  onResetWizard
+  onResetWizard,
+  repoState
 }: WizardPanelProps) {
   const [localFinalMsg, setLocalFinalMsg] = React.useState(wizard.finalMsg);
   const loc = wizardLoc[tone] || wizardLoc[TranslationTone.PROFESSIONAL];
@@ -1140,6 +1142,62 @@ export default function WizardPanel({
                 placeholder="develop"
               />
             </div>
+
+            {/* Real-time Validation for Base Branch Remote Existence */}
+            {(() => {
+              if (!repoState?.branches || repoState.branches.length === 0) return null;
+              const inputVal = (wizard.baseBranch || '').trim();
+              if (!inputVal) return null;
+
+              const matchedBranch = repoState.branches.find(
+                b => b.name.toLowerCase() === inputVal.toLowerCase()
+              );
+              const existsOnRemote = !!matchedBranch?.isRemote;
+
+              if (!existsOnRemote) {
+                const existsLocally = !!matchedBranch?.isLocal;
+                return (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/25 text-rose-450 text-[11px] leading-normal font-sans"
+                  >
+                    <div className="flex items-center gap-1.5 font-mono font-bold uppercase text-[9.5px] text-rose-500 mb-1">
+                      <AlertTriangle className="w-3.5 h-3.5 animate-pulse shrink-0" />
+                      <span>
+                        {tone === TranslationTone.ENGLISH 
+                          ? 'REMOTE BRANCH MISSING' 
+                          : 'NHÁNH MẸ CHƯA LÊN REMOTE'}
+                      </span>
+                    </div>
+                    {existsLocally ? (
+                      tone === TranslationTone.ENGLISH 
+                        ? `The branch "${inputVal}" exists locally but has not been pushed to remote origin. A remote trace is mandatory.` 
+                        : `Nhánh "${inputVal}" chỉ tồn tại ở máy cục bộ của sếp chứ chưa được đẩy lên Remote Origin. Cần có nhánh trên Server để rebase an toàn.`
+                    ) : (
+                      tone === TranslationTone.ENGLISH 
+                        ? `The branch "${inputVal}" was not found locally or remotely in this repository.` 
+                        : `Không tìm thấy nhánh nào tên là "${inputVal}" cả cục bộ lẫn trên Server remote.`
+                    )}
+                  </motion.div>
+                );
+              }
+
+              return (
+                <motion.div 
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-2 px-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono flex items-center gap-1.5"
+                >
+                  <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>
+                    {tone === TranslationTone.ENGLISH 
+                      ? '✓ Branch active & fully tracked on Remote Origin.' 
+                      : '✓ Nhánh khả dụng & đã liên kết hoàn toàn trên Remote Origin.'}
+                  </span>
+                </motion.div>
+              );
+            })()}
 
             <div className="mt-2 text-xs">
               <span className="text-[11px] font-mono text-slate-500 uppercase block mb-1.5">{loc.step0.techRecommend}</span>
@@ -1914,30 +1972,50 @@ export default function WizardPanel({
         <div className="flex-grow"></div>
 
         {/* Transition trigger next step */}
-        {wizard.step < 7 && (
-          <button
-            id="wizard-next-btn"
-            disabled={(wizard.step === 4 && wizard.status !== 'completed') || (wizard.step === 6 && verifyStatus === 'running')}
-            onClick={() => {
-              // Valid checkout list size
-              if (wizard.step === 2 && wizard.selectedCommits.length === 0) {
-                alert(loc.step2.selectAtLeastOne);
-                return;
-              }
-              onUpdateWizard({ step: wizard.step + 1 });
-            }}
-            title={loc.nextStepBtn}
-            className={`p-2.5 rounded-lg border cursor-pointer active:scale-95 transition-all font-mono font-bold flex items-center justify-center ${
-              (wizard.step === 4 && wizard.status !== 'completed') || (wizard.step === 6 && verifyStatus === 'running')
-                ? isLight
-                  ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
-                  : 'bg-slate-955 border-slate-900 text-slate-650 cursor-not-allowed'
-                : 'bg-indigo-600 hover:bg-indigo-550 border-indigo-500/10 text-white shadow-md'
-            }`}
-          >
-            <ArrowRight className="w-5 h-5" />
-          </button>
-        )}
+        {(() => {
+          const isStep0Invalid = wizard.step === 0 && (() => {
+            if (!repoState?.branches || repoState.branches.length === 0) return false;
+            const inputVal = (wizard.baseBranch || '').trim();
+            if (!inputVal) return true;
+            const matchedBranch = repoState.branches.find(
+              b => b.name.toLowerCase() === inputVal.toLowerCase()
+            );
+            return !matchedBranch?.isRemote;
+          })();
+
+          const isDisabled = 
+            (wizard.step === 4 && wizard.status !== 'completed') || 
+            (wizard.step === 6 && verifyStatus === 'running') ||
+            isStep0Invalid;
+
+          if (wizard.step < 7) {
+            return (
+              <button
+                id="wizard-next-btn"
+                disabled={isDisabled}
+                onClick={() => {
+                  // Valid checkout list size
+                  if (wizard.step === 2 && wizard.selectedCommits.length === 0) {
+                    alert(loc.step2.selectAtLeastOne);
+                    return;
+                  }
+                  onUpdateWizard({ step: wizard.step + 1 });
+                }}
+                title={loc.nextStepBtn}
+                className={`p-2.5 rounded-lg border cursor-pointer active:scale-95 transition-all font-mono font-bold flex items-center justify-center ${
+                  isDisabled
+                    ? isLight
+                      ? 'bg-slate-100 border-slate-200 text-slate-400 cursor-not-allowed'
+                      : 'bg-slate-955 border-slate-900 text-slate-650 cursor-not-allowed'
+                    : 'bg-indigo-600 hover:bg-indigo-550 border-indigo-500/10 text-white shadow-md'
+                }`}
+              >
+                <ArrowRight className="w-5 h-5" />
+              </button>
+            );
+          }
+          return null;
+        })()}
 
         {/* Finish Button */}
         {wizard.step === 7 && (

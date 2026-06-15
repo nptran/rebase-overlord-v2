@@ -3941,6 +3941,7 @@ export default function App() {
               onUpdateWizard={handleUpdateWizard}
               onExecuteWizardRebase={handleExecuteWizardRebase}
               onResetWizard={handleResetWizard}
+              repoState={repoState}
             />
 
             {/* Emergency Conflict Resolution Panel if in rebaseProgress */}

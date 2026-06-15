@@ -663,7 +663,7 @@ export default function GitVisualizerPanel({
   // Helper inside component to calculate metrics
   const computeBranchMetrics = useCallback((state: GitRepoState | undefined) => {
     const currentBranchName = state?.currentBranch || 'feature';
-    const baseBranchName = state?.baseBranch || 'main';
+    const baseBranchName = wizard?.baseBranch || state?.baseBranch || 'main';
     
     let ahead = 0;
     let behind = 0;
@@ -743,13 +743,13 @@ export default function GitVisualizerPanel({
       splitSha = state?.commits?.find(c => c.track === 0)?.sha || 'ef12ab3';
       splitMessage = state?.commits?.find(c => c.track === 0)?.message || 'gốc sáp nhập';
       complexity = behind > 3 ? 'high' : (behind > 0 ? 'medium' : 'low');
-      strategy = behind > 0 ? 'git rebase main' : 'Fast-Forward merge';
-      detailsEn = 'Analyzing branch divergence topology dynamically... Make sure to rebase clean.';
-      detailsVi = 'Đang phân tích trực quan cấu trúc nhánh... Vui lòng đảm bảo dọn dẹp các xung đột cục bộ trước khi rebase.';
+      strategy = behind > 0 ? `git rebase ${baseBranchName}` : 'Fast-Forward merge';
+      detailsEn = `Analyzing branch divergence topology dynamically relative to ${baseBranchName}... Make sure to rebase clean.`;
+      detailsVi = `Đang phân tích trực quan cấu trúc nhánh đối chiếu với ${baseBranchName}... Vui lòng đảm bảo dọn dẹp các xung đột cục bộ trước khi rebase.`;
     }
 
     return { currentBranchName, baseBranchName, ahead, behind, splitSha, splitMessage, complexity, strategy, detailsEn, detailsVi };
-  }, []);
+  }, [wizard?.baseBranch]);
 
   // Update frozen state when rebase is triggered
   useEffect(() => {
@@ -775,8 +775,21 @@ export default function GitVisualizerPanel({
       return;
     }
 
+    const currentBase = wizard?.baseBranch || repoState?.baseBranch || 'main';
+
+    // Guard: Base branch remote validation check
+    const matchedBranch = repoState?.branches?.find(
+      b => b.name.toLowerCase() === currentBase.toLowerCase().trim()
+    );
+    const existsOnRemote = !!matchedBranch?.isRemote;
+    if (!existsOnRemote) {
+      setAiDiagnosis(null);
+      setAiLoading(false);
+      return;
+    }
+
     const commitsFingerprint = (repoState?.commits || []).map(c => c.sha + (c.isConflicting ? 'c' : '')).join(',');
-    const fingerprint = `${repoState?.currentBranch || 'feature'}_${repoState?.baseBranch || 'main'}_${commitsFingerprint}`;
+    const fingerprint = `${repoState?.currentBranch || 'feature'}_${currentBase}_${commitsFingerprint}`;
 
     // Load from Cache first
     try {
@@ -802,7 +815,7 @@ export default function GitVisualizerPanel({
       headers: getApiHeaders(),
       body: JSON.stringify({
         currentBranch: repoState?.currentBranch || 'feature',
-        baseBranch: repoState?.baseBranch || 'main',
+        baseBranch: currentBase,
         commits: repoState?.commits || [],
         ahead: fallbackMetrics.ahead,
         behind: fallbackMetrics.behind,
@@ -834,7 +847,7 @@ export default function GitVisualizerPanel({
     .finally(() => {
       setAiLoading(false);
     });
-  }, [repoState, isAiEnabled, rightPanelTab, tone, computeBranchMetrics]);
+  }, [repoState, isAiEnabled, rightPanelTab, tone, computeBranchMetrics, wizard?.baseBranch]);
 
   useEffect(() => {
     setExpandedCapsuleIds([]);
@@ -3095,8 +3108,79 @@ export default function GitVisualizerPanel({
             ) : (
               <div className="flex flex-col gap-3.5 animate-fade-in animate-duration-250">
                 {(() => {
-                  // Determine metrics source (frozen or live)
                   const isRebase = !!repoState?.rebaseInProgress;
+
+                  // Base branch remote existence validation guard
+                  const currentBase = wizard?.baseBranch || repoState?.baseBranch || 'main';
+                  const branchInRepo = repoState?.branches?.find(
+                    b => b.name.toLowerCase() === currentBase.toLowerCase().trim()
+                  );
+                  const existsOnRemote = !!branchInRepo?.isRemote;
+
+                  if (!existsOnRemote) {
+                    const existsLocally = !!branchInRepo?.isLocal;
+                    return (
+                      <div className={`p-4 rounded-xl border flex flex-col gap-3 text-xs leading-normal select-none animate-fade-in ${
+                        isLight 
+                          ? 'bg-rose-50 border-rose-200 text-rose-900 shadow-sm' 
+                          : 'bg-rose-505/5 bg-rose-950/15 border-rose-500/20 text-rose-300 shadow-lg'
+                      }`}>
+                        <div className="flex items-center gap-2 font-mono font-bold text-[10.5px] text-rose-500 uppercase tracking-wider">
+                          <AlertOctagon className="w-4 h-4 animate-pulse shrink-0" />
+                          <span>
+                            {tone === TranslationTone.ENGLISH 
+                              ? 'CRITICAL BASE BRANCH ERROR' 
+                              : 'LỖI NGHIÊM TRỌNG NHÁNH GỐC'}
+                          </span>
+                        </div>
+                        <p className="font-sans leading-relaxed">
+                          {existsLocally 
+                            ? (tone === TranslationTone.ENGLISH 
+                                ? `The target base branch "${currentBase}" exists only locally on your machine but was NOT found on your remote origin server. To prevent historical drift or catastrophic loss, the base branch must be tracked on the remote server to perform rebase diagnostics.` 
+                                : `Nhánh gốc "${currentBase}" hiện tại chỉ có ở cục bộ máy sếp và CHƯA TỒN TẠI trên Server từ xa (Remote Origin). Để bảo đảm an toàn dữ liệu lịch sử, nhánh gốc bắt buộc phải được đẩy lên Server mới được thực hiện chẩn đoán.`)
+                            : (tone === TranslationTone.ENGLISH 
+                                ? `The selected base branch "${currentBase}" does not exist in this repository (neither locally nor remotely). Please type or select a valid existing branch inside the left menu.` 
+                                : `Nhánh gốc "${currentBase}" không tồn tại trong kho lưu trữ này (cả cục bộ lẫn từ xa). Vui lòng cấu hình nhánh gốc hợp lệ để tiếp tục.`)}
+                        </p>
+                        <div className="border-t border-dashed border-rose-500/20 pt-2.5 mt-1 flex flex-col gap-1.5 font-mono text-[9.5px]">
+                          <span className="text-slate-450 uppercase font-bold">
+                            {tone === TranslationTone.ENGLISH ? 'Suggested Actions:' : 'Phác đồ sơ cứu đề xuất:'}
+                          </span>
+                          <ul className="list-disc pl-4 space-y-1.5 text-slate-400">
+                            {existsLocally ? (
+                              <>
+                                <li>
+                                  {tone === TranslationTone.ENGLISH 
+                                    ? `Push your local branch to tracking remote: git push origin ${currentBase}` 
+                                    : `Đẩy nhánh cục bộ của sếp lên Server: git push origin ${currentBase}`}
+                                </li>
+                                <li>
+                                  {tone === TranslationTone.ENGLISH 
+                                    ? `Or change the base branch to standard one like "develop" or "main" in Wizard Step 1` 
+                                    : `Hoặc quay lại chọn các nhánh gốc có sẵn ở ổ đĩa từ xa như "main" hoặc "develop"`}
+                                </li>
+                              </>
+                            ) : (
+                              <>
+                                <li>
+                                  {tone === TranslationTone.ENGLISH 
+                                    ? `Verify there aren't any typos or casing differences in the branch name` 
+                                    : `Kiểm tra lại xem sếp có gõ nhầm chữ hoa chữ thường hay sai chính tả tên nhánh`}
+                                </li>
+                                <li>
+                                  {tone === TranslationTone.ENGLISH 
+                                    ? `Review all active branches using terminal: git branch -a` 
+                                    : `Đổi sang nhánh gốc hợp lệ khác trong menu cài đặt để cập nhật lại chẩn đoán`}
+                                </li>
+                              </>
+                            )}
+                          </ul>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // Determine metrics source (frozen or live)
                   const metrics = isRebase && frozenDiagnosis 
                     ? frozenDiagnosis 
                     : computeBranchMetrics(repoState);
