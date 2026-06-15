@@ -451,55 +451,92 @@ app.get('/api/git-status', async (req, res) => {
     const hasRemoteBase = rawBranchList.includes(`origin/${baseBranchName}`) || rawBranchList.includes(`remotes/origin/${baseBranchName}`);
     const baseRef = hasLocalBase ? baseBranchName : (hasRemoteBase ? `origin/${baseBranchName}` : baseBranchName);
 
-    const branches = await Promise.all(
-      uniqueBranchNames
-        .map(async bName => {
-          const isLocal = rawBranchList.includes(bName) || rawBranchList.includes(`heads/${bName}`);
-          const isRemote = rawBranchList.includes(`origin/${bName}`) || rawBranchList.includes(`remotes/origin/${bName}`);
-          let aheadCount = 0;
-          let behindCount = 0;
-
-          // Calculate ahead & behind relative to its own remote counterpart on origin
-          if (isLocal && isRemote) {
-            try {
-              const revRes = await runCmd(`git rev-list --left-right --count ${bName}...origin/${bName}`, activeRepoPath);
-              const parts = revRes.stdout.trim().split(/\s+/);
-              if (parts.length === 2) {
-                aheadCount = parseInt(parts[0], 10) || 0;
-                behindCount = parseInt(parts[1], 10) || 0;
-              }
-            } catch (err) {
-              // ignore
-            }
+    // BATCH OPTIMIZATION: Fetch ahead/behind counts for all local tracking branches in ONE command (using branch -vv)
+    const aheadBehindMap = new Map<string, { ahead: number; behind: number }>();
+    try {
+      const branchVvRes = await runCmd('git branch -vv --color=never', activeRepoPath);
+      const vvLines = branchVvRes.stdout.split('\n');
+      const vvRegex = /^\*?\s*([^\s]+)\s+([0-9a-fA-F]+)(?:\s+\[([^\]]+)\])?/;
+      for (const line of vvLines) {
+        const m = line.match(vvRegex);
+        if (m) {
+          const bName = m[1].trim();
+          const bracketContent = m[3] || '';
+          let ahead = 0;
+          let behind = 0;
+          if (bracketContent) {
+            const aheadMatch = bracketContent.match(/ahead\s+(\d+)/);
+            const behindMatch = bracketContent.match(/behind\s+(\d+)/);
+            if (aheadMatch) ahead = parseInt(aheadMatch[1], 10) || 0;
+            if (behindMatch) behind = parseInt(behindMatch[1], 10) || 0;
           }
+          aheadBehindMap.set(bName, { ahead, behind });
+        }
+      }
+    } catch (err) {
+      console.error("Failed to parse git branch -vv:", err);
+    }
 
-          let commitAge = '';
-          let lastCommitDate = '';
-          try {
-            const refToQuery = isLocal ? bName : `origin/${bName}`;
-            const logRes = await runCmd(`git log -1 --format="%cr|%cd" --date=short ${refToQuery}`, activeRepoPath);
-            const logParts = logRes.stdout.trim().split('|');
-            if (logParts.length === 2) {
-              commitAge = logParts[0].trim();
-              lastCommitDate = logParts[1].trim();
-            }
-          } catch (err) {
-            // ignore
-          }
+    // BATCH OPTIMIZATION: Fetch commit age and last commit date for all references in ONE command (using for-each-ref)
+    const refMetadataMap = new Map<string, { commitAge: string; lastCommitDate: string }>();
+    try {
+      const forEachRefRes = await runCmd(
+        'git for-each-ref --format="%(refname:short)|%(committerdate:relative)|%(committerdate:short)" refs/heads/ refs/remotes/', 
+        activeRepoPath
+      );
+      const refLines = forEachRefRes.stdout.split('\n');
+      for (const line of refLines) {
+        const parts = line.split('|');
+        if (parts.length >= 3) {
+          const refShort = parts[0].trim();
+          const relativeAge = parts[1].trim();
+          const shortDate = parts[2].trim();
+          refMetadataMap.set(refShort, { commitAge: relativeAge, lastCommitDate: shortDate });
+        }
+      }
+    } catch (err) {
+      console.error("Failed to run git for-each-ref:", err);
+    }
 
-          return {
-            name: bName,
-            isLocal,
-            isRemote,
-            isCurrent: bName === currBranch,
-            isBase: bName === baseBranchName,
-            aheadCount,
-            behindCount,
-            commitAge,
-            lastCommitDate
-          };
-        })
-    );
+    const branches = uniqueBranchNames.map(bName => {
+      const isLocal = rawBranchList.includes(bName) || rawBranchList.includes(`heads/${bName}`);
+      const isRemote = rawBranchList.includes(`origin/${bName}`) || rawBranchList.includes(`remotes/origin/${bName}`);
+      
+      let aheadCount = 0;
+      let behindCount = 0;
+
+      if (isLocal) {
+        const ab = aheadBehindMap.get(bName);
+        if (ab) {
+          aheadCount = ab.ahead;
+          behindCount = ab.behind;
+        }
+      }
+
+      let commitAge = '';
+      let lastCommitDate = '';
+      
+      const localMeta = isLocal ? refMetadataMap.get(bName) : null;
+      const remoteMeta = isRemote ? (refMetadataMap.get(`origin/${bName}`) || refMetadataMap.get(`remotes/origin/${bName}`)) : null;
+      
+      const meta = localMeta || remoteMeta;
+      if (meta) {
+        commitAge = meta.commitAge;
+        lastCommitDate = meta.lastCommitDate;
+      }
+
+      return {
+        name: bName,
+        isLocal,
+        isRemote,
+        isCurrent: bName === currBranch,
+        isBase: bName === baseBranchName,
+        aheadCount,
+        behindCount,
+        commitAge,
+        lastCommitDate
+      };
+    });
 
     // Calculate separate base comparison for the current branch (for rebase/squash view)
     let baseComparisonAhead = 0;
