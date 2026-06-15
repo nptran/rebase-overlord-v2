@@ -18,6 +18,7 @@ import {
   Terminal as TerminalIcon,
   Laptop,
   Check,
+  Copy,
   Calendar,
   Zap,
   Github,
@@ -359,6 +360,57 @@ const sanityLoc: Record<TranslationTone, {
     simScenarioLargeHistory: "Large Linear Branch History (30+ Commits)",
     simScenarioLargeNonLinear: "Large Non-Linear History (40+ Commits, Multi-branch)",
     simScenarioDesc: "Simulate complex, real-world, non-linear Git histories to test commit graph layout and live anomaly warning diagnostics."
+  }
+};
+
+const staleWarningLoc = {
+  [TranslationTone.PROFESSIONAL]: {
+    modalTitle: "Cảnh báo: Nhánh quá cũ! 🕒",
+    desc: (branch: string, age: string) => `Nhánh "${branch}" đã không có cập nhật mới trong ${age}. Việc trực tiếp Checkout / Rebase nhánh này có thể tiềm ẩn rủi ro xung đột (conflict) cực kỳ nghiêm trọng do code nền của dự án đã thay đổi quá nhanh.`,
+    suggestion: "💡 Đề xuất an toàn: Khởi tạo một nhánh siêu sạch mới từ Base Branch hiện tại và đắp toàn bộ code thay đổi (commit changes) từ nhánh cũ sang.",
+    selectBase: "Chọn nhánh nền (Base Branch) để rẽ nhánh mới:",
+    newBranchInput: "Tên nhánh sạch mới:",
+    buttonAutoMigrate: "Tự động Di chuyển & Làm sạch 🚀",
+    buttonCheckoutAnyway: "Vẫn chuyển nhánh (Mạo hiểm ⚠️)",
+    buttonCancel: "Hủy bỏ",
+    migratingTitle: "Đang di chuyển nhánh cũ...",
+    migrateSuccess: "✓ Đã tạo nhánh sạch mới và đồng bộ toàn bộ thay đổi thành công!",
+  },
+  [TranslationTone.JOKE]: {
+    modalTitle: "Ới sếp! Nhánh này từ thời đồ đá rồi! 🦖",
+    desc: (branch: string, age: string) => `Nhánh "${branch}" đóng băng tận ${age} rồi ní ơi. Leo lên thuyền này rebase hay checkout là va phải đá ngầm, conflict ngập mặt mệt xỉu á nha!`,
+    suggestion: "💡 Kế khích tướng: Đẻ một nhánh tút lại vẻ đẹp trai từ nhánh base hiện tại rồi bê nguyên đai nguyên kiện ruột code cũ sang cho mượt bốc đầu.",
+    selectBase: "Chọn gốc tổ tiên (Base Branch) để đu bám:",
+    newBranchInput: "Tên nhánh mướt rượt mới:",
+    buttonAutoMigrate: "Đẻ nhánh mới gom code auto 🚀",
+    buttonCheckoutAnyway: "Kệ, cứ nhảy hố vôi (Liều ăn nhiều ⚠️)",
+    buttonCancel: "Thôi quay xe",
+    migratingTitle: "Đang gột rửa code thời đồ đá...",
+    migrateSuccess: "✓ Đẻ nhánh mới mượt mà, bê code cũ sang sạch coong sếp ơi!",
+  },
+  [TranslationTone.TOXIC]: {
+    modalTitle: "⚠️ CẢNH BÁO: NHÁNH CỔ LỖ SĨ, ĐỪNG CÓ NGU! ⚠️",
+    desc: (branch: string, age: string) => `Cái nhánh rác rưởi "${branch}" này chết trôi ${age} rồi chưa chịu chôn! Mày định đâm đầu lôi nó ra rebase để ăn cả tấn conflict vào mồm à thằng ngốc?`,
+    suggestion: "💡 Lời khuyên cho bớt ngu: Đẻ nhánh mới tinh từ gốc xịn, sau đó gom hết code rác từ nhánh cũ nhét sang một nốt nhạc.",
+    selectBase: "Nhánh tổ tông rác ở đâu để bám:",
+    newBranchInput: "Đặt tên nhánh rác mới lẹ lên:",
+    buttonAutoMigrate: "Gom rác sang nhánh mới tự động 🚀",
+    buttonCheckoutAnyway: "Cút sang luôn đi tao xem mày khổ ⚠️",
+    buttonCancel: "Sợ quá, hủy gấp!",
+    migratingTitle: "Đang dọn rác cổ lỗ sĩ...",
+    migrateSuccess: "✓ Đã nhét hết code rác sang nhánh mới sạch sẽ rồi đấy!",
+  },
+  [TranslationTone.ENGLISH]: {
+    modalTitle: "Warning: Stale Branch Detected! 🕒",
+    desc: (branch: string, age: string) => `The branch "${branch}" hasn't been active in ${age}. Directly checking out or rebasing this branch poses a high risk of heavy merge conflicts as the base branch has evolved significantly.`,
+    suggestion: "💡 Recommended Strategy: Spawn a fresh branch starting from the active base branch and automatically consolidate/cherry-pick the stale changes on top of it.",
+    selectBase: "Choose Base Branch to spawn from:",
+    newBranchInput: "Fresh branch name:",
+    buttonAutoMigrate: "Auto-Migrate to Fresh Branch 🚀",
+    buttonCheckoutAnyway: "Checkout anyway (Risky ⚠️)",
+    buttonCancel: "Cancel",
+    migratingTitle: "Migrating stale commits...",
+    migrateSuccess: "✓ Created a healthy fresh branch and fully synced consolidated changes!",
   }
 };
 
@@ -885,6 +937,7 @@ export default function App() {
   const [maxVisibleCommits, setMaxVisibleCommits] = React.useState<number | 'all'>(10);
   const [commitPageOffset, setCommitPageOffset] = React.useState<number>(0);
   const [commitSearchTerm, setCommitSearchTerm] = React.useState<string>('');
+  const [copiedCurrentBranch, setCopiedCurrentBranch] = React.useState<boolean>(false);
 
   // File changes preview tooltip state
   const [hoveredSha, setHoveredSha] = React.useState<string | null>(null);
@@ -938,6 +991,30 @@ export default function App() {
     message: string;
     exitCode?: number | null;
   } | null>(null);
+
+  // States for stale branch warning and auto-migration
+  const [staleBranchWarning, setStaleBranchWarning] = React.useState<{
+    name: string;
+    age: string;
+    lastCommitDate: string;
+  } | null>(null);
+  const [staleMigrateBase, setStaleMigrateBase] = React.useState<string>('develop');
+  const [staleMigrateNewName, setStaleMigrateNewName] = React.useState<string>('');
+  const [isStaleMigrating, setIsStaleMigrating] = React.useState<boolean>(false);
+
+  // Helper inside component to check if a branch is older than 7 days
+  const isBranchStale = React.useCallback((lastCommitDate: string | undefined): boolean => {
+    if (!lastCommitDate) return false;
+    try {
+      const commitTime = new Date(lastCommitDate).getTime();
+      if (isNaN(commitTime)) return false;
+      const nowTime = Math.max(new Date().getTime(), new Date("2026-06-15").getTime()); 
+      const diffDays = (nowTime - commitTime) / (1000 * 60 * 60 * 24);
+      return diffDays > 7;
+    } catch (_) {
+      return false;
+    }
+  }, []);
   const isUpgraded = React.useMemo(() => {
     const cleanVersion = appVersion.replace(/^v/, '');
     const parts = cleanVersion.split('.').map(v => parseInt(v, 10) || 0);
@@ -1590,12 +1667,13 @@ export default function App() {
   // Fetch metrics upon settings updates
   const [isRefreshing, setIsRefreshing] = React.useState<boolean>(false);
   const [checkingOutBranch, setCheckingOutBranch] = React.useState<string | null>(null);
-  const handleRefresh = React.useCallback(async (overrideSim?: boolean) => {
+  const handleRefresh = React.useCallback(async (overrideSim?: boolean, customBase?: string) => {
     setIsRefreshing(true);
     try {
       const activeSim = overrideSim !== undefined ? overrideSim : isSimulation;
-      addLog(`$ Refreshing git states (Simulation: ${activeSim}, Scenario: ${simScenarioId})...`);
-      const url = resolveApiUrl(`/api/git-status?simulation=${activeSim}&scenario=${simScenarioId}`);
+      const baseVal = customBase !== undefined ? customBase : (wizard.baseBranch || 'develop');
+      addLog(`$ Refreshing git states (Simulation: ${activeSim}, Scenario: ${simScenarioId}, Base branch: ${baseVal})...`);
+      const url = resolveApiUrl(`/api/git-status?simulation=${activeSim}&scenario=${simScenarioId}&baseBranch=${encodeURIComponent(baseVal)}`);
       const res = await fetch(url);
       
       const contentType = res.headers.get('content-type') || '';
@@ -1651,7 +1729,7 @@ export default function App() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [isSimulation, simScenarioId, addLog]);
+  }, [isSimulation, simScenarioId, addLog, wizard.baseBranch]);
 
   React.useEffect(() => {
     if (isSimulation) {
@@ -1682,7 +1760,7 @@ export default function App() {
 
   const quietRefresh = React.useCallback(async () => {
     try {
-      const url = resolveApiUrl(`/api/git-status?simulation=false`);
+      const url = resolveApiUrl(`/api/git-status?simulation=false&baseBranch=${encodeURIComponent(wizard.baseBranch || 'develop')}`);
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -1708,7 +1786,7 @@ export default function App() {
     } catch (err) {
       // quiet fail
     }
-  }, []);
+  }, [wizard.baseBranch]);
 
   // Background polling during real active rebase operations to track external aborts or progress
   React.useEffect(() => {
@@ -2371,7 +2449,7 @@ export default function App() {
         
         // Refresh the actual Git state right away
         addLog(`$ Refreshing repository status to fetch conflicts...`);
-        const refreshUrl = resolveApiUrl(`/api/git-status?simulation=false`);
+        const refreshUrl = resolveApiUrl(`/api/git-status?simulation=false&baseBranch=${encodeURIComponent(wizard.baseBranch || 'develop')}`);
         const refreshRes = await fetch(refreshUrl);
         if (refreshRes.ok) {
           const refreshedRepoState = await refreshRes.json();
@@ -2518,7 +2596,7 @@ export default function App() {
         const data = await res.json();
         
         // Refresh git status to see if completed or another conflict occurred
-        const refreshUrl = resolveApiUrl(`/api/git-status?simulation=false`);
+        const refreshUrl = resolveApiUrl(`/api/git-status?simulation=false&baseBranch=${encodeURIComponent(wizard.baseBranch || 'develop')}`);
         const refreshRes = await fetch(refreshUrl);
         if (refreshRes.ok) {
           const refreshedRepoState = await refreshRes.json();
@@ -2915,7 +2993,22 @@ export default function App() {
   };
 
   // Active Checkout action
-  const handleCheckoutBranch = async (branchName: string) => {
+  const handleCheckoutBranch = async (branchName: string, bypassStaleCheck = false) => {
+    // 1. Check if the branch is stale (>7 days)
+    if (!bypassStaleCheck) {
+      const targetBranch = repoState.branches.find(b => b.name === branchName);
+      if (targetBranch && isBranchStale(targetBranch.lastCommitDate)) {
+        setStaleBranchWarning({
+          name: branchName,
+          age: targetBranch.commitAge || 'unknown time',
+          lastCommitDate: targetBranch.lastCommitDate || 'unknown date'
+        });
+        setStaleMigrateBase(repoState.baseBranch || 'develop');
+        setStaleMigrateNewName(`${branchName}-fresh`);
+        return;
+      }
+    }
+
     setCheckingOutBranch(branchName);
     addLog(`$ git checkout ${branchName}`);
     
@@ -2966,6 +3059,101 @@ export default function App() {
       addLog(`! Failed network thread executing checkout: ${err.message}`);
     } finally {
       setCheckingOutBranch(null);
+    }
+  };
+
+  // Perform auto-migration for a stale branch
+  const handleMigrateStaleBranch = async () => {
+    if (!staleBranchWarning) return;
+    setIsStaleMigrating(true);
+    const { name: staleBranch } = staleBranchWarning;
+    const baseBranch = staleMigrateBase;
+    const newBranchName = staleMigrateNewName.trim() || `${staleBranch}-fresh`;
+
+    addLog(`$ git migrate-stale-branch --from ${staleBranch} --onto ${baseBranch} --new ${newBranchName}`);
+    
+    try {
+      if (isSimulation) {
+        // Small delay to make simulation look highly authentic and technical
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        addLog(`[SIMULATION] $ git merge-base ${baseBranch} ${staleBranch}`);
+        addLog(`[SIMULATION] Identified split commit point: b5a2e1d`);
+        addLog(`[SIMULATION] $ git checkout ${staleBranch}`);
+        addLog(`[SIMULATION] $ git checkout -b temp-migrate-sim`);
+        addLog(`[SIMULATION] $ git reset --soft b5a2e1d`);
+        addLog(`[SIMULATION] $ git stash push -m "stale-branch-migration-${newBranchName}"`);
+        addLog(`[SIMULATION] $ git checkout ${baseBranch}`);
+        addLog(`[SIMULATION] $ git checkout -b ${newBranchName}`);
+        addLog(`[SIMULATION] $ git stash pop`);
+        addLog(`[SIMULATION] $ git add -A`);
+        addLog(`[SIMULATION] $ git commit -m "Consolidated changes from stale branch ${staleBranch}"`);
+        addLog(`[SIMULATION] $ git branch -D temp-migrate-sim`);
+
+        // Update local simulated branches list
+        setRepoState(prev => {
+          // Check if already exists
+          const exists = prev.branches.some(b => b.name === newBranchName);
+          const updatedBranches = prev.branches.map(b => {
+            if (b.name === prev.currentBranch) {
+              return { ...b, isCurrent: false };
+            }
+            return b;
+          });
+
+          const newBranchObj = {
+            name: newBranchName,
+            isLocal: true,
+            isRemote: false,
+            isCurrent: true,
+            isBase: false,
+            commitAge: 'Just now',
+            lastCommitDate: '2026-06-15'
+          };
+
+          const finalBranches = exists ? updatedBranches : [newBranchObj, ...updatedBranches];
+
+          return {
+            ...prev,
+            currentBranch: newBranchName,
+            branches: finalBranches,
+            isDirty: true,
+            dirtyFiles: Array.from(new Set([...prev.dirtyFiles, 'src/routes/payment.ts', 'src/services/stripe.ts']))
+          };
+        });
+
+        triggerToast('success', 'Migration Clean Successful', 'Merged conflict-free changes onto fresh branch.');
+        addLog(`✓ Stale branch successfully migrated to: ${newBranchName}`);
+        setStaleBranchWarning(null);
+      } else {
+        // Actual mode
+        const res = await fetch(resolveApiUrl('/api/migrate-stale-branch'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            staleBranch,
+            baseBranch,
+            newBranchName
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          addLog(`✓ Server response: ${data.message}`);
+          triggerToast('success', 'Migrate Success', `Migrated onto ${data.newBranch}`);
+          await handleRefresh();
+          setStaleBranchWarning(null);
+        } else {
+          const errMsg = await safeParseError(res, 'Migration backend process failed');
+          addLog(`! Error migrating stale branch: ${errMsg}`);
+          triggerToast('error', 'Migration Failed', errMsg);
+        }
+      }
+    } catch (err: any) {
+      addLog(`! Failed network thread executing migration: ${err.message}`);
+      triggerToast('error', 'Network Error', err.message);
+    } finally {
+      setIsStaleMigrating(false);
     }
   };
 
@@ -3083,9 +3271,16 @@ export default function App() {
     setIsFetchingGlobal(false);
   };
 
+  const handleQuickBaseChange = async (newBase: string) => {
+    handleUpdateWizard({ baseBranch: newBase });
+    setRepoState(prev => ({ ...prev, baseBranch: newBase }));
+    addLog(`🔄 Changing base comparison branch to: [${newBase}]`);
+    await handleRefresh(undefined, newBase);
+  };
+
   const handlePullBranch = async (branchName: string) => {
     const isCurrent = repoState.currentBranch === branchName;
-    const command = isCurrent ? `git pull origin ${branchName}` : `git checkout ${branchName} && git pull origin ${branchName}`;
+    const command = isCurrent ? `git pull origin ${branchName}` : `git fetch origin ${branchName}:${branchName}`;
     addLog(`$ ${command}`);
     if (isSimulation) {
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -3096,9 +3291,13 @@ export default function App() {
           }
           return b;
         });
-        return { ...prev, currentBranch: branchName, branches: updated };
+        return { ...prev, branches: updated };
       });
-      addLog(`✓ Successfully pulled and merged latest commits for [${branchName}] (Simulated).`);
+      if (isCurrent) {
+        addLog(`✓ Successfully pulled and merged latest commits for [${branchName}] (Simulated).`);
+      } else {
+        addLog(`✓ Fast-forwarded and updated [${branchName}] from origin directly without checking out! You are still on [${repoState.currentBranch}].`);
+      }
     } else {
       try {
         const res = await fetch(resolveApiUrl('/api/execute-command'), {
@@ -3107,11 +3306,20 @@ export default function App() {
           body: JSON.stringify({ command })
         });
         if (res.ok) {
-          addLog(`✓ Pulled and updated [${branchName}] successfully.`);
+          if (isCurrent) {
+            addLog(`✓ Pulled and updated [${branchName}] successfully.`);
+          } else {
+            addLog(`✓ Fast-forwarded and updated [${branchName}] directly without checking out! You are still on [${repoState.currentBranch}].`);
+          }
           handleRefresh();
         } else {
-          const errMsg = await safeParseError(res, 'Pull command failed');
-          addLog(`! Pull error: ${errMsg}`);
+          const errMsg = await safeParseError(res, 'Pull/fetch command failed');
+          if (!isCurrent) {
+            addLog(`! Direct update failed: ${errMsg}`);
+            addLog(`💡 Gợi ý: Có vẻ nhánh [${branchName}] không thể chuyển nhanh (non-fast-forward). Hãy checkout qua [${branchName}] để thực hiện kéo code thủ công.`);
+          } else {
+            addLog(`! Pull error: ${errMsg}`);
+          }
         }
       } catch (err: any) {
         addLog(`! Network timeout pulling: ${err.message}`);
@@ -3394,16 +3602,64 @@ export default function App() {
         }`}>
           {/* Branch Status details */}
           <div className="flex flex-wrap items-center gap-3">
-            <div className={`px-2.5 py-1 rounded-md border font-mono font-bold tracking-tight text-xs flex items-center gap-1.5 ${
+            <div className={`px-2.5 py-1 rounded-md border font-mono font-bold tracking-tight text-xs flex items-center gap-2 ${
               theme === 'light' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-indigo-500/15 border-indigo-500/20 text-indigo-300'
             }`}>
-              <GitBranch className="w-3.5 h-3.5" />
-              <span>{repoState.currentBranch}</span>
+              <div className="flex items-center gap-1.5">
+                <GitBranch className="w-3.5 h-3.5 text-indigo-400" />
+                <span>{repoState.currentBranch}</span>
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(repoState.currentBranch || '');
+                    setCopiedCurrentBranch(true);
+                    setTimeout(() => setCopiedCurrentBranch(false), 1500);
+                  } catch (err) {}
+                }}
+                className={`p-1 rounded cursor-pointer transition-all duration-150 shrink-0 flex items-center justify-center ${
+                  theme === 'light'
+                    ? 'hover:bg-slate-200/50 text-indigo-655 active:bg-slate-300/60'
+                    : 'hover:bg-slate-800/60 text-indigo-300 active:bg-slate-800/80'
+                }`}
+                title={tone === TranslationTone.ENGLISH ? "Copy branch name" : "Sao chép tên nhánh"}
+              >
+                {copiedCurrentBranch ? (
+                  <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                )}
+              </button>
             </div>
 
             <div className="flex items-center gap-2 text-slate-500 dark:text-slate-405 font-medium">
               <span>{tone === TranslationTone.ENGLISH ? "compared to" : "so với"}</span>
-              <span className="font-mono font-semibold px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-350">{repoState.baseBranch || 'develop'}</span>
+              <div className="relative inline-block">
+                <select
+                  value={repoState.baseBranch || 'develop'}
+                  onChange={(e) => handleQuickBaseChange(e.target.value)}
+                  className={`font-mono font-semibold px-2 py-0.5 pr-6 rounded border text-[11px] outline-none cursor-pointer appearance-none transition-colors ${
+                    theme === 'light'
+                      ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-800'
+                      : 'bg-slate-850 hover:bg-slate-800 border-slate-700 text-slate-300'
+                  }`}
+                  style={{ backgroundImage: 'none' }}
+                >
+                  {Array.from(new Set(
+                    repoState.branches
+                      .map(b => b.name as string)
+                      .filter(name => ['develop', 'main', 'master', 'dev', 'test'].includes(name) || name === (repoState.baseBranch || 'develop'))
+                  )).map(bName => (
+                    <option key={bName} value={bName} className={theme === 'light' ? 'bg-white text-slate-800' : 'bg-slate-900 text-slate-200'}>{bName}</option>
+                  ))}
+                </select>
+                <div className="absolute inset-y-0 right-1.5 flex items-center pointer-events-none text-slate-500 dark:text-slate-400">
+                  <svg className="w-2.5 h-2.5 fill-current" viewBox="0 0 20 20">
+                    <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                  </svg>
+                </div>
+              </div>
             </div>
 
             {/* Metrics Badges */}
@@ -4625,10 +4881,18 @@ export default function App() {
 
               {/* DETAILED ACTIVE DIAGNOSTIC CLINIC DRAWER REPORT */}
               {doctorProblem && (
-                <div className="bg-[#111219] border border-violet-500/30 p-3 rounded-xl flex flex-col gap-2 animate-fade-in text-slate-300">
-                  <div className="flex justify-between items-center border-b border-slate-800 pb-1.5">
-                    <span className="text-[9px] font-mono font-black text-violet-400 uppercase tracking-widest flex items-center gap-1">
-                      <Zap className="w-3 h-3 text-violet-400 animate-pulse" />
+                <div className={`p-3 rounded-xl flex flex-col gap-2 animate-fade-in ${
+                  theme === 'light'
+                    ? 'bg-slate-50 border border-slate-200 text-slate-800 shadow-sm shadow-slate-100/50'
+                    : 'bg-[#111219] border border-violet-500/30 text-slate-300'
+                }`}>
+                  <div className={`flex justify-between items-center border-b pb-1.5 ${
+                    theme === 'light' ? 'border-slate-200' : 'border-slate-800'
+                  }`}>
+                    <span className={`text-[9px] font-mono font-black uppercase tracking-widest flex items-center gap-1 ${
+                      theme === 'light' ? 'text-violet-605' : 'text-violet-400'
+                    }`}>
+                      <Zap className={`w-3 h-3 ${theme === 'light' ? 'text-violet-600' : 'text-violet-400'} animate-pulse`} />
                       {sloc.doctorRep}
                     </span>
                     <button
@@ -4636,7 +4900,9 @@ export default function App() {
                         setDoctorProblem(null);
                         setDoctorDiagnosis(null);
                       }}
-                      className="text-slate-500 hover:text-slate-300 cursor-pointer"
+                      className={`cursor-pointer transition-colors ${
+                        theme === 'light' ? 'text-slate-400 hover:text-slate-600' : 'text-slate-500 hover:text-slate-300'
+                      }`}
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -4645,24 +4911,32 @@ export default function App() {
                   {doctorLoading ? (
                      <div className="flex flex-col items-center gap-2 py-4 text-center text-xs font-mono">
                        <span className="animate-spin h-4.5 w-4.5 border-2 border-violet-500 border-t-transparent rounded-full font-mono"></span>
-                       <span className="text-slate-400 animate-pulse">{sloc.scanAnomaliesLoading}</span>
+                       <span className={`${theme === 'light' ? 'text-slate-500' : 'text-slate-400'} animate-pulse`}>{sloc.scanAnomaliesLoading}</span>
                      </div>
                   ) : doctorError ? (
-                     <div className="text-[10px] font-mono text-rose-400 p-2 border border-rose-500/20 bg-rose-950/20 rounded">
+                     <div className={`text-[10px] font-mono p-2 border rounded ${
+                       theme === 'light' ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-rose-500/20 bg-rose-950/20 text-rose-400'
+                     }`}>
                        ⚠️ {doctorError}
                      </div>
                   ) : doctorDiagnosis ? (
                      <div className="flex flex-col gap-2.5 animate-fadeIn">
                        {/* Animated Expert Consultant Dock */}
                        {(doctorDiagnosis.dr_compiler || doctorDiagnosis.dr_schema) && (
-                         <div className="flex gap-1.5 border-b border-[#2d2f3c]/40 pb-2">
+                         <div className={`flex gap-1.5 border-b pb-2 ${
+                           theme === 'light' ? 'border-slate-200' : 'border-[#2d2f3c]/40'
+                         }`}>
                            <button
                              type="button"
                              onClick={() => setActiveDoctorTab('overlord')}
                              className={`flex-1 px-2 py-1 rounded-lg border text-[9px] font-mono font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                                activeDoctorTab === 'overlord'
-                                 ? 'bg-violet-600/15 border-violet-500/50 text-violet-300'
-                                 : 'bg-[#0a0b10] border-[#2d2f3c]/20 text-slate-400 hover:text-slate-300'
+                                 ? theme === 'light'
+                                   ? 'bg-violet-600/10 border-violet-500 text-violet-750 font-extrabold'
+                                   : 'bg-violet-600/15 border-violet-500/50 text-violet-300'
+                                 : theme === 'light'
+                                   ? 'bg-[#f8fafc] border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'
+                                   : 'bg-[#0a0b10] border-[#2d2f3c]/20 text-slate-400 hover:text-slate-300'
                              }`}
                            >
                              <span>👑</span> Overlord
@@ -4673,8 +4947,12 @@ export default function App() {
                                onClick={() => setActiveDoctorTab('compiler')}
                                className={`flex-1 px-2 py-1 rounded-lg border text-[9px] font-mono font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                                  activeDoctorTab === 'compiler'
-                                   ? 'bg-emerald-600/15 border-emerald-500/50 text-emerald-300'
-                                   : 'bg-[#0a0b10] border-[#2d2f3c]/20 text-slate-400 hover:text-slate-300'
+                                   ? theme === 'light'
+                                     ? 'bg-emerald-600/10 border-emerald-500 text-emerald-750 font-extrabold'
+                                     : 'bg-emerald-600/15 border-emerald-500/50 text-emerald-300'
+                                   : theme === 'light'
+                                     ? 'bg-[#f8fafc] border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'
+                                     : 'bg-[#0a0b10] border-[#2d2f3c]/20 text-slate-400 hover:text-slate-300'
                                }`}
                              >
                                <span>💻</span> Compiler
@@ -4686,8 +4964,12 @@ export default function App() {
                                onClick={() => setActiveDoctorTab('schema')}
                                className={`flex-1 px-2 py-1 rounded-lg border text-[9px] font-mono font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                                  activeDoctorTab === 'schema'
-                                   ? 'bg-cyan-600/15 border-cyan-500/50 text-cyan-300'
-                                   : 'bg-[#0a0b10] border-[#2d2f3c]/20 text-slate-400 hover:text-slate-300'
+                                   ? theme === 'light'
+                                     ? 'bg-cyan-600/10 border-cyan-500 text-cyan-750 font-extrabold'
+                                     : 'bg-cyan-600/15 border-cyan-500/50 text-cyan-300'
+                                   : theme === 'light'
+                                     ? 'bg-[#f8fafc] border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'
+                                     : 'bg-[#0a0b10] border-[#2d2f3c]/20 text-slate-400 hover:text-slate-300'
                                }`}
                              >
                                <span>🗃️</span> Dr. Schema
@@ -4698,15 +4980,25 @@ export default function App() {
 
                        {/* List affected files if working tree is dirty */}
                        {doctorProblem === 'dirty_working_tree' && repoState.dirtyFiles && repoState.dirtyFiles.length > 0 && (
-                         <div className="text-[10px] text-slate-300 bg-slate-950/30 p-2 rounded border border-[#2d2f3c]/30 flex flex-col gap-1.5">
-                           <strong className="text-[9px] font-mono font-bold text-violet-350 uppercase block tracking-wider">
+                         <div className={`text-[10px] p-2 rounded border flex flex-col gap-1.5 ${
+                           theme === 'light'
+                             ? 'bg-slate-100 border-slate-200 text-slate-700'
+                             : 'text-slate-300 bg-slate-950/30 border border-[#2d2f3c]/30'
+                         }`}>
+                           <strong className={`text-[9px] font-mono font-bold uppercase block tracking-wider ${
+                             theme === 'light' ? 'text-violet-700' : 'text-violet-350'
+                           }`}>
                              {sloc.dirtyFilesLabel}
                            </strong>
                            <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto pr-1">
                              {repoState.dirtyFiles.map(file => (
                                <div key={file} className="flex items-center gap-1 font-mono text-[9px]">
                                  <span className="w-1 h-1 rounded-full bg-amber-500 animate-pulse shrink-0"></span>
-                                 <span className={`px-1.5 py-0.5 rounded border ${theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-705' : 'bg-slate-900/40 border-amber-500/10 text-amber-300'}`}>
+                                 <span className={`px-1.5 py-0.5 rounded border ${
+                                   theme === 'light' 
+                                     ? 'bg-white border-slate-200 text-slate-700 shadow-xs' 
+                                     : 'bg-slate-900/40 border-amber-500/10 text-amber-300'
+                                 }`}>
                                    {file}
                                  </span>
                                </div>
@@ -4722,9 +5014,17 @@ export default function App() {
                            doctorDiagnosis.dr_overlord;
 
                          const docStyle = 
-                           activeDoctorTab === 'compiler' ? { border: 'border-emerald-500/30', text: 'text-emerald-300', bg: 'bg-emerald-950/20' } :
-                           activeDoctorTab === 'schema' ? { border: 'border-cyan-500/30', text: 'text-cyan-300', bg: 'bg-cyan-950/20' } :
-                           { border: 'border-violet-500/25', text: 'text-violet-300', bg: 'bg-slate-950/50' };
+                           activeDoctorTab === 'compiler' 
+                             ? theme === 'light'
+                               ? { border: 'border-emerald-200', text: 'text-emerald-700', bg: 'bg-emerald-50' }
+                               : { border: 'border-emerald-500/30', text: 'text-emerald-300', bg: 'bg-emerald-950/20' }
+                             : activeDoctorTab === 'schema'
+                               ? theme === 'light'
+                                 ? { border: 'border-cyan-200', text: 'text-cyan-700', bg: 'bg-cyan-50' }
+                                 : { border: 'border-cyan-500/30', text: 'text-cyan-300', bg: 'bg-cyan-950/20' }
+                               : theme === 'light'
+                                 ? { border: 'border-violet-250', text: 'text-violet-850', bg: 'bg-violet-50/50' }
+                                 : { border: 'border-violet-500/25', text: 'text-violet-300', bg: 'bg-slate-950/50' };
 
                          const headingLabel = 
                            activeDoctorTab === 'compiler' ? "🩺 BÁO CÁO CÚ PHÁP (DR. COMPILER)" :
@@ -4733,20 +5033,32 @@ export default function App() {
 
                          return (
                            <div className="flex flex-col gap-2 animate-fadeIn font-mono">
-                             <div className={`text-[10px] text-slate-350 p-2.5 rounded-lg border ${docStyle.border} ${docStyle.bg}`}>
+                             <div className={`text-[10px] p-2.5 rounded-lg border ${docStyle.border} ${docStyle.bg}`}>
                                <strong className={`text-[9px] font-mono font-bold uppercase block tracking-wider ${docStyle.text}`}>
                                  {headingLabel}
                                </strong>
-                               <p className="font-sans leading-relaxed text-slate-200 mt-1 whitespace-pre-line text-[11px]">
+                               <p className={`font-sans leading-relaxed mt-1 whitespace-pre-line text-[11px] ${
+                                 theme === 'light' ? 'text-slate-700' : 'text-slate-200'
+                               }`}>
                                  {activeDoc.explanation}
                                </p>
                              </div>
 
-                             <div className="text-[10px] text-slate-300 bg-indigo-950/15 p-2.5 rounded-lg border border-indigo-500/15">
-                               <strong className="text-[9px] font-mono font-bold text-[#a5b4fc] uppercase block tracking-wider">
+                             <div className={`text-[10px] p-2.5 rounded-lg border ${
+                               theme === 'light'
+                                 ? 'bg-indigo-50/70 border-indigo-200 text-slate-800'
+                                 : 'text-slate-300 bg-indigo-950/15 border border-indigo-500/15'
+                             }`}>
+                               <strong className={`text-[9px] font-mono font-bold uppercase block tracking-wider ${
+                                 theme === 'light' ? 'text-indigo-700' : 'text-[#a5b4fc]'
+                               }`}>
                                  💡 CHỈ ĐỊNH ĐIỀU TRỊ (MITIGATION PLAN)
-                               </strong>
-                               <div className="font-sans leading-relaxed text-slate-250 mt-1 whitespace-pre-line border-l-2 border-indigo-500/30 pl-2 text-[11px]">
+                                </strong>
+                               <div className={`font-sans leading-relaxed mt-1 whitespace-pre-line border-l-2 pl-2 text-[11px] ${
+                                 theme === 'light'
+                                   ? 'border-indigo-300 text-slate-705'
+                                   : 'border-indigo-500/30 text-slate-250'
+                               }`}>
                                  {activeDoc.mitigation}
                                </div>
                              </div>
@@ -5056,6 +5368,159 @@ export default function App() {
                   >
                     🔄 Restart & Recheck
                   </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+
+          {/* Stale Branch Warning & Auto-Migration Modal */}
+          {staleBranchWarning && (
+            <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => !isStaleMigrating && setStaleBranchWarning(null)}
+                className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+              />
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 15 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 15 }}
+                transition={{ type: "spring", duration: 0.4 }}
+                className={`relative max-w-lg w-full p-6 rounded-xl border shadow-2xl font-mono z-50 ${
+                  theme === 'light' 
+                    ? 'bg-white border-slate-200 text-slate-800 shadow-[0_15px_50px_rgba(0,0,0,0.1)]' 
+                    : 'bg-[#0f172a] border-slate-800 text-slate-100 shadow-[0_15px_50px_rgba(0,0,0,0.4)]'
+                }`}
+              >
+                {/* Warning Header */}
+                <div className="flex items-start gap-4 mb-4 text-left">
+                  <div className="p-2.5 rounded-lg bg-amber-500/10 text-amber-500 shrink-0 border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.15)] animate-pulse">
+                    <AlertTriangle className="w-5 h-5" />
+                  </div>
+                  <div className="flex-grow min-w-0">
+                    <h3 className={`text-sm font-black uppercase tracking-wider flex items-center gap-1.5 ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
+                      {staleWarningLoc[tone]?.modalTitle || staleWarningLoc[TranslationTone.PROFESSIONAL].modalTitle}
+                    </h3>
+                    <p className={`text-[11px] mt-2.5 leading-relaxed font-sans ${theme === 'light' ? 'text-slate-600' : 'text-slate-400'}`}>
+                      {(staleWarningLoc[tone]?.desc || staleWarningLoc[TranslationTone.PROFESSIONAL].desc)(staleBranchWarning.name, staleBranchWarning.age)}
+                    </p>
+                    <div className={`mt-3 p-2.5 rounded-lg text-[10px] leading-relaxed font-sans font-semibold border ${
+                      theme === 'light' ? 'bg-amber-50/50 border-amber-200/60 text-amber-800/95' : 'bg-amber-500/5 border-amber-500/15 text-amber-400/90'
+                    }`}>
+                      {staleWarningLoc[tone]?.suggestion || staleWarningLoc[TranslationTone.PROFESSIONAL].suggestion}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Migration Parameters Grid */}
+                <div className="space-y-4 pt-3.5 border-t border-slate-200/10 text-xs text-left">
+                  <div className="grid grid-cols-12 gap-4">
+                    {/* Base branch to fork from */}
+                    <div className="col-span-12 sm:col-span-6">
+                      <label className={`block text-[9px] uppercase font-black tracking-widest mb-1.5 ${theme === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {staleWarningLoc[tone]?.selectBase || staleWarningLoc[TranslationTone.PROFESSIONAL].selectBase}
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={staleMigrateBase}
+                          disabled={isStaleMigrating}
+                          onChange={(e) => setStaleMigrateBase(e.target.value)}
+                          className={`w-full px-2.5 py-1.5 text-xs font-mono rounded border outline-none cursor-pointer appearance-none transition-colors ${
+                            theme === 'light' 
+                              ? 'bg-white border-slate-250 text-slate-850 focus:border-sky-500 focus:ring-1 focus:ring-sky-200' 
+                              : 'bg-slate-900 border-slate-805 text-slate-200 focus:border-sky-500 focus:ring-1 focus:ring-sky-950'
+                          }`}
+                        >
+                          {Array.from(new Set(repoState.branches.map(b => b.name as string)))
+                            .filter((bName: string) => bName !== 'origin' && !bName.includes('HEAD') && !bName.includes('->'))
+                            .map((bName: string) => (
+                              <option key={bName} value={bName}>{bName}</option>
+                            ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* New clean branch name */}
+                    <div className="col-span-12 sm:col-span-6">
+                      <label className={`block text-[9px] uppercase font-black tracking-widest mb-1.5 ${theme === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
+                        {staleWarningLoc[tone]?.newBranchInput || staleWarningLoc[TranslationTone.PROFESSIONAL].newBranchInput}
+                      </label>
+                      <input
+                        type="text"
+                        value={staleMigrateNewName}
+                        disabled={isStaleMigrating}
+                        onChange={(e) => {
+                          const val = e.target.value
+                            .toLowerCase()
+                            .replace(/\s+/g, '-')
+                            .replace(/[^a-z0-9\-_./]/g, '');
+                          setStaleMigrateNewName(val);
+                        }}
+                        className={`w-full px-2.5 py-1.5 text-xs font-mono rounded border outline-none transition-colors ${
+                          theme === 'light' 
+                            ? 'bg-white border-slate-250 text-slate-850 focus:border-sky-500 focus:ring-1 focus:ring-sky-200' 
+                            : 'bg-slate-900 border-slate-805 text-slate-200 focus:border-sky-500 focus:ring-1 focus:ring-sky-950'
+                        }`}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions buttons footer */}
+                <div className="flex flex-col sm:flex-row justify-between items-center gap-2 mt-6 pt-4 border-t border-slate-200/10 text-xs">
+                  {/* Checkout anyway action - small & risky */}
+                  <button
+                    type="button"
+                    disabled={isStaleMigrating}
+                    onClick={() => {
+                      handleCheckoutBranch(staleBranchWarning.name, true);
+                      setStaleBranchWarning(null);
+                    }}
+                    className={`order-3 sm:order-1 px-3 py-1.5 rounded border transition-all text-[11px] font-bold cursor-pointer select-none active:scale-[0.98] ${
+                      theme === 'light'
+                        ? 'bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-700'
+                        : 'bg-rose-950/20 border-rose-950/50 text-rose-400 hover:bg-rose-900/30'
+                    }`}
+                  >
+                    {staleWarningLoc[tone]?.buttonCheckoutAnyway || staleWarningLoc[TranslationTone.PROFESSIONAL].buttonCheckoutAnyway}
+                  </button>
+
+                  <div className="order-2 flex gap-2 w-full sm:w-auto justify-end">
+                    {/* Cancel btn */}
+                    <button
+                      type="button"
+                      disabled={isStaleMigrating}
+                      onClick={() => setStaleBranchWarning(null)}
+                      className={`px-3 py-1.5 rounded border cursor-pointer select-none transition-all active:scale-[0.98] ${
+                        theme === 'light'
+                          ? 'bg-slate-150 hover:bg-slate-200 border-slate-350 text-slate-700'
+                          : 'bg-slate-950 hover:bg-slate-900 border-slate-850 text-slate-400 hover:text-slate-100'
+                      }`}
+                    >
+                      {staleWarningLoc[tone]?.buttonCancel || staleWarningLoc[TranslationTone.PROFESSIONAL].buttonCancel}
+                    </button>
+
+                    {/* Auto-Migrate clean commit stack btn */}
+                    <button
+                      type="button"
+                      disabled={isStaleMigrating || !staleMigrateNewName.trim()}
+                      onClick={handleMigrateStaleBranch}
+                      className={`px-4 py-1.5 rounded font-black text-white bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-500 border border-amber-500/20 shadow-lg cursor-pointer select-none transition-all active:scale-[0.98] flex items-center justify-center gap-1.5 min-w-[150px] ${
+                        isStaleMigrating ? 'animate-pulse' : ''
+                      }`}
+                    >
+                      {isStaleMigrating ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>{(staleWarningLoc[tone]?.migratingTitle || staleWarningLoc[TranslationTone.PROFESSIONAL].migratingTitle)}</span>
+                        </>
+                      ) : (
+                        <span>{(staleWarningLoc[tone]?.buttonAutoMigrate || staleWarningLoc[TranslationTone.PROFESSIONAL].buttonAutoMigrate)}</span>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             </div>

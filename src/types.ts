@@ -34,6 +34,8 @@ export interface GitBranch {
   isBase?: boolean;
   aheadCount?: number;
   behindCount?: number;
+  commitAge?: string;
+  lastCommitDate?: string;
 }
 
 export interface ConflictFile {

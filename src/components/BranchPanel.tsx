@@ -444,7 +444,7 @@ export default function BranchPanel({
                 }`}
               >
                 {/* Branch Info Left */}
-                <div className="flex items-center gap-2 max-w-[calc(100%-28px)] w-full overflow-hidden">
+                <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden mr-2">
                   {isCheckingOutThis ? (
                     <RefreshCw className="w-4 h-4 text-indigo-400 animate-spin shrink-0" />
                   ) : isCurrent ? (
@@ -452,31 +452,53 @@ export default function BranchPanel({
                   ) : (
                     <GitBranch className={`w-4 h-4 shrink-0 ${isLight ? 'text-slate-400' : 'text-slate-600'}`} />
                   )}
-                  <span className={`font-semibold truncate flex-grow ${isCurrent ? 'text-sky-600' : isCheckingOutThis ? 'text-indigo-400 font-bold' : isLight ? 'text-slate-800' : 'text-slate-300'}`} title={branch.name}>
-                    {branch.name}
-                    {isCheckingOutThis && (
-                      <span className="text-[10px] text-indigo-400 font-bold ml-1.5 italic animate-pulse">
-                        ({loc.checkingOut})
-                      </span>
-                    )}
-                  </span>
                   
-                  {/* Status Badges */}
-                  <div className="flex items-center gap-1 shrink-0">
-                    {branch.isBase && (
-                      <span className="text-[9px] bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-1 rounded uppercase font-bold">
-                        BASE
+                  <div className="flex-grow flex flex-col min-w-0">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
+                      <span className={`font-semibold truncate ${isCurrent ? 'text-sky-600' : isCheckingOutThis ? 'text-indigo-400 font-bold' : isLight ? 'text-slate-800' : 'text-slate-300'}`} title={branch.name}>
+                        {branch.name}
                       </span>
-                    )}
-                    {branch.isLocal && !branch.isRemote && (
-                      <span className="text-[9px] bg-sky-500/10 text-sky-600 border border-sky-500/20 px-1 rounded uppercase" title="Local only branch">
-                        <Laptop className="w-2.5 h-2.5 inline mr-0.5" />Local
-                      </span>
-                    )}
-                    {branch.isRemote && !branch.isLocal && (
-                      <span className="text-[9px] bg-purple-500/10 text-purple-600 border border-purple-500/20 px-1 rounded uppercase" title="Remote only branch">
-                        <Globe className="w-2.5 h-2.5 inline mr-0.5" />Remote
-                      </span>
+                      {isCheckingOutThis && (
+                        <span className="text-[9px] text-indigo-400 font-bold italic animate-pulse shrink-0">
+                          ({loc.checkingOut})
+                        </span>
+                      )}
+                      
+                      {/* Status Badges */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        {branch.isBase && (
+                          <span className="text-[8px] leading-none bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-1 py-0.5 rounded uppercase font-bold" title="Base development branch">
+                            BASE
+                          </span>
+                        )}
+                        {branch.isLocal && !branch.isRemote && (
+                          <span className="text-[8px] leading-none bg-sky-500/10 text-sky-600 border border-sky-500/20 px-1 py-0.5 rounded uppercase" title="Local only branch">
+                            <Laptop className="w-2.5 h-2.5 inline mr-0.5" />Local
+                          </span>
+                        )}
+                        {branch.isRemote && !branch.isLocal && (
+                          <span className="text-[8px] leading-none bg-purple-500/10 text-purple-600 border border-purple-500/20 px-1 py-0.5 rounded uppercase" title="Remote only branch">
+                            <Globe className="w-2.5 h-2.5 inline mr-0.5" />Remote
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Commit Age and Last Modified Date */}
+                    {(branch.commitAge || branch.lastCommitDate) && (
+                      <div className="flex items-center gap-1.5 mt-0.5 select-none flex-wrap">
+                        {branch.commitAge && (branch.commitAge.includes('month') || branch.commitAge.includes('year') || branch.commitAge.includes('tháng') || branch.commitAge.includes('năm')) && (
+                          <span className="text-[7.5px] leading-none bg-amber-500/10 text-amber-600 border border-amber-500/25 font-black px-1 py-0.5 rounded-sm uppercase tracking-wider shrink-0 animate-pulse" title="This branch has not seen activity in over 30 days">
+                            STALE
+                          </span>
+                        )}
+                        <span className="text-[9px] flex items-center gap-1 text-slate-500 font-medium">
+                          <span>🕒</span>
+                          <span className="text-slate-400" title="Last commit relative time">{branch.commitAge || 'unknown age'}</span>
+                          <span className="opacity-40">|</span>
+                          <span className="text-slate-500" title="Last commit date">{branch.lastCommitDate || 'unknown date'}</span>
+                        </span>
+                      </div>
                     )}
                   </div>
                 </div>

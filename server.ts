@@ -354,16 +354,16 @@ app.get('/api/git-status', async (req, res) => {
     }
 
     const branchesList = [
-      { name: 'develop', isLocal: true, isRemote: true, isCurrent: false, isBase: true, aheadCount: 2, behindCount: 0 },
-      { name: 'main', isLocal: true, isRemote: true, isCurrent: false, isBase: true, aheadCount: 0, behindCount: 0 },
-      { name: 'feature/payment-linear', isLocal: true, isRemote: false, isCurrent: scenario === 'linear', isBase: false },
-      { name: 'feature/payment-large-history', isLocal: true, isRemote: false, isCurrent: scenario === 'large_history', isBase: false },
-      { name: 'feature/payment-large-nonlinear', isLocal: true, isRemote: false, isCurrent: scenario === 'large_nonlinear', isBase: false },
-      { name: 'feature/payment-nonlinear', isLocal: true, isRemote: false, isCurrent: scenario === 'nonlinear', isBase: false },
-      { name: 'feature/payment-diverged-rewrite', isLocal: true, isRemote: false, isCurrent: scenario === 'rewrite', isBase: false },
-      { name: 'feature/payment-stale-base', isLocal: true, isRemote: false, isCurrent: scenario === 'stale', isBase: false },
-      { name: 'feature/auth-oauth', isLocal: true, isRemote: true, isCurrent: false, isBase: false, aheadCount: 0, behindCount: 3 },
-      { name: 'bugfix/typo-header', isLocal: true, isRemote: false, isCurrent: false, isBase: false }
+      { name: 'develop', isLocal: true, isRemote: true, isCurrent: false, isBase: true, aheadCount: 2, behindCount: 0, commitAge: '2 hours ago', lastCommitDate: '2026-06-15' },
+      { name: 'main', isLocal: true, isRemote: true, isCurrent: false, isBase: true, aheadCount: 0, behindCount: 0, commitAge: '1 day ago', lastCommitDate: '2026-06-14' },
+      { name: 'feature/payment-linear', isLocal: true, isRemote: false, isCurrent: scenario === 'linear', isBase: false, commitAge: '4 hours ago', lastCommitDate: '2026-06-15' },
+      { name: 'feature/payment-large-history', isLocal: true, isRemote: false, isCurrent: scenario === 'large_history', isBase: false, commitAge: '3 days ago', lastCommitDate: '2026-06-12' },
+      { name: 'feature/payment-large-nonlinear', isLocal: true, isRemote: false, isCurrent: scenario === 'large_nonlinear', isBase: false, commitAge: '2 days ago', lastCommitDate: '2026-06-13' },
+      { name: 'feature/payment-nonlinear', isLocal: true, isRemote: false, isCurrent: scenario === 'nonlinear', isBase: false, commitAge: '5 hours ago', lastCommitDate: '2026-06-15' },
+      { name: 'feature/payment-diverged-rewrite', isLocal: true, isRemote: false, isCurrent: scenario === 'rewrite', isBase: false, commitAge: '6 days ago', lastCommitDate: '2026-06-09' },
+      { name: 'feature/payment-stale-base', isLocal: true, isRemote: false, isCurrent: scenario === 'stale', isBase: false, commitAge: '2 months ago', lastCommitDate: '2026-04-10' },
+      { name: 'feature/auth-oauth', isLocal: true, isRemote: true, isCurrent: false, isBase: false, aheadCount: 0, behindCount: 3, commitAge: '1 week ago', lastCommitDate: '2026-06-08' },
+      { name: 'bugfix/typo-header', isLocal: true, isRemote: false, isCurrent: false, isBase: false, commitAge: '5 days ago', lastCommitDate: '2026-06-10' }
     ];
 
     return res.json({
@@ -441,7 +441,10 @@ app.get('/api/git-status', async (req, res) => {
         .filter(b => b.length > 0 && b !== 'origin' && !b.includes('HEAD') && !b.includes('->'))
     ));
     
-    const baseBranchName = uniqueBranchNames.find(b => ['develop', 'main', 'master', 'dev'].includes(b)) || 'develop';
+    const queryBase = req.query.baseBranch as string;
+    const baseBranchName = (queryBase && uniqueBranchNames.includes(queryBase))
+      ? queryBase
+      : (uniqueBranchNames.find(b => ['develop', 'main', 'master', 'dev'].includes(b)) || 'develop');
     
     // Find proper git reference for baseBranchName so commands do not fail
     const hasLocalBase = rawBranchList.includes(baseBranchName) || rawBranchList.includes(`heads/${baseBranchName}`);
@@ -470,6 +473,20 @@ app.get('/api/git-status', async (req, res) => {
             }
           }
 
+          let commitAge = '';
+          let lastCommitDate = '';
+          try {
+            const refToQuery = isLocal ? bName : `origin/${bName}`;
+            const logRes = await runCmd(`git log -1 --format="%cr|%cd" --date=short ${refToQuery}`, activeRepoPath);
+            const logParts = logRes.stdout.trim().split('|');
+            if (logParts.length === 2) {
+              commitAge = logParts[0].trim();
+              lastCommitDate = logParts[1].trim();
+            }
+          } catch (err) {
+            // ignore
+          }
+
           return {
             name: bName,
             isLocal,
@@ -477,7 +494,9 @@ app.get('/api/git-status', async (req, res) => {
             isCurrent: bName === currBranch,
             isBase: bName === baseBranchName,
             aheadCount,
-            behindCount
+            behindCount,
+            commitAge,
+            lastCommitDate
           };
         })
     );
@@ -1160,14 +1179,14 @@ app.post('/api/explain-git-command', async (req, res) => {
       const ai = getGeminiClient(apiKey);
       
       // Determine System Instruction based on tone persona
-      let systemInstruction = "Bạn là trợ lý ảo 'Rebase Overlord Engine' thông thái chuyên về Git. Hãy giải thích lệnh Git một cách ngắn gọn, súc tích (phạm vi 2-3 câu). Trả về JSON theo đúng định dạng được cấu hình.";
+      let systemInstruction = "Bạn là trợ lý ảo 'Rebase Overlord Engine' thông thái chuyên về Git. Hãy giải thích lệnh Git một cách ngắn gọn, súc tích bằng tiếng Việt có đầy đủ dấu (phạm vi 2-3 câu). Trả về JSON theo đúng định dạng được cấu hình.";
       
       if (tone === 'vn_pro') {
-        systemInstruction = "Bạn là trợ lý ảo 'Rebase Overlord Engine' chuẩn mực, chuyên nghiệp và thông thái về Git. Hãy giải thích lệnh Git rành mạch, rực rỡ, dễ hiểu với thuật ngữ chuẩn hóa bằng tiếng Việt.";
+        systemInstruction = "Bạn là trợ lý ảo 'Rebase Overlord Engine' chuẩn mực, chuyên nghiệp và thông thái về Git. Hãy giải thích lệnh Git rành mạch, rực rỡ, dễ hiểu với thuật ngữ chuẩn hóa bằng tiếng Việt có đầy đủ dấu chính xác.";
       } else if (tone === 'vn_joke') {
-        systemInstruction = "Bạn là con robot vui tính, tấu táo, vô cùng thân thiện về Git, gọi user là 'sếp' hoặc 'ní'. Hãy giải thích lệnh Git hóm hỉnh, khôi hài, dùng các thuật ngữ hài hước giới dev (như 'toang', 'gánh team', 'bay màu', 'gỡ tơ vò', 'hóng hớt', 'combat').";
+        systemInstruction = "Bạn là con robot vui tính, tấu táo, vô cùng thân thiện về Git, gọi user là 'sếp' hoặc 'ní'. Hãy giải thích lệnh Git hóm hỉnh, khôi hài, dùng các thuật ngữ hài hước giới dev (như 'toang', 'gánh team', 'bay màu', 'gỡ tơ vò', 'hóng hớt', 'combat') bằng tiếng Việt có đầy đủ dấu tiếng Việt chuẩn xác.";
       } else if (tone === 'vn_toxic') {
-        systemInstruction = "Bạn là con AI chửi dạo, cực kỳ cọc cằn, châm biếm, cà khịa phong cách 'toxic boss'. Hãy gọi lập trình viên là 'thằng ngáo', 'lập trình viên rác', 'thầy dạy khói', 'thằng gà'. Hãy chửi và sỉ nhục thói quen code ẩu của họ, nhưng phần giải thích giải thuật Git vẫn phải cực kỳ chính xác để họ khôn ra. Viết bằng tiếng Việt hài hước cọc cằn.";
+        systemInstruction = "Bạn là con AI chửi dạo, cực kỳ cọc cằn, châm biếm, cà khịa phong cách 'toxic boss'. Hãy gọi lập trình viên là 'thằng ngáo', 'lập trình viên rác', 'thầy dạy khói', 'thằng gà'. Hãy chửi và sỉ nhục thói quen code ẩu của họ bằng tiếng Việt có đầy đủ dấu chuẩn xác (tuyệt đối cấm viết không dấu, phải có đầy đủ sắc huyền hỏi ngã nặng), nhưng phần giải thích giải thuật Git vẫn phải cực kỳ chính xác để họ khôn ra. Viết bằng tiếng Việt hài hước cọc cằn đầy đủ dấu.";
       } else if (tone === 'en_pro') {
         systemInstruction = "You are a professional, polite, educational, and intelligent Git assistant 'Rebase Overlord Engine'. Explain the Git command in English clearly, precisely, with standard developer terminology.";
       }
@@ -1330,12 +1349,16 @@ app.post('/api/explain-git-problem', async (req, res) => {
       
       const systemInstruction = `Bạn là tổ hợp Bác Sĩ Git Ảo 'Rebase Overlord Clinic' gồm 3 bác sĩ tư vấn chuyên biệt:
 1. Dr. Overlord (Mặc định, luôn luôn có): Người tóm tắt, hướng dẫn tổng thể về trạng thái Git. Tính cách và thái độ của vị bác sĩ này phụ thuộc vào cấu hình 'tone' của người dùng:
-   - 'vn_pro': Giáo sư chuẩn mực, chuyên nghiệp, súc tích (tiếng Việt).
-   - 'vn_joke': Người tấu hài tinh nghịch, gọi user là 'sếp' hoặc 'ní' (tiếng Việt hóm hỉnh).
-   - 'vn_toxic': Kẻ chửi dạo cực kỳ cọc cằn, sỉ nhục lập trình viên nhưng bắt bệnh chính xác từ chữ cái (tiếng Việt xéo sắc).
+   - 'vn_pro': Giáo sư chuẩn mực, chuyên nghiệp, súc tích (tiếng Việt có dấu).
+   - 'vn_joke': Người tấu hài tinh nghịch, gọi user là 'sếp' hoặc 'ní' (tiếng Việt hóm hỉnh có dấu đầy đủ).
+   - 'vn_toxic': Kẻ chửi dạo cực kỳ cọc cằn, sỉ nhục lập trình viên nhưng bắt bệnh chính xác từ chữ cái (tiếng Việt xéo sắc, hài hước có dấu đầy đủ).
    - 'en_pro': Chuyên gia tối thượng lịch sự, chuẩn enterprise (tiếng Anh chuẩn).
 2. Dr. Compiler & Quality: Chuyên gia kiểm định chất lượng mã nguồn TypeScript/JavaScript/JSON, i18n/locales. Hãy chỉ định phân tích này khi 'isCompilerActive' là True. Nếu không, hãy trả về rỗng.
 3. Dr. Schema Master: Chuyên gia dọn dẹp cấu trúc Database, SQL, Prisma, Drizzle, migrations. Hãy chỉ định phân tích này khi 'isSchemaActive' là True. Nếu không, hãy trả về rỗng.
+
+LƯU Ý QUAN TRỌNG VỀ NGÔN NGỮ (URGENT LOCALIZATION):
+- Mọi phản hồi bằng tiếng Việt ('vn_pro', 'vn_joke', 'vn_toxic') BẮT BUỘC PHẢI VIẾT BẰNG TIẾNG VIỆT CHUẨN, CÓ ĐẦY ĐỦ DẤU (dấu sắc, huyền, hỏi, ngã, nặng, các kí tự á, â, ê, ô, ơ, ư, đ).
+- TUYỆT ĐỐI KHÔNG ĐƯỢC viết tiếng Việt không dấu (như "Lai la cai tro boi ban", "Nhin lai 5 cai file"), không viết tắt không dấu cẩu thả hoặc dùng teencode không dấu. Kể cả phong cách hài hước hay chửi dọ toxic cũng bắt buộc phải có dấu đầy đủ chính xác cực kỳ như: "Lại làm cái trò bôi bẩn working tree rồi đi kêu cứu hả? Nhìn lại 5 cái file đang dang dở ở nhánh..." để bảo đảm sự chuyên nghiệp và trực quan dễ đọc.
 
 Hãy trả về phản hồi dưới dạng JSON duy nhất khớp bọc kín theo schema được định nghĩa.`;
 
@@ -1471,11 +1494,11 @@ QUY TẮC BẢO CHẨN CODE TUYỆT ĐỐI (TRÁNH TỰ Ý ĐỔI CODE):
 4. Nếu có bất cứ sự chỉnh sửa, phối trộn hay thêm bớt mã nguồn mới nào dù là nhỏ nhất, bạn PHẢI nêu rõ lý do tại sao cần gộp/phối trộn và chỉ thị cụ thể dòng nào đã thay đổi trong phần 'explanation' để người dùng phê duyệt.`;
 
       if (tone === 'vn_pro') {
-        systemInstruction = "Bạn là trợ lý ảo 'Rebase Overlord Engine' chuẩn mực chuyên xử lý xung đột cục bộ. Trả về giải thích cực ngắn gọn (explanation) và mã nguồn hợp nhất (resolvedContent) thật chính xác." + strictRules;
+        systemInstruction = "Bạn là trợ lý ảo 'Rebase Overlord Engine' chuẩn mực chuyên xử lý xung đột cục bộ. Trả về giải thích cực ngắn gọn (explanation) và mã nguồn hợp nhất (resolvedContent) thật chính xác bằng tiếng Việt có đầy đủ dấu chính xác." + strictRules;
       } else if (tone === 'vn_joke') {
-        systemInstruction = "Bạn là robot tấu hài cà khịa nhẹ. Gọi user là 'sếp' hoặc 'ní'. Giải thích ngắn gọn hóm hỉnh về gợi ý gộp này, rồi trả về đoạn mã đã hợp nhất tối ưu trong resolvedContent." + strictRules;
+        systemInstruction = "Bạn là robot tấu hài cà khịa nhẹ. Gọi user là 'sếp' hoặc 'ní'. Giải thích ngắn gọn hóm hỉnh về gợi ý gộp này bằng tiếng Việt có đầy đủ dấu sắc sảo hóm hỉnh, rồi trả về đoạn mã đã hợp nhất tối ưu trong resolvedContent." + strictRules;
       } else if (tone === 'vn_toxic') {
-        systemInstruction = "Bạn là AI chửi dạo toxic cộc lốc cà khịa thói quen code ẩu. Sỉ nhục lập trình viên siêu ngắn gọn vì gây conflict, rồi trả về đoạn mã hợp nhất chính xác tuyệt đối trong resolvedContent." + strictRules;
+        systemInstruction = "Bạn là AI chửi dạo toxic cộc lốc cà khịa thói quen code ẩu. Sỉ nhục lập trình viên siêu ngắn gọn vì gây conflict, viết bằng tiếng Việt chính xác có đầy đủ dấu chuẩn mực (tuyệt đối không viết không dấu, phải viết đầy đủ dấu huyền sắc hỏi ngã nặng), rồi trả về đoạn mã hợp nhất chính xác tuyệt đối trong resolvedContent." + strictRules;
       } else if (tone === 'en_pro') {
         systemInstruction = "You are a polite, concise Git block-level conflict resolver. Provide a very short explanation of how you merged these lines, and return the resolved content in resolvedContent." + strictRules;
       }
@@ -1596,11 +1619,11 @@ YÊU CẦU BẢO VỆ CODE GỐC VÀ TRÁNH TỰ Ý THAY ĐỔI:
 - Mọi trường hợp phối trộn hoặc chỉnh sửa ngoài nguyên bản ĐỀU phải được giải thích rõ ràng lý do, liệt kê chi tiết dòng nào đã được phối trộn/sửa đổi trong phần 'explanation' để người dùng xem trước và phê duyệt cụ thể.`;
 
       if (tone === 'vn_pro') {
-        systemInstruction = "Bạn là trợ lý ảo 'Rebase Overlord Engine' chuẩn mực, chuyên nghiệp và thông thái về Git. Giải thích xung đột rành mạch, dễ hiểu bằng tiếng Việt chuẩn hóa, rồi trả về mã nguồn hợp nhất (resolvedContent) đã giải quyết xung đột hoàn hảo." + strictRulesConflict;
+        systemInstruction = "Bạn là trợ lý ảo 'Rebase Overlord Engine' chuẩn mực, chuyên nghiệp và thông thái về Git. Giải thích xung đột rành mạch, dễ hiểu bằng tiếng Việt chuẩn hóa có đầy đủ dấu sắc sảo rõ ràng, rồi trả về mã nguồn hợp nhất (resolvedContent) đã giải quyết xung đột hoàn hảo." + strictRulesConflict;
       } else if (tone === 'vn_joke') {
-        systemInstruction = "Bạn là robot tấu hài vui tính chuyên gỡ bom xung đột. Gọi user là 'sếp' hoặc 'ní'. Giải thích xung đột hài hước bằng từ ngữ giới dev tiếng Việt, rồi trả về mã nguồn hợp nhất (resolvedContent) sạch đẹp không còn marker." + strictRulesConflict;
+        systemInstruction = "Bạn là robot tấu hài vui tính chuyên gỡ bom xung đột. Gọi user là 'sếp' hoặc 'ní'. Giải thích xung đột hài hước bằng từ ngữ giới dev tiếng Việt có đầy đủ dấu dí dỏm chuẩn xác, rồi trả về mã nguồn hợp nhất (resolvedContent) sạch đẹp không còn marker." + strictRulesConflict;
       } else if (tone === 'vn_toxic') {
-        systemInstruction = "Bạn là AI chửi dạo 'toxic' cộc lốc cà khịa thói quen code ẩu của lập trình viên. Sỉ nhục họ mút chỉ vì viết code đè nhau gây conflict, nhưng phần giải quyết mã nguồn (resolvedContent) vẫn phải hợp nhất cực kỳ chính xác." + strictRulesConflict;
+        systemInstruction = "Bạn là AI chửi dạo 'toxic' cộc lốc cà khịa thói quen code ẩu của lập trình viên. Sỉ nhục họ mút chỉ bằng tiếng Việt có đầy đủ dấu huyền sắc hỏi ngã nặng, tuyệt đối cấm viết không dấu hoặc unaccented, rồi trả về mã nguồn hợp nhất (resolvedContent) vẫn phải hợp nhất cực kỳ chính xác." + strictRulesConflict;
       } else if (tone === 'en_pro') {
         systemInstruction = "You are a professional, polite, educational Git conflict resolution expert. Explain the conflict in English clearly and concisely, and return the perfectly merged code in resolvedContent with all conflict markers removed." + strictRulesConflict;
       }
@@ -1670,10 +1693,10 @@ Your job is to analyze the dynamic Git branch topology provided by the user and 
 You must respond in a strict JSON format with the following properties:
 - strategy: short text (e.g., 'Fast-Forward', 'git rebase main', 'Squash & Merge', 'Interactive Rebase with --rebase-merges')
 - detailsEn: a few clear sentences in English summarizing the state, potential conflicts, and concrete execution tips.
-- detailsVi: assessment in Vietnamese conforming strictly to the chosen tone:
-  * 'vn_pro': Standard, highly professional and concise.
-  * 'vn_joke': Playful, witty, friendly, calling the user 'ní' or 'sếp'.
-  * 'vn_toxic': Highly toxic, grumpy, calling the user 'gà', 'ngáo', teasing their Git mistakes but providing extremely accurate advice.
+- detailsVi: assessment in Vietnamese conforming strictly to the chosen tone. Note that any Vietnamese output MUST be written in correct Vietnamese with proper diacritics/accents (tiếng Việt có đầy đủ dấu sắc, huyền, hỏi, ngã, nặng). Do NOT output unaccented Vietnamese under any circumstances.
+  * 'vn_pro': Standard, highly professional, concise, with full Vietnamese accents.
+  * 'vn_joke': Playful, witty, friendly, calling the user 'ní' or 'sếp', with full Vietnamese accents.
+  * 'vn_toxic': Highly toxic, grumpy, calling the user 'gà', 'ngáo', teasing their Git mistakes but providing extremely accurate advice, with full Vietnamese accents.
   * 'en_pro': Also in professional English/standard format.
 - complexity: 'low' | 'medium' | 'high'
 
@@ -1777,12 +1800,14 @@ HƯỚNG DẪN BẮT BỆNH VÀ CỨU HỘ:
 3. Khi user gào khóc "Bị mất code" hoặc "Rebase lỗi xóa mất commits": Đây là trường hợp khẩn cấp nhất! Hãy trấn an và giải thích thần chú cứu sinh 'git reflog'. Cho họ thấy cách tìm SHA từ reflog và tạo nhánh cứu mạng: 'git checkout -b rescue-branch <SHA>' để lấy lại toàn bộ code đã mất!
 4. Giữ câu trả lời súc tích, định dạng Markdown đẹp mắt, phân tách các dòng chỉ dẫn rõ ràng.`;
 
+      docContext += `\nLƯU Ý CỰC KỲ QUAN TRỌNG VỀ PHƯƠNG THỨC LIÊN LẠC: Mọi câu trả lời bằng tiếng Việt BẮT BUỘC phải sử dụng tiếng Việt CHUẨN CÓ ĐẦY ĐỦ DẤU rõ ràng (dấu sắc, huyền, hỏi, ngã, nặng, á, â, ê, ô, ơ, ư, đ). TUYỆT ĐỐI không viết không dấu, không viết tắt không dấu cẩu thả hoặc teencode không dấu.`;
+
       if (tone === 'vn_pro') {
-        docContext += `\nTập trung trả lời bằng tiếng Việt cực kỳ chuyên nghiệp, lịch sự, chuẩn mực mực thước gãy gọn của một kỹ sư kỳ cựu.`;
+        docContext += `\nTập trung trả lời bằng tiếng Việt cực kỳ chuyên nghiệp, lịch sự, chuẩn mực mực thước gãy gọn của một kỹ sư kỳ cựu có đầy đủ dấu.`;
       } else if (tone === 'vn_joke') {
-        docContext += `\nHãy trả lời bằng tiếng Việt tấu hài cực lầy lội, xưng hô sếp/ní hoặc xưng em/tớ. Sử dụng meme, câu chế vui nhộn của giới lập trình (toang, bay màu, khóc ròng, sầu đời, combat, gánh tạ, gỡ tơ vò).`;
+        docContext += `\nHãy trả lời bằng tiếng Việt tấu hài cực lầy lội có đầy đủ dấu, xưng hô sếp/ní hoặc xưng em/tớ. Sử dụng meme, câu chế vui nhộn của giới lập trình (toang, bay màu, khóc ròng, sầu đời, combat, gánh tạ, gỡ tơ vò) có đầy đủ dấu.`;
       } else if (tone === 'vn_toxic') {
-        docContext += `\nHãy trả lời bằng phong cách 'Toxic Boss' chửi xéo mỉa mai tục tĩu hài hước nhưng bổ ích của Việt Nam. Gọi user là 'thằng ngáo', 'lập trình viên gà mờ', 'thầy dạy khói'. Cà khịa thói ngớ ngẩn gây lỗi nhưng vẫn chỉ cách giải quyết và các lệnh cứu mạng chính xác 100% để huấn luyện họ giỏi lên!`;
+        docContext += `\nHãy trả lời bằng phong cách 'Toxic Boss' chửi xéo mỉa mai tục tĩu hài hước nhưng bổ ích của Việt Nam có đầy đủ dấu. Gọi user là 'thằng ngáo', 'lập trình viên gà mờ', 'thầy dạy khói'. Cà khịa thói ngớ ngẩn gây lỗi nhưng vẫn chỉ cách giải quyết và các lệnh cứu mạng chính xác 100% để huấn luyện họ giỏi lên! Luôn viết bằng tiếng Việt có đầy đủ dấu chuẩn xác tuyệt đối, cấm viết không dấu!`;
       } else if (tone === 'en_pro') {
         docContext += `\nPlease respond strictly in English as a highly skilled, supportive, and professional Git Solution Architect. Maintain clear formatting and technical precision.`;
       }
@@ -1838,6 +1863,70 @@ app.post('/api/execute-command', async (req, res) => {
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Auto-migrate stale branches safely using a soft-reset and stash consolidation flow
+app.post('/api/migrate-stale-branch', async (req, res) => {
+  const { staleBranch, baseBranch, newBranchName } = req.body;
+  if (!staleBranch || !baseBranch || !newBranchName) {
+    return res.status(400).json({ error: 'Missing parameters.' });
+  }
+
+  try {
+    // 1. Get split commit SHA (using git merge-base)
+    const baseRes = await runCmd(`git merge-base "${baseBranch}" "${staleBranch}"`, activeRepoPath);
+    const splitCommit = baseRes.stdout.trim();
+    if (!splitCommit) {
+      throw new Error(`Could not find split commit (merge base) between ${baseBranch} and ${staleBranch}`);
+    }
+
+    // 2. Checkout the stale branch
+    await runCmd(`git checkout "${staleBranch}"`, activeRepoPath);
+
+    // 3. Create a temp migration branch from the stale branch to protect original branch history
+    const tempBranch = `temp-migrate-${Date.now()}`;
+    await runCmd(`git checkout -b "${tempBranch}"`, activeRepoPath);
+
+    // 4. Soft reset to split commit to put all changes in the staging/working area
+    await runCmd(`git reset --soft "${splitCommit}"`, activeRepoPath);
+
+    // 5. Stash the soft-reset changes safely
+    const stashRes = await runCmd(`git stash push -m "stale-branch-migration-${newBranchName}"`, activeRepoPath);
+    const stashMessage = stashRes.stdout.trim() || '';
+    const hasStashed = !stashMessage.includes("No local changes to save");
+
+    // 6. Checkout the target base branch and spawn the new clean branch name
+    await runCmd(`git checkout "${baseBranch}"`, activeRepoPath);
+    await runCmd(`git checkout -b "${newBranchName}"`, activeRepoPath);
+
+    // 7. If there are changes to apply, restore them on top of the new branch
+    if (hasStashed) {
+      try {
+        await runCmd(`git stash pop`, activeRepoPath);
+      } catch (err: any) {
+        // Minor merge conflicts might occur if baseBranch has advanced, which is normal and expected for conflict solver to resolve
+        console.warn("Stash pop generated minor merge/conflict differences:", err.message);
+      }
+    }
+
+    // 8. Delete the temporary migration branch
+    try {
+      await runCmd(`git branch -D "${tempBranch}"`, activeRepoPath);
+    } catch (_) {}
+
+    res.json({
+      success: true,
+      message: `Migrated changes from stale branch ${staleBranch} to new branch ${newBranchName} successfully.`,
+      newBranch: newBranchName
+    });
+
+  } catch (err: any) {
+    // Attempt fallback safe checkout to the base branch to avoid leaving user stranded
+    try {
+      await runCmd(`git checkout "${baseBranch || 'develop'}"`, activeRepoPath);
+    } catch (_) {}
+    res.status(500).json({ error: err.message });
   }
 });
 
