@@ -116,6 +116,8 @@ const sanityLoc: Record<TranslationTone, {
   simScenarioRewrite: string;
   simScenarioStale: string;
   simScenarioDetached: string;
+  simScenarioLargeHistory: string;
+  simScenarioLargeNonLinear: string;
   simScenarioDesc: string;
 }> = {
   [TranslationTone.PROFESSIONAL]: {
@@ -174,6 +176,8 @@ const sanityLoc: Record<TranslationTone, {
     simScenarioRewrite: "Develop bị Rewrite History (Diverged)",
     simScenarioStale: "Nhánh Base bị cũ mốc (Stale Base)",
     simScenarioDetached: "Lịch sử rỗng rênh (Detached HEAD)",
+    simScenarioLargeHistory: "Kịch bản siêu nhiều commits (30+ commits tuyến tính)",
+    simScenarioLargeNonLinear: "Kịch bản siêu lớn + phi tuyến (40+ commits, nhiều nhánh)",
     simScenarioDesc: "Mô phỏng lại các kịch bản khó nhằn trong Git để kiểm thử trực quan và phác đồ AI Doctor."
   },
   [TranslationTone.JOKE]: {
@@ -232,6 +236,8 @@ const sanityLoc: Record<TranslationTone, {
     simScenarioRewrite: "Sau lưng đã bị viết lại lịch sử (Diverged)",
     simScenarioStale: "Base ở xó chợ mốc meo (Stale Base)",
     simScenarioDetached: "Đứt dây neo trôi vô định (Detached HEAD)",
+    simScenarioLargeHistory: "Nhánh th siêu dài thườn thượt (30+ commits tuyến tính)",
+    simScenarioLargeNonLinear: "Nhánh khủng phi tuyến lằng nhằng (40+ commits, 3 nhánh quấn nhau)",
     simScenarioDesc: "Toàn bộ kịch bản bốc mùi của Git để sếp nghịch cho biết thế nào là đau đớn."
   },
   [TranslationTone.TOXIC]: {
@@ -290,6 +296,8 @@ const sanityLoc: Record<TranslationTone, {
     simScenarioRewrite: "Develop bị đè nát (Rewrite/Diverged)",
     simScenarioStale: "Base cổ lỗ sĩ mốc xanh (Stale Base)",
     simScenarioDetached: "Bay đầu mất xác giữa chợ (Detached HEAD)",
+    simScenarioLargeHistory: "Nhánh dài tổ bố 30+ phát commit tuyến tính",
+    simScenarioLargeNonLinear: "Đống rác khổng lồ 40+ commits quấn lộn lằng nhằn",
     simScenarioDesc: "Mấy quả phá hoại Git điển hình để test não AI Doctor và cách chữa bệnh."
   },
   [TranslationTone.ENGLISH]: {
@@ -348,6 +356,8 @@ const sanityLoc: Record<TranslationTone, {
     simScenarioRewrite: "Diverged History / Rewrite (Diverged)",
     simScenarioStale: "Stale Base Branch Reference (Stale Base)",
     simScenarioDetached: "Detached HEAD State (Detached HEAD)",
+    simScenarioLargeHistory: "Large Linear Branch History (30+ Commits)",
+    simScenarioLargeNonLinear: "Large Non-Linear History (40+ Commits, Multi-branch)",
     simScenarioDesc: "Simulate complex, real-world, non-linear Git histories to test commit graph layout and live anomaly warning diagnostics."
   }
 };
@@ -808,10 +818,10 @@ export default function App() {
     return true;
   });
 
-  const [simScenarioId, setSimScenarioId] = React.useState<'linear' | 'nonlinear' | 'rewrite' | 'stale' | 'detached'>(() => {
+  const [simScenarioId, setSimScenarioId] = React.useState<'linear' | 'nonlinear' | 'rewrite' | 'stale' | 'detached' | 'large_history' | 'large_nonlinear'>(() => {
     try {
       const saved = localStorage.getItem('rebase_overlord_sim_scenario_id') as any;
-      if (['linear', 'nonlinear', 'rewrite', 'stale', 'detached'].includes(saved)) {
+      if (['linear', 'nonlinear', 'rewrite', 'stale', 'detached', 'large_history', 'large_nonlinear'].includes(saved)) {
         return saved;
       }
     } catch (e) {}
@@ -2914,9 +2924,13 @@ export default function App() {
         // Small artificial delay to let user observe checkout animation gracefully
         await new Promise(resolve => setTimeout(resolve, 1500));
         
-        let targetScenario: 'linear' | 'nonlinear' | 'rewrite' | 'stale' | 'detached' | null = null;
+        let targetScenario: 'linear' | 'nonlinear' | 'rewrite' | 'stale' | 'detached' | 'large_history' | 'large_nonlinear' | null = null;
         if (branchName === 'feature/payment-linear') {
           targetScenario = 'linear';
+        } else if (branchName === 'feature/payment-large-history') {
+          targetScenario = 'large_history';
+        } else if (branchName === 'feature/payment-large-nonlinear') {
+          targetScenario = 'large_nonlinear';
         } else if (branchName === 'feature/payment-nonlinear') {
           targetScenario = 'nonlinear';
         } else if (branchName === 'feature/payment-diverged-rewrite') {
@@ -4074,6 +4088,8 @@ export default function App() {
                       }`}
                     >
                       <option value="linear">🟢 {sloc.simScenarioLinear}</option>
+                      <option value="large_history">⚡ {sloc.simScenarioLargeHistory}</option>
+                      <option value="large_nonlinear">🌀 {sloc.simScenarioLargeNonLinear}</option>
                       <option value="nonlinear">🟣 {sloc.simScenarioNonLinear}</option>
                       <option value="rewrite">🟡 {sloc.simScenarioRewrite}</option>
                       <option value="stale">🟠 {sloc.simScenarioStale}</option>

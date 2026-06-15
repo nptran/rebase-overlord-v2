@@ -34,7 +34,10 @@ import {
   ZoomOut,
   Move,
   Link,
-  FlaskConical
+  FlaskConical,
+  Minimize2,
+  Maximize2,
+  Layers
 } from 'lucide-react';
 import { TranslationTone, WizardState, GitRepoState } from '../types';
 
@@ -545,10 +548,14 @@ export default function GitVisualizerPanel({
     if (node) {
       const handleWheelEvent = (e: WheelEvent) => {
         e.preventDefault();
-        const zoomStep = 0.05;
+        // Dynamic zoom step relative to current scale to make zoom feel smooth at both low and high percentages
+        let zoomStep = 0.05;
+        if (visScale >= 5.0) zoomStep = 0.5;
+        else if (visScale >= 1.5) zoomStep = 0.2;
+        
         setVisScale(prev => {
           const next = prev + (e.deltaY < 0 ? zoomStep : -zoomStep);
-          return Math.min(2.0, Math.max(0.4, Math.round(next * 100) / 100));
+          return Math.min(15.0, Math.max(0.4, Math.round(next * 100) / 100));
         });
       };
 
@@ -600,7 +607,7 @@ export default function GitVisualizerPanel({
       const t2 = e.touches[1];
       const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
       const ratio = dist / touchStartDist.current;
-      const targetScale = Math.min(2.0, Math.max(0.4, touchStartScl.current * ratio));
+      const targetScale = Math.min(15.0, Math.max(0.4, touchStartScl.current * ratio));
       setVisScale(Math.round(targetScale * 100) / 100);
     }
   };
@@ -615,6 +622,22 @@ export default function GitVisualizerPanel({
   const [isSyncedWithWizard, setIsSyncedWithWizard] = useState(true);
   const [hoveredCommitSha, setHoveredCommitSha] = useState<string | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const [compactModeSetting, setCompactModeSetting] = useState<'auto' | 'compact' | 'detailed'>('auto');
+  const [expandedCapsuleIds, setExpandedCapsuleIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    setExpandedCapsuleIds([]);
+  }, [repoState]);
+
+  const isCompactActive = React.useMemo(() => {
+    if (compactModeSetting === 'compact') return true;
+    if (compactModeSetting === 'detailed') return false;
+    
+    // Auto mode: collapse when scale < 0.85 OR when there are more than 12 commits.
+    const commitsCount = repoState?.commits?.length ?? 0;
+    return visScale < 0.85 || commitsCount > 12;
+  }, [compactModeSetting, visScale, repoState?.commits]);
 
   useEffect(() => {
     setIsSyncedWithWizard(true);
@@ -782,46 +805,230 @@ export default function GitVisualizerPanel({
 
     // Sort/order commits from oldest to newest for left-to-right timeline
     const orderedCommits = [...repoState.commits].reverse();
-    const count = orderedCommits.length;
 
-    // Dynamically calculate wide width to avoid crowding of nodes when history is deep.
-    // Give at least 85px space per commit, with a minimum overall boundary of the outer SVG stage width.
-    const minSpacing = 85;
-    const w = count > 1 ? Math.max(initialW, 130 + (count - 1) * minSpacing) : initialW;
-
-    const startX = 65;
-    const endX = w - 65;
-    const spacing = count > 1 ? (endX - startX) / (count - 1) : 0;
-
-    // Track coordinates
-    const commitCoords: Record<string, { x: number; y: number }> = {};
-    
-    // Map commits to coords
-    orderedCommits.forEach((c, idx) => {
-      const x = count > 1 ? startX + idx * spacing : w / 2;
-      // Map track numbers (0, 1, 2) to visual Y values
-      const trackVal = typeof c.track === 'number' ? c.track : 0;
-      let y = 110; // Default center
-      if (trackVal === 0) {
-        y = 75; // Base track (shifted down by 20px so top labels like origin/develop can fit nicely without cropping)
-      } else if (trackVal === 1) {
-        y = 130; // Feature track (shifted down by 20px)
-      } else {
-        y = 175; // Remote or other track (shifted down by 25px)
-      }
-      // Keep within bounds
-      y = Math.min(y, h - 25);
-      commitCoords[c.sha] = { x, y };
+    // 1. Build child mapping and branch tags mapping
+    const childrenMap: Record<string, string[]> = {};
+    orderedCommits.forEach(c => {
+      (c.parents || []).forEach(p => {
+        if (!childrenMap[p]) childrenMap[p] = [];
+        if (!childrenMap[p].includes(c.sha)) {
+          childrenMap[p].push(c.sha);
+        }
+      });
     });
 
-    // Detect latest commits on tracks to display tags
     const latestTrack0 = [...orderedCommits].reverse().find(c => c.track === 0);
     const latestTrack1 = [...orderedCommits].reverse().find(c => c.track === 1 || typeof c.track !== 'number');
     const headCommit = orderedCommits[orderedCommits.length - 1];
 
-    // Branch tag names
     const baseBranchName = repoState.baseBranch || 'develop';
     const currentBranchName = repoState.currentBranch || 'feature';
+
+    const taggedShas = new Set<string>();
+    if (latestTrack0) taggedShas.add(latestTrack0.sha);
+    if (latestTrack1) taggedShas.add(latestTrack1.sha);
+    if (headCommit) taggedShas.add(headCommit.sha);
+    orderedCommits.forEach(c => {
+      const isRemoteMarker = c.message.includes('[Remote]') || (c.sha === '7c8d9e2' && orderedCommits.some(x => x.sha === 'f941a3c'));
+      if (isRemoteMarker) {
+        taggedShas.add(c.sha);
+      }
+    });
+
+    // 2. Determine non-collapsible critical commits
+    const isCritical = (c: any, idx: number) => {
+      if (idx === 0 || idx === orderedCommits.length - 1) return true;
+      if (taggedShas.has(c.sha)) return true;
+      if (c.parents && c.parents.length > 1) return true;
+      if (childrenMap[c.sha] && childrenMap[c.sha].length > 1) return true;
+      if (c.isConflicting || c.pending) return true;
+      if (wizard?.selectedCommits?.includes(c.sha)) return true;
+      return false;
+    };
+
+    // 3. Compact grouping block and dynamic zoom-synchronized Progressive Reveal logic
+    const activeExpandedGroups: { id: string; shas: string[]; track: number; startSha: string; endSha: string }[] = [];
+
+    const processTempGroup = (group: any[], groupTrack: number) => {
+      const M = group.length;
+      if (M === 0) return [];
+
+      // If length of linear sequence including endpoints is <= 4, then M <= 2.
+      // Thus, if M < 3 (i.e. <= 2), we do not collapse.
+      if (M < 3) {
+        return group.map(item => ({
+          type: 'commit',
+          id: item.sha,
+          commit: item,
+          track: item.track ?? 0
+        }));
+      }
+
+      const capsuleId = `collapsed-${group[0].sha}-${group[group.length - 1].sha}`;
+      const isCustomExpanded = expandedCapsuleIds.includes(capsuleId);
+
+      // Calculate how many middle commits to reveal based on visScale:
+      // S <= 1.0 (100%): 0 revealed, show compact capsule.
+      // S >= 10.0 (1000%): M revealed, fully detailed.
+      // 1.0 < S < 10.0: reveal linearly proportional amount.
+      // NOTE: Only apply progressive zoom reveal in 'auto' mode. In explicit 'compact' mode, stay fully compacted.
+      // Also, if the capsule has been manually expanded, we reveal everything (k = M).
+      let k = 0;
+      if (isCustomExpanded) {
+        k = M;
+        activeExpandedGroups.push({
+          id: capsuleId,
+          shas: group.map(c => c.sha),
+          track: groupTrack,
+          startSha: group[0].sha,
+          endSha: group[group.length - 1].sha
+        });
+      } else if (compactModeSetting === 'auto' && visScale > 1.0) {
+        const fraction = Math.min(1.0, (visScale - 1.0) / 9.0);
+        k = Math.floor(fraction * M);
+      }
+
+      // If remaining collapsed commits is < 3, just reveal all to prevent tiny meaningless stacks.
+      if (M - k < 3) {
+        k = M;
+      }
+
+      if (k === M) {
+        return group.map(item => ({
+          type: 'commit',
+          id: item.sha,
+          commit: item,
+          track: item.track ?? 0
+        }));
+      }
+
+      const kLeft = Math.ceil(k / 2);
+      const kRight = Math.floor(k / 2);
+
+      const nodes: any[] = [];
+      // 1. Left revealed commits
+      for (let i = 0; i < kLeft; i++) {
+        nodes.push({
+          type: 'commit',
+          id: group[i].sha,
+          commit: group[i],
+          track: group[i].track ?? 0
+        });
+      }
+
+      // 2. Middle collapsed capsule representing the remaining unrevealed commits
+      const collapsedCommits = group.slice(kLeft, M - kRight);
+      if (collapsedCommits.length > 0) {
+        nodes.push({
+          type: 'collapsed',
+          id: `collapsed-${collapsedCommits[0].sha}-${collapsedCommits[collapsedCommits.length - 1].sha}`,
+          commits: collapsedCommits,
+          track: groupTrack
+        });
+      }
+
+      // 3. Right revealed commits
+      for (let i = M - kRight; i < M; i++) {
+        nodes.push({
+          type: 'commit',
+          id: group[i].sha,
+          commit: group[i],
+          track: group[i].track ?? 0
+        });
+      }
+
+      return nodes;
+    };
+
+    let compactNodes: any[] = [];
+    if (isCompactActive) {
+      let tempGroup: any[] = [];
+      let currentGroupTrack: number | null = null;
+
+      orderedCommits.forEach((c, idx) => {
+        const critical = isCritical(c, idx);
+        
+        if (critical) {
+          if (tempGroup.length > 0) {
+            compactNodes.push(...processTempGroup(tempGroup, currentGroupTrack ?? 0));
+            tempGroup = [];
+            currentGroupTrack = null;
+          }
+          compactNodes.push({
+            type: 'commit',
+            id: c.sha,
+            commit: c,
+            track: c.track ?? 0
+          });
+        } else {
+          const commitTrack = c.track ?? 0;
+          if (tempGroup.length === 0) {
+            tempGroup.push(c);
+            currentGroupTrack = commitTrack;
+          } else {
+            if (commitTrack === currentGroupTrack) {
+              tempGroup.push(c);
+            } else {
+              compactNodes.push(...processTempGroup(tempGroup, currentGroupTrack ?? 0));
+              tempGroup = [c];
+              currentGroupTrack = commitTrack;
+            }
+          }
+        }
+      });
+
+      if (tempGroup.length > 0) {
+        compactNodes.push(...processTempGroup(tempGroup, currentGroupTrack ?? 0));
+      }
+    } else {
+      // Detailed: maps every single commit to a full node
+      compactNodes = orderedCommits.map(c => ({
+        type: 'commit',
+        id: c.sha,
+        commit: c,
+        track: c.track ?? 0
+      }));
+    }
+
+    const nodeCount = compactNodes.length;
+
+    // Dynamically calculate wide width to avoid crowding of nodes when history is deep.
+    const minSpacing = isCompactActive ? 95 : 85;
+    const w = nodeCount > 1 ? Math.max(initialW, 130 + (nodeCount - 1) * minSpacing) : initialW;
+
+    const startX = 65;
+    const endX = w - 65;
+    const spacing = nodeCount > 1 ? (endX - startX) / (nodeCount - 1) : 0;
+
+    // Track coordinates for each node
+    const nodeCoords: Record<string, { x: number; y: number }> = {};
+    
+    compactNodes.forEach((node, idx) => {
+      const x = nodeCount > 1 ? startX + idx * spacing : w / 2;
+      const trackVal = typeof node.track === 'number' ? node.track : 0;
+      let y = 110; // Default center
+      if (trackVal === 0) {
+        y = 75; // Base track
+      } else if (trackVal === 1) {
+        y = 130; // Feature track
+      } else {
+        y = 175; // Remote track
+      }
+      y = Math.min(y, h - 25);
+      nodeCoords[node.id] = { x, y };
+    });
+
+    // Resolve every individual original commit's SHA to its coordinate (or collapsed representative node Y/X coordinates)
+    const commitCoords: Record<string, { x: number; y: number }> = {};
+    compactNodes.forEach(node => {
+      if (node.type === 'commit') {
+        commitCoords[node.id] = nodeCoords[node.id];
+      } else if (node.type === 'collapsed') {
+        node.commits.forEach((c: any) => {
+          commitCoords[c.sha] = nodeCoords[node.id];
+        });
+      }
+    });
 
     return (
       <div className="relative w-full h-full flex flex-col" id="real-git-tree-viewport">
@@ -886,6 +1093,11 @@ export default function GitVisualizerPanel({
             return (c.parents || []).map((parentSha) => {
               const parentCoords = commitCoords[parentSha];
               if (!parentCoords) return null;
+
+              // Skip rendering links if parent and child are housed in the same folded node
+              if (Math.abs(parentCoords.x - childCoords.x) < 1 && Math.abs(parentCoords.y - childCoords.y) < 1) {
+                return null;
+              }
 
               const isSameTrack = Math.abs(parentCoords.y - childCoords.y) < 5;
               let pathColor = isLight ? 'stroke-slate-300' : 'stroke-slate-700';
@@ -973,17 +1185,158 @@ export default function GitVisualizerPanel({
             );
           })()}
 
-          {/* 4. Drawing Commit Nodes */}
-          {orderedCommits.map((c, idx) => {
-            const coords = commitCoords[c.sha];
+          {/* 3.5. Drawing collapse indicators for user-expanded capsule groups */}
+          {activeExpandedGroups.map(grp => {
+            const startCoords = commitCoords[grp.startSha];
+            const endCoords = commitCoords[grp.endSha];
+            if (!startCoords || !endCoords) return null;
+
+            const x1 = startCoords.x;
+            const x2 = endCoords.x;
+            const y = startCoords.y;
+            const centerX = (x1 + x2) / 2;
+
+            // Determine rendering direction: Base tracks flow ABOVE, Feature tracks flow BELOW
+            const isBaseTrack = grp.track === 0;
+            const dir = isBaseTrack ? -1 : 1;
+            const bracketY = y + dir * 25;
+            const centerY = y + dir * 35;
+
+            const buttonLabel = tone === TranslationTone.ENGLISH ? 'Collapse' : 'Nén lại';
+
+            return (
+              <g 
+                key={`collapse-handle-${grp.id}`}
+                className="cursor-pointer group/collapse-badge select-none"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpandedCapsuleIds(prev => prev.filter(id => id !== grp.id));
+                }}
+              >
+                {/* Connector bracket line */}
+                <path
+                  d={`M ${x1 - 10} ${y + dir * 16} L ${x1 - 10} ${bracketY} L ${x2 + 10} ${bracketY} L ${x2 + 10} ${y + dir * 16}`}
+                  fill="none"
+                  className={isLight ? "stroke-indigo-300" : "stroke-indigo-500/40"}
+                  strokeWidth="1.5"
+                  strokeDasharray="3 2"
+                />
+                
+                {/* Button background capsule */}
+                <rect
+                  x={centerX - 35}
+                  y={centerY - 8}
+                  width="70"
+                  height="16"
+                  rx="8"
+                  className={`transition-all duration-150 stroke shadow-sm ${
+                    isLight 
+                      ? 'fill-indigo-50 stroke-indigo-200 group-hover/collapse-badge:fill-indigo-100 group-hover/collapse-badge:stroke-indigo-400' 
+                      : 'fill-slate-900 stroke-indigo-500/50 group-hover/collapse-badge:fill-indigo-950/40 group-hover/collapse-badge:stroke-indigo-400'
+                  }`}
+                />
+                
+                {/* Small minus sign indicator */}
+                <line 
+                  x1={centerX - 24} 
+                  y1={centerY} 
+                  x2={centerX - 18} 
+                  y2={centerY} 
+                  className={isLight ? 'stroke-indigo-600' : 'stroke-indigo-400'} 
+                  strokeWidth="2" 
+                />
+
+                {/* Button label text */}
+                <text
+                  x={centerX + 6}
+                  y={centerY + 3}
+                  textAnchor="middle"
+                  className={`text-[8px] font-extrabold font-sans transition-colors ${
+                    isLight 
+                      ? 'fill-indigo-700 group-hover/collapse-badge:fill-indigo-950' 
+                      : 'fill-indigo-300 group-hover/collapse-badge:fill-indigo-200'
+                  }`}
+                >
+                  {buttonLabel}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* 4. Drawing Nodes (Commit circles or Collapsed capsules) */}
+          {compactNodes.map((node, idx) => {
+            const coords = nodeCoords[node.id];
             if (!coords) return null;
 
-            // Is this commit selected by the rebase wizard?
-            const isSelected = wizard?.selectedCommits?.includes(c.sha);
-            
-            // Is hovered?
-            const isHovered = hoveredCommitSha === c.sha;
+            if (node.type === 'collapsed') {
+              const messageTooltip = node.commits.map((cx: any) => `${cx.sha.slice(0, 7)}: ${cx.message}`).join('\n');
+              const textWord = tone === TranslationTone.ENGLISH ? 'commits' : 'commits';
+              const zoomHint = tone === TranslationTone.ENGLISH 
+                ? '🔍 Zoom in (up to 1000%) to gradually reveal commits one by one.\n👉 Click to fully expand details.'
+                : '🔍 Cuộn chuột hoặc phóng to (tới 1000%) để lộ diện thêm commit.\n👉 Click để mở rộng tất cả chi tiết.';
 
+              return (
+                <g 
+                  key={node.id} 
+                  className="cursor-pointer group/collapsed"
+                  onClick={() => {
+                    setExpandedCapsuleIds(prev => [...prev, node.id]);
+                  }}
+                  title={`${node.commits.length} ${textWord}\n\n${messageTooltip}\n\n${zoomHint}`}
+                >
+                  {/* Glowing background capsule for hover */}
+                  <rect 
+                    x={coords.x - 30} 
+                    y={coords.y - 14} 
+                    width="60" 
+                    height="28" 
+                    rx="14" 
+                    className={`transition-all duration-150 stroke-2 ${
+                      isLight 
+                        ? 'fill-indigo-50/70 stroke-dashed stroke-indigo-300 hover:fill-indigo-100/50 hover:stroke-indigo-400' 
+                        : 'fill-slate-900/80 stroke-dashed stroke-indigo-500/50 hover:fill-indigo-950/20 hover:stroke-indigo-400'
+                    }`}
+                  />
+                  {/* Small stack indicator lines representing sheet/layers */}
+                  <g className="opacity-75">
+                    <line x1={coords.x - 12} y1={coords.y - 4} x2={coords.x + 12} y2={coords.y - 4} className={isLight ? 'stroke-indigo-400' : 'stroke-indigo-400'} strokeWidth="1.5" />
+                    <line x1={coords.x - 12} y1={coords.y} x2={coords.x + 12} y2={coords.y} className={isLight ? 'stroke-indigo-400' : 'stroke-indigo-400'} strokeWidth="1.5" />
+                    <line x1={coords.x - 12} y1={coords.y + 4} x2={coords.x + 12} y2={coords.y + 4} className={isLight ? 'stroke-indigo-400' : 'stroke-indigo-400'} strokeWidth="1.5" />
+                  </g>
+                  {/* Commits count label inside capsule */}
+                  <rect 
+                    x={coords.x - 18} 
+                    y={coords.y - 8} 
+                    width="36" 
+                    height="16" 
+                    rx="8" 
+                    className={isLight ? 'fill-indigo-600' : 'fill-indigo-500/90'} 
+                  />
+                  <text 
+                    x={coords.x} 
+                    y={coords.y + 3} 
+                    textAnchor="middle" 
+                    className="fill-white text-[8px] font-bold font-mono"
+                  >
+                    +{node.commits.length}
+                  </text>
+
+                  {/* Subtext describing the range */}
+                  <text 
+                    x={coords.x} 
+                    y={coords.y + 24} 
+                    textAnchor="middle" 
+                    className={`text-[6.5px] font-bold font-mono tracking-wider ${isLight ? 'fill-slate-500' : 'fill-slate-400'}`}
+                  >
+                    {node.commits[0].sha.slice(0, 4)}..{node.commits[node.commits.length - 1].sha.slice(0, 4)}
+                  </text>
+                </g>
+              );
+            }
+
+            const c = node.commit;
+            const isSelected = wizard?.selectedCommits?.includes(c.sha);
+            const isHovered = hoveredCommitSha === c.sha;
             const isConflicting = !!c.isConflicting;
 
             // Color palette depending on track
@@ -2173,6 +2526,50 @@ export default function GitVisualizerPanel({
               <Move className="w-2.5 h-2.5 text-indigo-400 shrink-0" />
               <span>{tone === TranslationTone.ENGLISH ? 'Drag workspace to pan' : 'Kéo màn hình để di chuyển'}</span>
             </div>
+
+            {/* Level of Detail Mode Controls */}
+            <div className={`mt-1.5 px-2 py-1.5 rounded-lg border flex flex-col gap-1 items-start shadow-sm max-w-[170px] ${
+              isLight ? 'bg-white border-slate-200 shadow-slate-100' : 'bg-slate-950/90 border-slate-800/80'
+            }`}>
+              <div className="flex items-center gap-1 text-[7.5px] font-bold font-mono tracking-widest text-slate-400 uppercase select-none">
+                <Layers className="w-2.5 h-2.5 text-indigo-400 shrink-0" />
+                <span>{tone === TranslationTone.ENGLISH ? "Level of Detail" : "Độ chi tiết sơ đồ"}</span>
+              </div>
+              <div className={`flex items-center gap-1 w-full p-0.5 rounded border ${
+                isLight ? 'bg-slate-100/50 border-slate-200' : 'bg-slate-900/40 border-slate-850'
+              }`}>
+                {(['auto', 'compact', 'detailed'] as const).map((mode) => {
+                  const isActive = compactModeSetting === mode;
+                  let label = 'Auto';
+                  if (mode === 'compact') label = tone === TranslationTone.ENGLISH ? 'Compact' : 'Rút gọn';
+                  if (mode === 'detailed') label = tone === TranslationTone.ENGLISH ? 'Details' : 'Chi tiết';
+                  
+                  return (
+                    <button
+                      key={mode}
+                      onClick={() => setCompactModeSetting(mode)}
+                      className={`text-[7.5px] font-bold font-mono flex-1 px-1 py-0.5 rounded text-center cursor-pointer transition-all ${
+                        isActive
+                          ? 'bg-indigo-600 text-white shadow'
+                          : isLight 
+                            ? 'text-slate-500 hover:text-slate-850 hover:bg-slate-200/50' 
+                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="text-[7.5px] font-sans font-medium flex items-center gap-1 select-none">
+                <span className={`w-1 h-1 rounded-full ${isCompactActive ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400'}`} />
+                <span className={isLight ? 'text-slate-500 font-medium' : 'text-slate-400'}>
+                  {isCompactActive 
+                    ? (tone === TranslationTone.ENGLISH ? "Showing Compact (linear hidden)" : "Đang hiện rút gọn sơ đồ")
+                    : (tone === TranslationTone.ENGLISH ? "Showing Details (full history)" : "Đang hiện chi tiết")}
+                </span>
+              </div>
+            </div>
           </div>
 
           <div className={`absolute top-3 right-3 flex items-center gap-1.5 select-none text-[8.5px] font-mono font-bold border rounded px-2 py-0.5 z-20 ${
@@ -2214,7 +2611,12 @@ export default function GitVisualizerPanel({
             }`}>
               <button
                 type="button"
-                onClick={() => setVisScale(s => Math.min(2.0, Math.round((s + 0.1) * 10) / 10))}
+                onClick={() => setVisScale(s => {
+                  let step = 0.1;
+                  if (s >= 5.0) step = 1.0;
+                  else if (s >= 1.5) step = 0.5;
+                  return Math.min(15.0, Math.round((s + step) * 10) / 10);
+                })}
                 className={`p-1 rounded transition-all cursor-pointer hover:scale-105 active:scale-95 ${
                   isLight ? 'hover:bg-slate-100 text-slate-600' : 'hover:bg-slate-900 text-slate-450 hover:text-slate-200'
                 }`}
@@ -2231,7 +2633,12 @@ export default function GitVisualizerPanel({
 
               <button
                 type="button"
-                onClick={() => setVisScale(s => Math.max(0.4, Math.round((s - 0.1) * 10) / 10))}
+                onClick={() => setVisScale(s => {
+                  let step = 0.1;
+                  if (s > 5.0) step = 1.0;
+                  else if (s > 1.5) step = 0.5;
+                  return Math.max(0.4, Math.round((s - step) * 10) / 10);
+                })}
                 className={`p-1 rounded transition-all cursor-pointer hover:scale-105 active:scale-95 ${
                   isLight ? 'hover:bg-slate-100 text-slate-600' : 'hover:bg-slate-900 text-slate-450 hover:text-slate-200'
                 }`}

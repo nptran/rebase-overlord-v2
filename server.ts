@@ -237,12 +237,128 @@ app.get('/api/git-status', async (req, res) => {
         { sha: '7c8d9e2', author: 'Sarah Connor', date: '12 hours ago', message: 'docs: update payment flow sequence diagrams', type: 'docs', selected: true, parents: ['ef12ab3'], track: 1 },
         { sha: 'ef12ab3', author: 'Alex Nguyen', date: '2 days ago', message: 'feat: initial stripe payload schema validation', type: 'feat', selected: true, parents: [], track: 1 }
       ];
+    } else if (scenario === 'large_history') {
+      currentBranch = 'feature/payment-large-history';
+      const generated: any[] = [];
+      // Generate 32 linear commits
+      for (let i = 1; i <= 32; i++) {
+        // Sha format
+        const currentSha = i === 1 ? 'fcbc-001' : `sub-${i}`;
+        const parentSha = i === 32 ? 'ef12ab3' : `sub-${i + 1}`;
+        
+        generated.push({
+          sha: currentSha,
+          author: 'Alex Nguyen',
+          date: `${i} hours ago`,
+          message: i === 1
+            ? 'feat: finalize checkout flow step'
+            : `feat: checkout flow refinement step #${32 - i}`,
+          type: 'feat',
+          selected: true,
+          parents: [parentSha],
+          track: 1
+        });
+      }
+      
+      // Root base commit
+      generated.push({
+        sha: 'ef12ab3',
+        author: 'Alex Nguyen',
+        date: '2 days ago',
+        message: 'feat: initial stripe payload schema validation',
+        type: 'feat',
+        selected: true,
+        parents: [],
+        track: 1
+      });
+      
+      commits = generated;
+    } else if (scenario === 'large_nonlinear') {
+      currentBranch = 'feature/payment-large-nonlinear';
+      const generated: any[] = [];
+      
+      // 1. Feature track 1 commits (feat_25 down to feat_1)
+      for (let i = 25; i >= 1; i--) {
+        const currentSha = `feat-${i}`;
+        let parents: string[] = [];
+        if (i === 1) {
+          parents = ['base-6'];
+        } else if (i === 15) {
+          parents = ['feat-14', 'sub_feat-8'];
+        } else {
+          parents = [`feat-${i - 1}`];
+        }
+        
+        generated.push({
+          sha: currentSha,
+          author: 'Alex Nguyen',
+          date: `${i} hours ago`,
+          message: i === 25
+            ? 'feat: finalize large system analytics logs integration'
+            : i === 15
+            ? "Merge branch 'refactor-sub-feature' into feature/payment-large-nonlinear"
+            : `feat: payment flow improvement step #${i}`,
+          type: 'feat',
+          selected: true,
+          parents,
+          track: 1,
+          isMergeCommit: i === 15
+        });
+      }
+
+      // 2. Refactor track 2 commits (sub_feat_8 down to sub_feat_1)
+      for (let i = 8; i >= 1; i--) {
+        const currentSha = `sub_feat-${i}`;
+        const parentSha = (i === 1) ? 'feat-5' : `sub_feat-${i - 1}`;
+        generated.push({
+          sha: currentSha,
+          author: 'Sarah Connor',
+          date: `${i + 5} hours ago`,
+          message: `refactor: optimize database query throughput step #${i}`,
+          type: 'refactor',
+          selected: true,
+          parents: [parentSha],
+          track: 2
+        });
+      }
+
+      // 3. Base track 0 commits (base_12 down to base_1)
+      for (let i = 12; i >= 1; i--) {
+        const currentSha = `base-${i}`;
+        const parentSha = (i === 1) ? 'ef12ab3' : `base-${i - 1}`;
+        generated.push({
+          sha: currentSha,
+          author: 'Lead System',
+          date: `${i + 15} hours ago`,
+          message: `chore: update shared platform tools standard config patch #${i}`,
+          type: 'chore',
+          selected: true,
+          parents: [parentSha],
+          track: 0
+        });
+      }
+      
+      // 4. Root base commit
+      generated.push({
+        sha: 'ef12ab3',
+        author: 'Alex Nguyen',
+        date: '3 days ago',
+        message: 'feat: initial stripe payload schema validation',
+        type: 'feat',
+        selected: true,
+        parents: [],
+        track: 0
+      });
+      
+      commits = generated;
     }
 
     const branchesList = [
       { name: 'develop', isLocal: true, isRemote: true, isCurrent: false, isBase: true, aheadCount: 2, behindCount: 0 },
       { name: 'main', isLocal: true, isRemote: true, isCurrent: false, isBase: true, aheadCount: 0, behindCount: 0 },
       { name: 'feature/payment-linear', isLocal: true, isRemote: false, isCurrent: scenario === 'linear', isBase: false },
+      { name: 'feature/payment-large-history', isLocal: true, isRemote: false, isCurrent: scenario === 'large_history', isBase: false },
+      { name: 'feature/payment-large-nonlinear', isLocal: true, isRemote: false, isCurrent: scenario === 'large_nonlinear', isBase: false },
       { name: 'feature/payment-nonlinear', isLocal: true, isRemote: false, isCurrent: scenario === 'nonlinear', isBase: false },
       { name: 'feature/payment-diverged-rewrite', isLocal: true, isRemote: false, isCurrent: scenario === 'rewrite', isBase: false },
       { name: 'feature/payment-stale-base', isLocal: true, isRemote: false, isCurrent: scenario === 'stale', isBase: false },
