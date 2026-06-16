@@ -1201,24 +1201,32 @@ export default function WizardPanel({
 
             <div className="mt-2 text-xs">
               <span className="text-[11px] font-mono text-slate-500 uppercase block mb-1.5">{loc.step0.techRecommend}</span>
-              <div className="flex gap-2">
-                {['develop', 'main', 'master', 'dev'].map((branchSuggestion) => (
-                  <button
-                    key={branchSuggestion}
-                    onClick={() => onUpdateWizard({ baseBranch: branchSuggestion })}
-                    className={`px-3 py-1.5 text-xs font-mono rounded-lg border transition-all cursor-pointer ${
-                      wizard.baseBranch === branchSuggestion
-                        ? isLight
-                          ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-bold'
-                          : 'bg-indigo-500/15 border-indigo-500/60 text-indigo-300 font-bold'
-                        : isLight
-                        ? 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200'
-                        : 'bg-slate-950 border-slate-900 text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    🌱 {branchSuggestion}
-                  </button>
-                ))}
+              <div className="flex gap-2 flex-wrap">
+                {(() => {
+                  const customListStr = localStorage.getItem('custom_base_branches_list') || 'develop, main, master, dev, test';
+                  const suggestions = customListStr
+                    .split(',')
+                    .map(b => b.trim())
+                    .filter(Boolean);
+                  return suggestions.map((branchSuggestion) => (
+                    <button
+                      id={`wizard-branch-suggestion-${branchSuggestion}`}
+                      key={branchSuggestion}
+                      onClick={() => onUpdateWizard({ baseBranch: branchSuggestion })}
+                      className={`px-3 py-1.5 text-xs font-mono rounded-lg border transition-all cursor-pointer ${
+                        wizard.baseBranch === branchSuggestion
+                          ? isLight
+                            ? 'bg-indigo-50 border-indigo-300 text-indigo-700 font-bold'
+                            : 'bg-indigo-500/15 border-indigo-500/60 text-indigo-300 font-bold'
+                          : isLight
+                          ? 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200'
+                          : 'bg-slate-950 border-slate-900 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      🌱 {branchSuggestion}
+                    </button>
+                  ));
+                })()}
               </div>
             </div>
           </div>

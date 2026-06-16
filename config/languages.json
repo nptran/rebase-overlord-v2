@@ -1201,5 +1201,29 @@
         "vn_joke": "Trong sạch cô đơn, chả đổi file nào cả!",
         "vn_toxic": "Đéo đổi file nào cả, làm màu à? 🤷",
         "en_pro": "No file changes detected."
+    },
+    "missing_api_key_title": {
+        "vn_pro": "YÊU CẦU API KEY CHI TIẾT",
+        "vn_joke": "ẬP ẬP, THIẾU NÃO AI SẾP ƠI 🧠",
+        "vn_toxic": "XÌ TIỀN / LẮP API KEY MAU 💀",
+        "en_pro": "GEMINI API KEY REQUIRED"
+    },
+    "missing_api_key_desc": {
+        "vn_pro": "Trợ lý AI Oracle hiện đang ở trạng thái ngủ sâu vì chưa được cấu hình Google Gemini API Key trong phần Cài Đặt. Hãy cấu hình API Key để mở khóa toàn bộ tính năng trợ lý ảo chẩn đoán tự động.",
+        "vn_joke": "AI muốn khôn thì phải được feed đầy đủ, mà sếp chưa ném cái API Key nào vào mồm em nó cả. Mở Cài Đặt lên rồi dán trộm một cái AIzaSy... vào đi sếp iu!",
+        "vn_toxic": "Muốn chơi hệ thông thái mà éo chịu cung cấp Gemini API Key hả ranh con? Mở bảng Cài Đặt lên dán mã khóa vào ngay cho tao cấu cấu quét quét, lười chảy thây!",
+        "en_pro": "The AI Assistant is currently offline because no custom Gemini API Key has been configured. Please open settings and supply a valid Google Gemini API Key to enable automated diagnosis."
+    },
+    "missing_api_key_confirm": {
+        "vn_pro": "Mở Cài Đặt",
+        "vn_joke": "Độ Khóa API Ngay ⚙️",
+        "vn_toxic": "Mở Cài Đặt Nhanh 🤬",
+        "en_pro": "Open Settings"
+    },
+    "missing_api_key_not_now": {
+        "vn_pro": "Để Sau",
+        "vn_joke": "Chạy Cơm Offline 🔌",
+        "vn_toxic": "Éo Cần AI (Lỳ lợm) ❌",
+        "en_pro": "Not Now"
     }
 }

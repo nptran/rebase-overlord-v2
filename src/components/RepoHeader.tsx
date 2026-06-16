@@ -596,103 +596,217 @@ export default function RepoHeader({
           </div>
 
           {/* Light/Dark mode toggle */}
-          <button
-            id="toggle-theme-btn"
-            onClick={onToggleTheme}
-            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
-              theme === 'light'
-                ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 font-medium hover:bg-amber-500/20 shadow-sm'
-                : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-300'
-            }`}
-            title={theme === 'light' ? translate('theme_mode_dark', tone, undefined, useEmoji) : translate('theme_mode_light', tone, undefined, useEmoji)}
-          >
-            {theme === 'light' ? (
-              <Sun className="w-3.5 h-3.5 text-amber-500" />
-            ) : (
-              <Moon className="w-3.5 h-3.5 text-indigo-400" />
-            )}
-            <span>
-              {theme === 'light'
-                ? translate('theme_mode_light', tone, undefined, useEmoji)
-                : translate('theme_mode_dark', tone, undefined, useEmoji)}
-            </span>
-          </button>
+          {(() => {
+            const tooltipText = theme === 'light'
+              ? (tone === TranslationTone.ENGLISH ? 'Interface: Dark mode' : tone === TranslationTone.TOXIC ? 'Tắt điện cày đêm đi cưng 🌙' : tone === TranslationTone.JOKE ? 'Độ sáng: Tắt điện kéo rèm 😴' : 'Giao diện: Tối (Bảo vệ mắt)')
+              : (tone === TranslationTone.ENGLISH ? 'Interface: Light mode' : tone === TranslationTone.TOXIC ? 'Bật đèn lóa mắt khét lẹt ☀️' : tone === TranslationTone.JOKE ? 'Độ sáng: Bật đèn sập sình ☀️ ☀️' : 'Giao diện: Sáng (Bật đèn)');
+            const labelText = theme === 'light'
+              ? (tone === TranslationTone.ENGLISH ? 'Dark' : 'Tối')
+              : (tone === TranslationTone.ENGLISH ? 'Light' : 'Sáng');
+            return (
+              <div className="relative group inline-flex items-center justify-center">
+                <button
+                  id="toggle-theme-btn"
+                  onClick={onToggleTheme}
+                  className={`h-9 w-9 md:w-auto md:px-3 flex items-center justify-center gap-1.5 rounded-lg border transition-all cursor-pointer shadow-sm hover:scale-[1.05] active:scale-[0.96] duration-150 ${
+                    theme === 'light'
+                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 hover:bg-amber-500/20'
+                      : 'bg-slate-955 border-slate-800 text-slate-400 hover:text-slate-300'
+                  }`}
+                >
+                  {theme === 'light' ? (
+                    <Sun className="w-4 h-4 text-amber-500" />
+                  ) : (
+                    <Moon className="w-4 h-4 text-indigo-400" />
+                  )}
+                  <span className="hidden md:inline text-[11px] font-bold uppercase tracking-wider">{labelText}</span>
+                </button>
+                <div className="absolute bottom-full mb-2.5 left-1/2 -translate-x-1/2 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center z-55">
+                  <div className={`px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-xl border whitespace-nowrap leading-tight ${
+                    theme === 'light'
+                      ? 'bg-slate-900 border-slate-950 text-white'
+                      : 'bg-slate-955 border-slate-800 text-slate-100'
+                  }`}>
+                    {tooltipText}
+                  </div>
+                  <div className={`w-1.5 h-1.5 rotate-45 -mt-[4px] border-r border-b ${
+                    theme === 'light' ? 'bg-slate-900 border-slate-950' : 'bg-slate-955 border-slate-800'
+                  }`} />
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Emoji mode */}
-          <button
-            id="toggle-emoji-btn"
-            onClick={onToggleEmoji}
-            className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
-              useEmoji 
-                ? 'bg-amber-500/10 border-amber-500/30 text-amber-600 font-medium' 
-                : theme === 'light'
-                ? 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                : 'bg-slate-950 border-slate-800 text-slate-500'
-            }`}
-          >
-            <span>{useEmoji ? '🤪' : '😶'}</span>
-            <span>Emoji Mode: {useEmoji ? 'ON' : 'OFF'}</span>
-          </button>
+          {(() => {
+            const tooltipText = useEmoji
+              ? (tone === TranslationTone.ENGLISH ? 'Emoji decorations: ON' : tone === TranslationTone.TOXIC ? 'Bơm emoji khè thiên hạ: ĐANG BẬT 🤪' : tone === TranslationTone.JOKE ? 'Emoji múa lửa sập sình: BẬT 🤪' : 'Trợ lý Emoji: Bật (Hiển thị biểu cảm)')
+              : (tone === TranslationTone.ENGLISH ? 'Emoji decorations: OFF' : tone === TranslationTone.TOXIC ? 'Tắt emoji nhìn khô khan vcl 😶' : tone === TranslationTone.JOKE ? 'Nghiêm túc thanh tịnh: TẮT 😶' : 'Trợ lý Emoji: Tắt (Chế độ tối giản)');
+            const labelText = useEmoji
+              ? (tone === TranslationTone.ENGLISH ? 'Emoji ON' : tone === TranslationTone.TOXIC ? 'Emoji' : tone === TranslationTone.JOKE ? 'Quẩy' : 'Biểu cảm')
+              : (tone === TranslationTone.ENGLISH ? 'Emoji OFF' : tone === TranslationTone.TOXIC ? 'Khô' : tone === TranslationTone.JOKE ? 'Tĩnh' : 'Tối giản');
+            return (
+              <div className="relative group inline-flex items-center justify-center">
+                <button
+                  id="toggle-emoji-btn"
+                  onClick={onToggleEmoji}
+                  className={`h-9 w-9 md:w-auto md:px-3 flex items-center justify-center text-base rounded-lg border transition-all cursor-pointer shadow-sm hover:scale-[1.05] active:scale-[0.96] duration-150 ${
+                    useEmoji 
+                      ? 'bg-amber-500/10 border-amber-500/30 text-amber-600' 
+                      : theme === 'light'
+                      ? 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                      : 'bg-slate-955 border-slate-800 text-slate-500'
+                  }`}
+                >
+                  <span className="text-sm">{useEmoji ? '🤪' : '😶'}</span>
+                  <span className="hidden md:inline text-[11px] font-bold uppercase tracking-wider ml-1">{labelText}</span>
+                </button>
+                <div className="absolute bottom-full mb-2.5 left-1/2 -translate-x-1/2 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center z-55">
+                  <div className={`px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-xl border whitespace-nowrap leading-tight ${
+                    theme === 'light'
+                      ? 'bg-slate-900 border-slate-950 text-white'
+                      : 'bg-slate-955 border-slate-800 text-slate-100'
+                  }`}>
+                    {tooltipText}
+                  </div>
+                  <div className={`w-1.5 h-1.5 rotate-45 -mt-[4px] border-r border-b ${
+                    theme === 'light' ? 'bg-slate-900 border-slate-950' : 'bg-slate-955 border-slate-800'
+                  }`} />
+                </div>
+              </div>
+            );
+          })()}
 
           {/* AI API toggle for cost saving */}
-          <button
-            id="toggle-gemini-ai-btn"
-            onClick={onToggleAi}
-            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all cursor-pointer ${
-              isAiEnabled
-                ? 'bg-indigo-50 border-violet-200 text-violet-700 font-medium hover:bg-indigo-100 dark:bg-indigo-950/45 dark:border-violet-500/35 dark:text-violet-300'
-                : theme === 'light'
-                ? 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                : 'bg-slate-950 border-slate-850 text-slate-500 hover:text-slate-400'
-            }`}
-            title={tone === TranslationTone.ENGLISH ? "Enable/Disable Assistant AI processing to save API costs" : "Bật/tắt xử lý Trợ lý AI để tiết kiệm chi phí dịch vụ"}
-          >
-            <Bot className={`w-3.5 h-3.5 ${isAiEnabled ? 'text-violet-400 animate-pulse' : 'text-slate-600'}`} />
-            <span>
-              {isAiEnabled
-                ? (tone === TranslationTone.ENGLISH ? 'AI Mode: ON' : tone === TranslationTone.TOXIC ? 'Trợ lý AI: GÁY TO' : tone === TranslationTone.JOKE ? 'Trợ lý AI: MỞ BÁT' : 'Trợ lý AI: BẬT')
-                : (tone === TranslationTone.ENGLISH ? 'AI Mode: Cost Saved' : tone === TranslationTone.TOXIC ? 'Trợ lý AI: NÍN (Tiết kiệm)' : tone === TranslationTone.JOKE ? 'Trợ lý AI: HẾT SÈNG' : 'Trợ lý AI: TẮT')}
-            </span>
-          </button>
+          {(() => {
+            const tooltipText = isAiEnabled
+              ? (tone === TranslationTone.ENGLISH ? 'Oracle Brain Support: ON' : tone === TranslationTone.TOXIC ? 'AI thông thái gáy cực to: BẬT 🧠' : tone === TranslationTone.JOKE ? 'Bộ não sếp độ rực cháy: MỞ BÁT' : 'Trợ lý AI Oracle: BẬT (Khôn ngoan)')
+              : (tone === TranslationTone.ENGLISH ? 'Oracle Brain Support: Cost Saved Offline' : tone === TranslationTone.TOXIC ? 'AI ngủ lịm câm nín cắm cơm offline 💤' : tone === TranslationTone.JOKE ? 'Gác kiếm AI ú u: HẾT SÈNG 🔌' : 'Trợ lý AI Oracle: TẮT (Quy tắc tĩnh)');
+            const labelText = isAiEnabled
+              ? (tone === TranslationTone.ENGLISH ? 'AI On' : tone === TranslationTone.TOXIC ? 'AI Gáy' : tone === TranslationTone.JOKE ? 'AI Mở' : 'AI Bật')
+              : (tone === TranslationTone.ENGLISH ? 'AI Off' : tone === TranslationTone.TOXIC ? 'AI Nín' : tone === TranslationTone.JOKE ? 'AI Gác' : 'AI Tắt');
+            return (
+              <div className="relative group inline-flex items-center justify-center">
+                <button
+                  id="toggle-gemini-ai-btn"
+                  onClick={onToggleAi}
+                  className={`h-9 w-9 md:w-auto md:px-3 flex items-center justify-center gap-1.5 rounded-lg border transition-all cursor-pointer shadow-sm hover:scale-[1.05] active:scale-[0.96] duration-150 ${
+                    isAiEnabled
+                      ? 'bg-indigo-50 border-violet-200 text-violet-700 dark:bg-indigo-950/45 dark:border-violet-500/35 dark:text-violet-300'
+                      : theme === 'light'
+                      ? 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                      : 'bg-slate-955 border-slate-800 text-slate-500 hover:text-slate-400'
+                  }`}
+                >
+                  <Bot className={`w-4 h-4 ${isAiEnabled ? 'text-violet-400 animate-pulse' : 'text-slate-600'}`} />
+                  <span className="hidden md:inline text-[11px] font-bold uppercase tracking-wider">{labelText}</span>
+                </button>
+                <div className="absolute bottom-full mb-2.5 left-1/2 -translate-x-1/2 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center z-55">
+                  <div className={`px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-xl border whitespace-nowrap leading-tight ${
+                    theme === 'light'
+                      ? 'bg-slate-900 border-slate-950 text-white'
+                      : 'bg-slate-955 border-slate-800 text-slate-100'
+                  }`}>
+                    {tooltipText}
+                  </div>
+                  <div className={`w-1.5 h-1.5 rotate-45 -mt-[4px] border-r border-b ${
+                    theme === 'light' ? 'bg-slate-900 border-slate-950' : 'bg-slate-955 border-slate-800'
+                  }`} />
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Settings Button */}
-          <button
-            id="open-settings-panel-btn"
-            onClick={onOpenSettings}
-            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all cursor-pointer font-semibold ${
-              theme === 'light'
-                ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
-                : 'bg-[#121524] border-slate-800 text-slate-300 hover:text-slate-100 hover:bg-[#191d35]'
-            }`}
-            title={tone === TranslationTone.ENGLISH ? "Customize AI & Git Engine" : "Cấu hình AI & hệ thống Git"}
-          >
-            <Settings className="w-3.5 h-3.5 text-indigo-400" />
-            <span>
-              {tone === TranslationTone.ENGLISH ? 'Settings' : 'Cài Đặt'}
-            </span>
-          </button>
+          {(() => {
+            const tooltipText = tone === TranslationTone.ENGLISH 
+              ? 'Customize AI & Git Engine' 
+              : tone === TranslationTone.TOXIC 
+              ? 'Cấu hình lẹ mông mày giùm tao 💀' 
+              : tone === TranslationTone.JOKE 
+              ? 'Nơi sếp độ bánh răng, tra dầu mỡ xích líp ⚙️' 
+              : 'Cấu hình AI & hệ thống Git';
+            const labelText = tone === TranslationTone.ENGLISH
+              ? 'Settings'
+              : tone === TranslationTone.TOXIC
+              ? 'Đồ chơi'
+              : tone === TranslationTone.JOKE
+              ? 'Bản đồ'
+              : 'Cài đặt';
+            return (
+              <div className="relative group inline-flex items-center justify-center">
+                <button
+                  id="open-settings-panel-btn"
+                  onClick={onOpenSettings}
+                  className={`h-9 w-9 md:w-auto md:px-3 flex items-center justify-center gap-1.5 rounded-lg border transition-all cursor-pointer font-semibold shadow-sm hover:scale-[1.05] active:scale-[0.96] duration-150 ${
+                    theme === 'light'
+                      ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                      : 'bg-[#121524] border-slate-800 text-slate-300 hover:text-slate-100 hover:bg-[#191d35]'
+                  }`}
+                >
+                  <Settings className="w-4 h-4 text-indigo-400" />
+                  <span className="hidden md:inline text-[11px] font-bold uppercase tracking-wider">{labelText}</span>
+                </button>
+                <div className="absolute bottom-full mb-2.5 left-1/2 -translate-x-1/2 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center z-55">
+                  <div className={`px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-xl border whitespace-nowrap leading-tight ${
+                    theme === 'light'
+                      ? 'bg-slate-900 border-slate-950 text-white'
+                      : 'bg-slate-955 border-slate-800 text-slate-100'
+                  }`}>
+                    {tooltipText}
+                  </div>
+                  <div className={`w-1.5 h-1.5 rotate-45 -mt-[4px] border-r border-b ${
+                    theme === 'light' ? 'bg-slate-900 border-slate-950' : 'bg-slate-955 border-slate-800'
+                  }`} />
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Check Updates Button */}
-          <button
-            id="check-updates-btn"
-            onClick={handleCheckUpdates}
-            disabled={checkingUpdate}
-            className={`flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg border transition-all cursor-pointer font-medium ${
-              checkingUpdate
-                ? (theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-slate-900 border-slate-800 text-slate-500')
-                : (theme === 'light' 
-                    ? 'bg-slate-50 border-slate-200 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50' 
-                    : 'bg-slate-950 border-slate-850 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-50/5')
-            }`}
-            title={translate('update_check_btn', tone, undefined, useEmoji)}
-          >
-            <RefreshCw className={`w-3 h-3 ${checkingUpdate ? 'animate-spin' : ''}`} />
-            <span>
-              {checkingUpdate
-                ? translate('update_checking', tone, undefined, useEmoji)
-                : translate('update_check_btn', tone, undefined, useEmoji)}
-            </span>
-          </button>
+          {(() => {
+            const tooltipText = checkingUpdate
+              ? (tone === TranslationTone.ENGLISH ? 'Interrogating origin...' : tone === TranslationTone.TOXIC ? 'Đang hóng update cưng ơi...' : tone === TranslationTone.JOKE ? 'Đang ngửi xem có hàng mới...' : 'Đang rà soát tệp tin...')
+              : (tone === TranslationTone.ENGLISH ? 'Check for system updates' : tone === TranslationTone.TOXIC ? 'Hóng update liền tay' : tone === TranslationTone.JOKE ? 'Check hàng mới coi có gì ngon nghẻ 🔄' : 'Kiểm tra cập nhật phần mềm');
+            const labelText = tone === TranslationTone.ENGLISH
+              ? 'Update'
+              : tone === TranslationTone.TOXIC
+              ? 'Hóng'
+              : tone === TranslationTone.JOKE
+              ? 'Hàng mới'
+              : 'Mới';
+            return (
+              <div className="relative group inline-flex items-center justify-center">
+                <button
+                  id="check-updates-btn"
+                  onClick={handleCheckUpdates}
+                  disabled={checkingUpdate}
+                  className={`h-9 w-9 md:w-auto md:px-3 flex items-center justify-center gap-1.5 rounded-lg border transition-all cursor-pointer font-medium shadow-sm hover:scale-[1.05] active:scale-[0.96] duration-150 ${
+                    checkingUpdate
+                      ? (theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-slate-900 border-slate-800 text-slate-500')
+                      : (theme === 'light' 
+                          ? 'bg-slate-50 border-slate-200 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50' 
+                          : 'bg-slate-955 border-slate-800 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-50/5')
+                  }`}
+                >
+                  <RefreshCw className={`w-4 h-4 ${checkingUpdate ? 'animate-spin text-emerald-500' : 'text-emerald-500'}`} />
+                  <span className="hidden md:inline text-[11px] font-bold uppercase tracking-wider">{labelText}</span>
+                </button>
+                <div className="absolute bottom-full mb-2.5 left-1/2 -translate-x-1/2 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center z-55">
+                  <div className={`px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-xl border whitespace-nowrap leading-tight ${
+                    theme === 'light'
+                      ? 'bg-slate-900 border-slate-950 text-white'
+                      : 'bg-slate-955 border-slate-800 text-slate-100'
+                  }`}>
+                    {tooltipText}
+                  </div>
+                  <div className={`w-1.5 h-1.5 rotate-45 -mt-[4px] border-r border-b ${
+                    theme === 'light' ? 'bg-slate-900 border-slate-950' : 'bg-slate-955 border-slate-800'
+                  }`} />
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Success Latest Version Dialog Toast */}
           {successCheckMsg && (
@@ -703,30 +817,48 @@ export default function RepoHeader({
           )}
 
           {/* Combined Simulator / Real Workspace toggle */}
-          <button
-            id="toggle-sim-unified-btn"
-            onClick={() => onToggleSimulation(!isSimulation)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold font-mono transition-now cursor-pointer select-none active:scale-[0.98] ${
-              isSimulation
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 shadow-sm'
-                : theme === 'light'
-                ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 shadow-sm'
-                : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20 shadow-sm'
-            }`}
-            title={isSimulation ? "Bấm để kết nối lại và đồng bộ với Git thật" : "Bấm để chuyển sang chế độ Sa bàn Mô phỏng"}
-          >
-            {isSimulation ? (
-              <>
-                <Sparkles className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-                <span>{tone === TranslationTone.ENGLISH ? '🧪 Simulation Active' : '🧪 Chế độ Giả lập: BẬT'}</span>
-              </>
-            ) : (
-              <>
-                <Database className="w-3.5 h-3.5 text-indigo-400" />
-                <span>{tone === TranslationTone.ENGLISH ? '🔌 Real Git Connected' : '🔗 Đồng bộ Git thật'}</span>
-              </>
-            )}
-          </button>
+          {(() => {
+            const tooltipText = isSimulation
+              ? (tone === TranslationTone.ENGLISH ? 'Sandbox: Simulation Active' : tone === TranslationTone.TOXIC ? 'Sân chơi giả lập an toàn cho trẻ sơ sinh 🍼' : tone === TranslationTone.JOKE ? 'Mở khu vui chơi sa bàn giải lập: AN TOÀN BAO PHÁ 🧪' : 'Môi trường: Giả lập sa bàn (An toàn)')
+              : (tone === TranslationTone.ENGLISH ? 'Sandbox: Real Host Connected' : tone === TranslationTone.TOXIC ? 'Chọc ngoáy code thật gầm rú ổ đĩa ⚠️' : tone === TranslationTone.JOKE ? 'Múa dao kéo thật trên Git ổ cứng (CẨN THẬN) 🔥' : 'Môi trường: Đang liên kết repository thật');
+            const labelText = isSimulation
+              ? (tone === TranslationTone.ENGLISH ? 'Sandbox' : 'Mô phỏng')
+              : (tone === TranslationTone.ENGLISH ? 'Real Git' : 'Thật');
+            return (
+              <div className="relative group inline-flex items-center justify-center">
+                <button
+                  id="toggle-sim-unified-btn"
+                  onClick={() => onToggleSimulation(!isSimulation)}
+                  className={`h-9 w-9 md:w-auto md:px-3 flex items-center justify-center gap-1.5 rounded-lg border transition-all cursor-pointer font-semibold shadow-sm hover:scale-[1.05] active:scale-[0.96] duration-150 ${
+                    isSimulation
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 shadow-sm'
+                      : theme === 'light'
+                      ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 shadow-sm'
+                      : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20 shadow-sm'
+                  }`}
+                >
+                  {isSimulation ? (
+                    <Sparkles className="w-4 h-4 text-emerald-400 animate-pulse" />
+                  ) : (
+                    <Database className="w-4 h-4 text-indigo-400" />
+                  )}
+                  <span className="hidden md:inline text-[11px] font-bold uppercase tracking-wider">{labelText}</span>
+                </button>
+                <div className="absolute bottom-full mb-2.5 left-1/2 -translate-x-1/2 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center z-55">
+                  <div className={`px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-xl border whitespace-nowrap leading-tight ${
+                    theme === 'light'
+                      ? 'bg-slate-900 border-slate-950 text-white'
+                      : 'bg-slate-955 border-slate-800 text-slate-100'
+                  }`}>
+                    {tooltipText}
+                  </div>
+                  <div className={`w-1.5 h-1.5 rotate-45 -mt-[4px] border-r border-b ${
+                    theme === 'light' ? 'bg-slate-900 border-slate-950' : 'bg-slate-955 border-slate-800'
+                  }`} />
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 

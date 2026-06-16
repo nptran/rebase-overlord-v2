@@ -1081,6 +1081,10 @@ export default function App() {
     title: string;
     message: string;
     onConfirm: () => void;
+    confirmText?: string;
+    cancelText?: string;
+    confirmBtnClassName?: string;
+    iconType?: 'danger' | 'info';
   } | null>(null);
 
   // Settings Modal open state
@@ -1647,6 +1651,38 @@ export default function App() {
       localStorage.setItem('rebase_overlord_is_ai_enabled', String(isAiEnabled));
     } catch (e) {}
   }, [isAiEnabled]);
+
+  const handleToggleAiMode = React.useCallback(() => {
+    // Check if API key is present
+    const hasKey = !!localStorage.getItem('gemini_api_key')?.trim();
+    if (!hasKey) {
+      if (!isAiEnabled) {
+        setConfirmModal({
+          isOpen: true,
+          title: translate('missing_api_key_title', tone),
+          message: translate('missing_api_key_desc', tone),
+          confirmText: translate('missing_api_key_confirm', tone),
+          cancelText: translate('missing_api_key_not_now', tone),
+          confirmBtnClassName: 'bg-indigo-600 hover:bg-indigo-505 border-indigo-500/25 shadow-md',
+          iconType: 'info',
+          onConfirm: () => {
+            setIsSettingsOpen(true);
+          }
+        });
+        return;
+      }
+    }
+
+    const newVal = !isAiEnabled;
+    setIsAiEnabled(newVal);
+    addLog(newVal ? '🤖 AI Engine Enabled (Full AI Features activated)' : '🤖 AI Engine Disabled (Cost saved - falling back to offline mode)');
+    
+    if (newVal) {
+      triggerToast('success', '🧠 BRAIN EXTENSION ENABLED', 'Đã nhồi thêm hàng tỷ nơ-ron từ mô hình sinh mẫu trợ lý trí tuệ nhân tạo thông minh!', '🤖');
+    } else {
+      triggerToast('warn', '🔌 COMPUTE COST SAVER', 'Trợ lý AI đã chuyển sang chẩn đoán ngoại tuyến (Offline rules) để tiết kiệm chi phí cho bạn.', '🔌');
+    }
+  }, [isAiEnabled, tone]);
 
   React.useEffect(() => {
     try {
@@ -3537,17 +3573,7 @@ export default function App() {
               triggerToast('warn', '🔌 REAL GIT CONNECTED', 'Chú ý: Đã chuyển ngữ trực tiếp vào tệp tin và Repo thật trên ổ đĩa máy chủ!', '⚠️');
             }
           }}
-          onToggleAi={() => {
-            const newVal = !isAiEnabled;
-            setIsAiEnabled(newVal);
-            addLog(newVal ? '🤖 AI Engine Enabled (Full AI Features activated)' : '🤖 AI Engine Disabled (Cost saved - falling back to offline mode)');
-            
-            if (newVal) {
-              triggerToast('success', '🧠 BRAIN EXTENSION ENABLED', 'Đã nhồi thêm hàng tỷ nơ-ron từ mô hình sinh mẫu trợ lý trí tuệ nhân tạo thông minh!', '🤖');
-            } else {
-              triggerToast('warn', '🔌 COMPUTE COST SAVER', 'Trợ lý AI đã chuyển sang chẩn đoán ngoại tuyến (Offline rules) để tiết kiệm chi phí cho bạn.', '🔌');
-            }
-          }}
+          onToggleAi={handleToggleAiMode}
           onToggleTheme={() => {
             const nextTheme = theme === 'light' ? 'dark' : 'light';
             setTheme(nextTheme);
@@ -3579,6 +3605,12 @@ export default function App() {
             const newDefault = localStorage.getItem('default_base_branch') || 'develop';
             setRepoState(prev => ({ ...prev, baseBranch: newDefault }));
             handleUpdateWizard({ baseBranch: newDefault });
+            
+            const hasKey = !!localStorage.getItem('gemini_api_key')?.trim();
+            if (!hasKey && isAiEnabled) {
+              setIsAiEnabled(false);
+              addLog('🤖 AI Engine Disabled automatically because the Gemini API key was cleared.');
+            }
           }}
         />
 
@@ -5294,11 +5326,7 @@ export default function App() {
           repoState={repoState}
           tone={tone}
           isAiEnabled={isAiEnabled}
-          onToggleAi={() => {
-            const newVal = !isAiEnabled;
-            setIsAiEnabled(newVal);
-            addLog(newVal ? '🤖 AI Engine Enabled (Full AI Features activated)' : '🤖 AI Engine Disabled (Cost saved - falling back to offline mode)');
-          }}
+          onToggleAi={handleToggleAiMode}
           theme={theme}
           appVersion={appVersion}
           isUpgraded={isUpgraded}
@@ -5327,9 +5355,15 @@ export default function App() {
                 }`}
               >
                 <div className="flex items-start gap-3.5 mb-4">
-                  <div className="p-2 rounded-lg bg-rose-500/10 text-rose-500 shrink-0">
-                    <AlertTriangle className="w-5 h-5 animate-pulse" />
-                  </div>
+                  {confirmModal.iconType === 'info' ? (
+                    <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-505 shrink-0">
+                      <HelpCircle className="w-5 h-5 animate-pulse text-indigo-400" />
+                    </div>
+                  ) : (
+                    <div className="p-2 rounded-lg bg-rose-500/10 text-rose-500 shrink-0">
+                      <AlertTriangle className="w-5 h-5 animate-pulse" />
+                    </div>
+                  )}
                   <div>
                     <h3 className={`text-sm font-bold uppercase tracking-wider ${theme === 'light' ? 'text-slate-900' : 'text-white'}`}>
                       {confirmModal.title}
@@ -5342,6 +5376,7 @@ export default function App() {
 
                 <div className="flex justify-end gap-2.5 mt-6 pt-3 border-t border-slate-200/10 text-xs text-mono">
                   <button
+                    id="confirm-modal-cancel-btn"
                     onClick={() => setConfirmModal(null)}
                     className={`px-3 py-1.5 rounded font-medium border cursor-pointer select-none transition-all active:scale-[0.98] ${
                       theme === 'light'
@@ -5349,16 +5384,19 @@ export default function App() {
                         : 'bg-slate-950 hover:bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    {tone === TranslationTone.ENGLISH ? 'Cancel' : tone === TranslationTone.TOXIC ? 'Thôi cút' : 'Hủy bỏ'}
+                    {confirmModal.cancelText || (tone === TranslationTone.ENGLISH ? 'Cancel' : tone === TranslationTone.TOXIC ? 'Thôi cút' : 'Hủy bỏ')}
                   </button>
                   <button
+                    id="confirm-modal-confirm-btn"
                     onClick={() => {
                       confirmModal.onConfirm();
                       setConfirmModal(null);
                     }}
-                    className="px-3.5 py-1.5 rounded font-bold text-white bg-rose-600 hover:bg-rose-500 border border-rose-500/20 shadow-md cursor-pointer select-none transition-all active:scale-[0.98]"
+                    className={`px-3.5 py-1.5 rounded font-bold text-white border shadow-md cursor-pointer select-none transition-all active:scale-[0.98] ${
+                      confirmModal.confirmBtnClassName || 'bg-rose-600 hover:bg-rose-500 border-rose-500/20'
+                    }`}
                   >
-                    {tone === TranslationTone.ENGLISH ? 'Confirm' : tone === TranslationTone.TOXIC ? 'Chốt luôn, sợ đéo' : 'Xác nhận'}
+                    {confirmModal.confirmText || (tone === TranslationTone.ENGLISH ? 'Confirm' : tone === TranslationTone.TOXIC ? 'Chốt luôn, sợ đéo' : 'Xác nhận')}
                   </button>
                 </div>
               </motion.div>
