@@ -26,6 +26,10 @@ export function getApiHeaders(customHeaders: Record<string, string> = {}): Recor
         headers['x-gemini-api-key'] = key.trim();
       }
     }
+    
+    // Include selected Gemini model in custom headers
+    const model = window.localStorage.getItem('gemini_model') || 'gemini-3.5-flash';
+    headers['x-gemini-model'] = model;
   }
 
   return headers;

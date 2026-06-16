@@ -46,6 +46,7 @@ interface RepoHeaderProps {
   onUpdateRepoPath: (path: string) => void;
   onCloneRepo: (repoUrl: string, token: string) => Promise<boolean>;
   onRefresh: () => void;
+  onOpenSettings?: () => void;
   
   // Update verification highlights
   isVersionRed?: boolean;
@@ -190,6 +191,7 @@ export default function RepoHeader({
   onUpdateRepoPath,
   onCloneRepo,
   onRefresh,
+  onOpenSettings,
   isVersionRed = false,
   verifyBtnVisible = false,
   onVerifyInstallation
@@ -650,6 +652,23 @@ export default function RepoHeader({
               {isAiEnabled
                 ? (tone === TranslationTone.ENGLISH ? 'AI Mode: ON' : tone === TranslationTone.TOXIC ? 'Trợ lý AI: GÁY TO' : tone === TranslationTone.JOKE ? 'Trợ lý AI: MỞ BÁT' : 'Trợ lý AI: BẬT')
                 : (tone === TranslationTone.ENGLISH ? 'AI Mode: Cost Saved' : tone === TranslationTone.TOXIC ? 'Trợ lý AI: NÍN (Tiết kiệm)' : tone === TranslationTone.JOKE ? 'Trợ lý AI: HẾT SÈNG' : 'Trợ lý AI: TẮT')}
+            </span>
+          </button>
+
+          {/* Settings Button */}
+          <button
+            id="open-settings-panel-btn"
+            onClick={onOpenSettings}
+            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-all cursor-pointer font-semibold ${
+              theme === 'light'
+                ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                : 'bg-[#121524] border-slate-800 text-slate-300 hover:text-slate-100 hover:bg-[#191d35]'
+            }`}
+            title={tone === TranslationTone.ENGLISH ? "Customize AI & Git Engine" : "Cấu hình AI & hệ thống Git"}
+          >
+            <Settings className="w-3.5 h-3.5 text-indigo-400" />
+            <span>
+              {tone === TranslationTone.ENGLISH ? 'Settings' : 'Cài Đặt'}
             </span>
           </button>
 

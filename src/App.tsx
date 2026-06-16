@@ -52,6 +52,7 @@ import { getApiHeaders } from './utils/apiKeyHelper';
 
 // Modules
 import RepoHeader from './components/RepoHeader';
+import SettingsModal from './components/SettingsModal';
 import WizardPanel from './components/WizardPanel';
 import BranchPanel from './components/BranchPanel';
 import TerminalPanel from './components/TerminalPanel';
@@ -1033,17 +1034,22 @@ export default function App() {
 
   // Core Git States with localStorage fallback
   const [repoState, setRepoState] = React.useState<GitRepoState>(() => {
+    const defaultBase = localStorage.getItem('default_base_branch') || 'develop';
     try {
       const saved = localStorage.getItem('rebase_overlord_repo_state');
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (!parsed.baseBranch) {
+          parsed.baseBranch = defaultBase;
+        }
+        return parsed;
       }
     } catch (e) {}
     return {
       repoPath: '.',
       isValid: true,
       currentBranch: 'feature/payment-v2',
-      baseBranch: 'develop',
+      baseBranch: defaultBase,
       isDirty: true,
       dirtyFiles: [
         'src/routes/payment.ts',
@@ -1077,6 +1083,9 @@ export default function App() {
     onConfirm: () => void;
   } | null>(null);
 
+  // Settings Modal open state
+  const [isSettingsOpen, setIsSettingsOpen] = React.useState<boolean>(false);
+
   // Detection for mobile to optimize dragging performance on small screen devices
   const [isMobile, setIsMobile] = React.useState(false);
 
@@ -1096,15 +1105,20 @@ export default function App() {
 
   // Wizard state machine with localStorage fallback
   const [wizard, setWizard] = React.useState<WizardState>(() => {
+    const defaultBase = localStorage.getItem('default_base_branch') || 'develop';
     try {
       const saved = localStorage.getItem('rebase_overlord_wizard');
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (!parsed.baseBranch) {
+          parsed.baseBranch = defaultBase;
+        }
+        return parsed;
       }
     } catch (e) {}
     return {
       step: 0,
-      baseBranch: 'develop',
+      baseBranch: defaultBase,
       doFetch: true,
       detectedType: 'clean',
       detectedReason: 'Nhánh gọn gàng, không trùng lặp commits',
@@ -1803,6 +1817,41 @@ export default function App() {
       clearInterval(intervalId);
     };
   }, [isSimulation, repoState.rebaseInProgress, wizard.status, quietRefresh]);
+
+  // Trigger to reload auto-fetch configuration
+  const [autoFetchTrigger, setAutoFetchTrigger] = React.useState(0);
+
+  // Periodic background origin auto-fetch
+  React.useEffect(() => {
+    if (isSimulation || !repoState.repoPath || !repoState.isValid) return;
+
+    const autoFetchEnabled = localStorage.getItem('auto_fetch_enabled') !== 'false';
+    const autoFetchIntervalStr = localStorage.getItem('auto_fetch_interval') || '300';
+    const intervalMs = parseInt(autoFetchIntervalStr, 10) * 1000;
+
+    if (!autoFetchEnabled || intervalMs <= 0) return;
+
+    const intervalId = setInterval(async () => {
+      addLog(`🔄 [Auto-Fetch] Running periodic remote synchronization (origin fetch)...`);
+      try {
+        const url = resolveApiUrl(`/api/execute-command`);
+        await fetch(url, {
+          method: 'POST',
+          headers: getApiHeaders(),
+          body: JSON.stringify({
+            command: `git fetch origin`
+          })
+        });
+        await quietRefresh();
+      } catch (err) {
+        // Quiet fail
+      }
+    }, intervalMs);
+
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [isSimulation, repoState.repoPath, repoState.isValid, quietRefresh, addLog, autoFetchTrigger]);
 
   // Sync statistics from node server
   const fetchStats = async () => {
@@ -3517,6 +3566,20 @@ export default function App() {
           isVersionRed={isVersionRed}
           verifyBtnVisible={verifyBtnVisible}
           onVerifyInstallation={() => verifyInstallationWithMetadata(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+        />
+
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          theme={theme}
+          tone={tone}
+          onRefreshAutoFetch={() => {
+            setAutoFetchTrigger(prev => prev + 1);
+            const newDefault = localStorage.getItem('default_base_branch') || 'develop';
+            setRepoState(prev => ({ ...prev, baseBranch: newDefault }));
+            handleUpdateWizard({ baseBranch: newDefault });
+          }}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 w-full">
@@ -3646,13 +3709,17 @@ export default function App() {
                   }`}
                   style={{ backgroundImage: 'none' }}
                 >
-                  {Array.from(new Set(
-                    repoState.branches
-                      .map(b => b.name as string)
-                      .filter(name => ['develop', 'main', 'master', 'dev', 'test'].includes(name) || name === (repoState.baseBranch || 'develop'))
-                  )).map(bName => (
-                    <option key={bName} value={bName} className={theme === 'light' ? 'bg-white text-slate-800' : 'bg-slate-900 text-slate-200'}>{bName}</option>
-                  ))}
+                  {(() => {
+                    const customListStr = localStorage.getItem('custom_base_branches_list') || 'develop, main, master, dev, test';
+                    const customList = customListStr.split(',').map(s => s.trim()).filter(Boolean);
+                    const currentActive = repoState.baseBranch || 'develop';
+                    const finalOptions = Array.from(new Set([...customList, currentActive]));
+                    return finalOptions.map(bName => (
+                      <option key={bName} value={bName} className={theme === 'light' ? 'bg-white text-slate-800' : 'bg-slate-900 text-slate-200'}>
+                        {bName}
+                      </option>
+                    ));
+                  })()}
                 </select>
                 <div className="absolute inset-y-0 right-1.5 flex items-center pointer-events-none text-slate-500 dark:text-slate-400">
                   <svg className="w-2.5 h-2.5 fill-current" viewBox="0 0 20 20">

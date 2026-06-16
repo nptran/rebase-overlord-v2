@@ -1083,6 +1083,11 @@ function getRequestApiKey(req: express.Request): string | undefined {
   return process.env.GEMINI_API_KEY;
 }
 
+function getRequestModel(req: express.Request): string {
+  const headerModel = req.headers['x-gemini-model'] as string;
+  return headerModel ? headerModel.trim() : 'gemini-3.5-flash';
+}
+
 function getGeminiClient(apiKey: string): GoogleGenAI {
   return new GoogleGenAI({
     apiKey: apiKey,
@@ -1236,7 +1241,7 @@ Nếu lệnh này có tính huỷ hoại cao hoặc nguy hiểm có thể xoá d
 Ngoài ra, hãy phân tích câu lệnh của người dùng gõ. Nếu câu lệnh bị lỗi chính tả (ví dụ như "git statsu" thay vì "git status" hoặc "git checkoutt" thay vì "git checkout") hoặc thiếu tham số, hãy sửa đổi nó và đề xuất câu đúng vào danh sách 'suggestedCommands'. Trả về ít nhất 3-4 câu lệnh cụ thể, khả thi nhất làm gợi ý hành động tiếp theo.`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
+        model: getRequestModel(req),
         contents: promptUser,
         config: {
           systemInstruction,
@@ -1413,7 +1418,7 @@ Yêu cầu cụ thể:
 3. 'dr_schema': Nếu isSchemaActive là True, hãy phân tích xem các tệp SQL/Prisma/Drizzle/Schema được chỉnh sửa có cần chạy migration hoặc lệnh CLI đồng bộ DB nào không, đưa ra cảnh báo nguy cơ dữ liệu. Nếu isSchemaActive là False, hãy điền giải thích và biện pháp giảm thiểu là chuỗi rỗng "".`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
+        model: getRequestModel(req),
         contents: promptUser,
         config: {
           systemInstruction,
@@ -1558,7 +1563,7 @@ Bạn cần tuân thủ nghiêm ngặt:
 2. Ghép nối hoặc lựa chọn thông minh 2 đoạn mã trên tạo thành mã nguồn hoàn chỉnh ở thuộc tính "resolvedContent". Đảm bảo mã nguồn logic, tuyệt đối không tự ý sờ mó hoặc thay đổi các đoạn code hoạt động ổn định của hai bên khi không có lý do vững chắc!`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
+        model: getRequestModel(req),
         contents: promptUser,
         config: {
           systemInstruction,
@@ -1677,7 +1682,7 @@ Bạn cần tuyệt đối tuân thủ:
 3. Viết mã nguồn hợp nhất và điền vào thuộc tính "resolvedContent". Tuyệt đối không tự ý viết thêm biến mới, đổi tên hoặc sửa code hoạt động bình thường nằm bên ngoài! Tuyệt đối không để sót bất kỳ marker xung đột \`<<<<<<<\`, \`=======\`, \`>>>>>>>\` nào bên trong resolvedContent!`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
+        model: getRequestModel(req),
         contents: promptUser,
         config: {
           systemInstruction,
@@ -1856,7 +1861,7 @@ HƯỚNG DẪN BẮT BỆNH VÀ CỨU HỘ:
       }));
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
+        model: getRequestModel(req),
         contents: formattedContents,
         config: {
           systemInstruction: docContext,
