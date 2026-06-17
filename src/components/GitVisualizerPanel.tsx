@@ -2730,7 +2730,7 @@ export default function GitVisualizerPanel({
         
         {/* Play stage display area (Left - col span 8) */}
         <div className={`lg:col-span-8 flex flex-col gap-3 justify-center min-h-[260px] rounded-xl p-4 overflow-hidden relative border ${
-          isLight ? 'bg-indigo-50/20 border-indigo-100/60' : 'bg-slate-950/70 border-slate-905/60'
+          isLight ? 'bg-slate-105/40 border-slate-250' : 'bg-slate-950/70 border-slate-805/80'
         }`}>
           
           {/* Active play indicators */}
@@ -3280,7 +3280,7 @@ export default function GitVisualizerPanel({
 
                       {/* Metrics details list */}
                       <div className={`rounded-lg p-2 flex flex-col gap-1.5 border select-none ${
-                        isLight ? 'bg-indigo-50/10 border-indigo-100/50' : 'bg-slate-950/40 border-slate-850/80'
+                        isLight ? 'bg-indigo-150/5 border-indigo-150' : 'bg-slate-950/40 border-slate-850/80'
                       }`}>
                         <div className="flex justify-between items-center text-[10px]">
                           <span className="text-slate-450 font-sans font-semibold flex items-center gap-1">
@@ -3356,7 +3356,7 @@ export default function GitVisualizerPanel({
           {/* Expected final outcome brief */}
           {rightPanelTab === 'guide' && (
             <div className={`rounded-lg p-2.5 border mt-2 ${
-              isLight ? 'bg-indigo-50/40 border-indigo-100/60' : 'bg-indigo-950/20 border-indigo-505/10'
+              isLight ? 'bg-indigo-150/15 border-indigo-150' : 'bg-indigo-950/20 border-indigo-505/10'
             }`}>
               <span className={`text-[9px] font-mono font-bold tracking-wider block mb-0.5 ${
                 isLight ? 'text-indigo-700' : 'text-indigo-400'

@@ -120,6 +120,7 @@ const sanityLoc: Record<TranslationTone, {
   simScenarioDetached: string;
   simScenarioLargeHistory: string;
   simScenarioLargeNonLinear: string;
+  simScenarioPowerBI: string;
   simScenarioDesc: string;
 }> = {
   [TranslationTone.PROFESSIONAL]: {
@@ -180,6 +181,7 @@ const sanityLoc: Record<TranslationTone, {
     simScenarioDetached: "Lịch sử rỗng rênh (Detached HEAD)",
     simScenarioLargeHistory: "Kịch bản siêu nhiều commits (30+ commits tuyến tính)",
     simScenarioLargeNonLinear: "Kịch bản siêu lớn + phi tuyến (40+ commits, nhiều nhánh)",
+    simScenarioPowerBI: "Xung đột Power BI phức tạp (.tmdl + .json) (Power BI)",
     simScenarioDesc: "Mô phỏng lại các kịch bản khó nhằn trong Git để kiểm thử trực quan và phác đồ AI Doctor."
   },
   [TranslationTone.JOKE]: {
@@ -240,6 +242,7 @@ const sanityLoc: Record<TranslationTone, {
     simScenarioDetached: "Đứt dây neo trôi vô định (Detached HEAD)",
     simScenarioLargeHistory: "Nhánh th siêu dài thườn thượt (30+ commits tuyến tính)",
     simScenarioLargeNonLinear: "Nhánh khủng phi tuyến lằng nhằng (40+ commits, 3 nhánh quấn nhau)",
+    simScenarioPowerBI: "Độ bom xịt Power BI siêu rắc rối (.tmdl & .json) (Power BI)",
     simScenarioDesc: "Toàn bộ kịch bản bốc mùi của Git để sếp nghịch cho biết thế nào là đau đớn."
   },
   [TranslationTone.TOXIC]: {
@@ -300,6 +303,7 @@ const sanityLoc: Record<TranslationTone, {
     simScenarioDetached: "Bay đầu mất xác giữa chợ (Detached HEAD)",
     simScenarioLargeHistory: "Nhánh dài tổ bố 30+ phát commit tuyến tính",
     simScenarioLargeNonLinear: "Đống rác khổng lồ 40+ commits quấn lộn lằng nhằn",
+    simScenarioPowerBI: "Bãi rác Power BI lằng nhằng nổ tung đầu (.tmdl & .json) (Power BI)",
     simScenarioDesc: "Mấy quả phá hoại Git điển hình để test não AI Doctor và cách chữa bệnh."
   },
   [TranslationTone.ENGLISH]: {
@@ -360,6 +364,7 @@ const sanityLoc: Record<TranslationTone, {
     simScenarioDetached: "Detached HEAD State (Detached HEAD)",
     simScenarioLargeHistory: "Large Linear Branch History (30+ Commits)",
     simScenarioLargeNonLinear: "Large Non-Linear History (40+ Commits, Multi-branch)",
+    simScenarioPowerBI: "Complex Power BI Conflict Scenario (.tmdl & .json) (Power BI)",
     simScenarioDesc: "Simulate complex, real-world, non-linear Git histories to test commit graph layout and live anomaly warning diagnostics."
   }
 };
@@ -871,10 +876,10 @@ export default function App() {
     return true;
   });
 
-  const [simScenarioId, setSimScenarioId] = React.useState<'linear' | 'nonlinear' | 'rewrite' | 'stale' | 'detached' | 'large_history' | 'large_nonlinear'>(() => {
+  const [simScenarioId, setSimScenarioId] = React.useState<'linear' | 'nonlinear' | 'rewrite' | 'stale' | 'detached' | 'large_history' | 'large_nonlinear' | 'powerbi'>(() => {
     try {
       const saved = localStorage.getItem('rebase_overlord_sim_scenario_id') as any;
-      if (['linear', 'nonlinear', 'rewrite', 'stale', 'detached', 'large_history', 'large_nonlinear'].includes(saved)) {
+      if (['linear', 'nonlinear', 'rewrite', 'stale', 'detached', 'large_history', 'large_nonlinear', 'powerbi'].includes(saved)) {
         return saved;
       }
     } catch (e) {}
@@ -2491,19 +2496,138 @@ export default function App() {
           }
         ];
 
+        // Override with extra complex Power BI conflict scenario for helper testing
+        const pbiConflicts: ConflictFile[] = [
+          {
+            filepath: 'powerbi_dataset/model.tmdl',
+            status: 'conflicted',
+            conflictsCount: 3,
+            contentBefore: [
+              'table InternetSales',
+              '  lineageTag: fdb17e41-0ed5-433b-821f-db905c102a7b',
+              '',
+              '<<<<<<< HEAD',
+              '  measure TotalSales = SUM(InternetSales[SalesAmount])',
+              '    lineageTag: ab8d132c-7bbf-4c74-98da-de4b6f123abc',
+              '    formatString: \\$#,0.00;(\\$#,0.00);\\$#,0.00',
+              '    displayFolder: "Core Measures"',
+              '',
+              '   measure SalesGrowth = DIVIDE([TotalSales] - [PriorYearSales], [PriorYearSales])',
+              '    lineageTag: 2bc0db96-3b3a-4da2-9f37-124b69ee2f87',
+              '=======',
+              '  measure TotalRevenue = SUM(InternetSales[GrossRevenue])',
+              '    lineageTag: ab8d132c-7bbf-4c74-98da-de4b6f123abc',
+              '    formatString: \\$#,0',
+              '    displayFolder: "Sales Metrics"',
+              '',
+              '  measure GrowthYTD = DIVIDE([TotalRevenue] - [LastYearRevenue], [LastYearRevenue])',
+              '    lineageTag: e3a763bd-8c34-45aa-bd77-df9036c64fed',
+              '>>>>>>> develop',
+              '',
+              '  measure ProfitMargin = DIVIDE([ProfitAmount], [TotalSales])',
+              '    lineageTag: a769b7f5-30fa-4006-8d18-df8cbbfd1a7b'
+            ].join('\n'),
+            contentAfter: ''
+          },
+          {
+            filepath: 'powerbi_dataset/relationships.json',
+            status: 'conflicted',
+            conflictsCount: 2,
+            contentBefore: [
+              '{',
+              '  "relationships": [',
+              '<<<<<<< HEAD',
+              '    {',
+              '      "name": "rel_sales_customer",',
+              '      "fromTable": "InternetSales",',
+              '      "fromColumn": "CustomerID",',
+              '      "toTable": "Customer",',
+              '      "toColumn": "ID",',
+              '      "lineageTag": "38da6410-b5bc-4673-aee3-127ca96013a7"',
+              '    },',
+              '    {',
+              '      "name": "rel_sales_date",',
+              '      "fromTable": "InternetSales",',
+              '      "fromColumn": "OrderDate",',
+              '      "toTable": "DimDate",',
+              '      "toColumn": "DateKey",',
+              '      "lineageTag": "7bf3ccae-6b19-4592-be22-d04bbf1db22b"',
+              '    }',
+              '=======',
+              '    {',
+              '      "name": "rel_sales_customer_alt",',
+              '      "fromTable": "InternetSales",',
+              '      "fromColumn": "CustomerID",',
+              '      "toTable": "Customer",',
+              '      "toColumn": "ID",',
+              '      "lineageTag": "f9b4c030-cf2f-410a-ade0-6d4590ee85ad"',
+              '    },',
+              '    {',
+              '      "name": "rel_sales_date_analytics",',
+              '      "fromTable": "InternetSales",',
+              '      "fromColumn": "OrderDate",',
+              '      "toTable": "DimDate",',
+              '      "toColumn": "DateKey",',
+              '      "lineageTag": "7bf3ccae-6b19-4592-be22-d04bbf1db22b"',
+              '    }',
+              '>>>>>>> develop',
+              '  ]',
+              '}'
+            ].join('\n'),
+            contentAfter: ''
+          },
+          {
+            filepath: 'powerbi_dataset/sales_analysis.tmdl',
+            status: 'conflicted',
+            conflictsCount: 2,
+            contentBefore: [
+              'table SalesAnalysis',
+              '  lineageTag: c31c828d-19cd-4a24-9b2f-98c55dc433f8',
+              '',
+              '<<<<<<< HEAD',
+              '  column SegmentKey',
+              '    dataType: int64',
+              '    lineageTag: 5b4c19fd-faac-4dfa-8a62-87adffc10ccf',
+              '    summarizeBy: none',
+              '',
+              '  measure SegmentSales = CALCULATE(SUM(SalesAnalysis[Amount]), SalesAnalysis[SegmentKey] = 2)',
+              '    lineageTag: e1425ab3-48bd-474c-8fc4-934fa7123999',
+              '=======',
+              '  column SalesSegmentID',
+              '    dataType: int64',
+              '    lineageTag: 5b4c19fd-faac-4dfa-8a62-87adffc10ccf',
+              '    summarizeBy: none',
+              '',
+              '  measure SegmentRevenue = CALCULATE(SUM(SalesAnalysis[GrossAmount]), SalesAnalysis[SalesSegmentID] = 2)',
+              '    lineageTag: d85a4bf9-e935-430c-ab22-67abfc12b325',
+              '>>>>>>> develop'
+            ].join('\n'),
+            contentAfter: ''
+          }
+        ];
+
+        const finalConflicts = simScenarioId === 'powerbi' ? pbiConflicts : activeConflicts;
+
         setRepoState(prev => ({
           ...prev,
           rebaseInProgress: true,
-          conflicts: activeConflicts
+          conflicts: finalConflicts
         }));
 
         handleUpdateWizard({ status: 'paused_conflict' });
         addLog(`⚠️ CONFLICTS DETECTED during interactive rebase. Rebase paused.`);
-        addLog(`  conflict: src/routes/payment.ts (2 conflicts)`);
-        addLog(`  conflict: src/services/stripe.ts (1 conflict)`);
-        addLog(`  conflict: config/keys.json (1 conflict)`);
-        addLog(`  conflict: powerbi_dataset/model.tmdl (1 conflict)`);
-        addLog(`  conflict: powerbi_dataset/relationships.json (1 conflict)`);
+        if (simScenarioId === 'powerbi') {
+          addLog(`  conflict: powerbi_dataset/model.tmdl (3 conflicts)`);
+          addLog(`  conflict: powerbi_dataset/relationships.json (2 conflicts)`);
+          addLog(`  conflict: powerbi_dataset/sales_analysis.tmdl (2 conflicts)`);
+          addLog(`// SPECIALIST Power BI Conflict Solver is active! Click files to diagnose lineage tags, nested structures and auto-indent details.`);
+        } else {
+          addLog(`  conflict: src/routes/payment.ts (2 conflicts)`);
+          addLog(`  conflict: src/services/stripe.ts (1 conflict)`);
+          addLog(`  conflict: config/keys.json (1 conflict)`);
+          addLog(`  conflict: powerbi_dataset/model.tmdl (1 conflict)`);
+          addLog(`  conflict: powerbi_dataset/relationships.json (1 conflict)`);
+        }
         addLog(`// Please use the interactive 3-Way Merge solver below to rescue your branches!`);
       }, 2000);
     } else {
@@ -3763,26 +3887,30 @@ export default function App() {
 
             {/* Metrics Badges */}
             <div className="flex items-center gap-2">
-              <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold flex items-center gap-1 border ${
+              <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold flex items-center gap-1 border transition-all duration-150 ${
                 branchMetrics.ahead > 0
                   ? (theme === 'light' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400')
-                  : 'bg-slate-100 dark:bg-slate-800 border-transparent text-slate-400'
+                  : (theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-slate-800/40 border-slate-800 text-slate-500')
               }`} title={tone === TranslationTone.ENGLISH ? `${branchMetrics.ahead} ahead commits (ready to squash/rebase)` : `${branchMetrics.ahead} commit ahead (đã sẵn sàng để gộp hoặc rebase)`}>
-                <ArrowUpCircle className="w-3 h-3 text-emerald-400" />
+                <ArrowUpCircle className={`w-3 h-3 ${branchMetrics.ahead > 0 ? (theme === 'light' ? 'text-emerald-600' : 'text-emerald-400') : 'text-slate-400'}`} />
                 <span>Ahead: {branchMetrics.ahead}</span>
               </span>
 
-              <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold flex items-center gap-1 border ${
+              <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold flex items-center gap-1 border transition-all duration-150 ${
                 branchMetrics.behind > 0
-                  ? 'bg-amber-500/10 border-amber-505/20 text-amber-550'
-                  : 'bg-slate-100 dark:bg-slate-800 border-transparent text-slate-400'
+                  ? (theme === 'light' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-amber-500/10 border-amber-500/20 text-amber-400')
+                  : (theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-slate-800/40 border-slate-800 text-slate-500')
               }`} title={tone === TranslationTone.ENGLISH ? `${branchMetrics.behind} behind commits (develop updates exist)` : `${branchMetrics.behind} commit behind (nhánh base đã có thay đổi mới)`}>
-                <ArrowDownCircle className="w-3 h-3 text-amber-500" />
+                <ArrowDownCircle className={`w-3 h-3 ${branchMetrics.behind > 0 ? (theme === 'light' ? 'text-amber-600' : 'text-amber-400') : 'text-slate-400'}`} />
                 <span>Behind: {branchMetrics.behind}</span>
               </span>
 
-              <span className="px-2 py-0.5 rounded-full bg-indigo-500/10 border border-slate-200 dark:border-slate-800 font-mono text-[10px] font-semibold text-indigo-400">
-                {tone === TranslationTone.ENGLISH ? 'To Process' : 'Sẽ xử lý'}: {branchMetrics.actionable}/{branchMetrics.total} commits
+              <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold flex items-center gap-1 border transition-all duration-150 ${
+                theme === 'light'
+                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                  : 'bg-indigo-500/15 border-indigo-500/25 text-indigo-400'
+              }`}>
+                <span>{tone === TranslationTone.ENGLISH ? 'To Process' : 'Sẽ xử lý'}: {branchMetrics.actionable}/{branchMetrics.total} commits</span>
               </span>
             </div>
           </div>
@@ -4445,6 +4573,7 @@ export default function App() {
                       }`}
                     >
                       <option value="linear">🟢 {sloc.simScenarioLinear}</option>
+                      <option value="powerbi">📊 {sloc.simScenarioPowerBI}</option>
                       <option value="large_history">⚡ {sloc.simScenarioLargeHistory}</option>
                       <option value="large_nonlinear">🌀 {sloc.simScenarioLargeNonLinear}</option>
                       <option value="nonlinear">🟣 {sloc.simScenarioNonLinear}</option>

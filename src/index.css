@@ -10,6 +10,7 @@
   --animate-fade-in: fade-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 
   --color-slate-105: #f1f5f9;
+  --color-slate-150: #e2e8f0;
   --color-slate-250: #e2e8f0;
   --color-slate-305: #cbd5e1;
   --color-slate-355: #cbd5e1;
@@ -20,6 +21,7 @@
   --color-slate-805: #1e293b;
   --color-slate-880: #0f172a;
   
+  --color-indigo-150: #e0e7ff;
   --color-indigo-505: #6366f1;
   --color-indigo-605: #4f46e5;
   --color-indigo-750: #3730a3;
@@ -156,7 +158,14 @@ body {
 .bg-slate-950/95,
 #repo-header-container,
 #rebase-wizard-card,
-#interactive-git-flow-visualizer {
+#interactive-git-flow-visualizer,
+#branch-panel,
+#branch-panel-collapsed,
+#wizard-panel-collapsed,
+#visualizer-panel-collapsed,
+#reflog-rescue-card,
+#conflict-solver-container,
+#dir-browser-box {
   background-color: #111320 !important; /* Material 3 Dark Surface Container Low */
   color: #e3e2e6 !important;
   box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.02) !important;
@@ -367,11 +376,30 @@ html.light, body.light {
 .light .bg-slate-950/95,
 .light #repo-header-container,
 .light #rebase-wizard-card,
-.light #interactive-git-flow-visualizer {
+.light #interactive-git-flow-visualizer,
+.light #branch-panel,
+.light #branch-panel-collapsed,
+.light #wizard-panel-collapsed,
+.light #visualizer-panel-collapsed,
+.light #reflog-rescue-card,
+.light #conflict-solver-container,
+.light #dir-browser-box {
   background-color: #ffffff !important; /* Pure white surface container */
   color: #1c1b1f !important;
   /* Material-style elevation shadow with subtle violet-indigo tone */
   box-shadow: 0 4px 18px -2px rgba(103, 80, 164, 0.04), 0 0 0 1px rgba(103, 80, 164, 0.03) !important;
+  border-color: #e2e8f0 !important; /* Consistent, light slate-200 outline */
+}
+
+/* Precise Git Visualizer Inner Stage & Control panel border alignment */
+.light #interactive-git-flow-visualizer .lg\:col-span-8 {
+  border-color: #cbd5e1 !important;
+  background-color: rgba(99, 102, 241, 0.02) !important; /* Soft premium light-indigo haze */
+}
+
+.light #interactive-git-flow-visualizer .lg\:col-span-4 {
+  border-color: #e2e8f0 !important;
+  background-color: #f8fafc !important;
 }
 
 /* Secondary Panels, Sub-cards, Controls, and Intermediate widgets */

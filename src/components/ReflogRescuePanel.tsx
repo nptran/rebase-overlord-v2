@@ -151,13 +151,13 @@ export default function ReflogRescuePanel({
   };
 
   return (
-    <div className={`border rounded-xl p-5 shadow-lg flex flex-col gap-4 ${
+    <div id="reflog-rescue-card" className={`border rounded-xl p-5 shadow-xl transition-all duration-200 ${
       theme === 'light' 
-        ? 'bg-gradient-to-br from-amber-50/10 to-white border-amber-200 text-slate-800' 
-        : 'bg-[#121824] border-amber-500/20 text-slate-100'
-    }`}>
+        ? 'bg-white border-slate-200 text-slate-900 shadow-xl' 
+        : 'bg-[#0f172a] border-slate-800 text-slate-100 shadow-2xl'
+    } flex flex-col gap-4`}>
       {/* Title block with sparkles */}
-      <div className="flex items-center justify-between border-b pb-3 border-amber-500/10">
+      <div className={`flex items-center justify-between border-b pb-3 ${theme === 'light' ? 'border-slate-200' : 'border-slate-800'}`}>
         <div className="flex items-center gap-2">
           <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500 animate-pulse">
             <LifeBuoy className="w-5 h-5" />
