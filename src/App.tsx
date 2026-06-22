@@ -3671,24 +3671,34 @@ export default function App() {
             <button
               type="button"
               onClick={() => {
-                const randomX = 120 + Math.random() * 120;
-                const randomY = 120 + Math.random() * 120;
-                const newWin = {
-                  id: `win-${Date.now()}`,
-                  title: '🌳 Detached Git Commit Graph',
-                  type: 'commits' as const,
-                  x: randomX,
-                  y: randomY,
-                  width: 440,
-                  height: 380
-                };
-                setDetachedWindows(prev => [...prev, newWin]);
-                triggerToast('milestone', '🖥️ MULTI-WINDOW SPAWNED', 'Đã mở cửa sổ phụ kéo thả real-time của Git Commits Graph!', '🪟');
+                const isCommitsWindowOpen = detachedWindows.some(w => w.type === 'commits');
+                if (isCommitsWindowOpen) {
+                  setDetachedWindows(prev => prev.filter(w => w.type !== 'commits'));
+                  triggerToast('milestone', 'WINDOW CLOSED', 'Đã thu hẹp cửa sổ phụ.', '🪟');
+                } else {
+                  const randomX = 120 + Math.random() * 120;
+                  const randomY = 120 + Math.random() * 120;
+                  const newWin = {
+                    id: `win-${Date.now()}`,
+                    title: '🌳 Detached Git Commit Graph',
+                    type: 'commits' as const,
+                    x: randomX,
+                    y: randomY,
+                    width: 440,
+                    height: 380
+                  };
+                  setDetachedWindows(prev => [...prev, newWin]);
+                  triggerToast('milestone', '🖥️ MULTI-WINDOW SPAWNED', 'Đã mở cửa sổ phụ kéo thả real-time của Git Commits Graph!', '🪟');
+                }
               }}
               className={`p-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
-                theme === 'light' ? 'hover:bg-slate-100 border-slate-200 text-slate-650' : 'hover:bg-slate-955 border-slate-800 text-slate-300'
+                detachedWindows.some(w => w.type === 'commits')
+                  ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-600/20'
+                  : theme === 'light'
+                  ? 'hover:bg-slate-100 border-slate-200 text-slate-655 bg-white'
+                  : 'hover:bg-slate-955 border-slate-800 text-slate-300 bg-[#0c0f1d]/60'
               }`}
-              title="Spawn Window (Alt+J) | Mở thêm cửa sổ phác đồ phụ độc lập kéo thả tự do"
+              title={detachedWindows.some(w => w.type === 'commits') ? 'Đóng cửa sổ phác đồ phụ' : 'Mở cửa sổ phác đồ phụ kéo thả tự do'}
             >
               <Layers className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
               <span className="text-[10px] font-mono font-semibold hidden md:inline">
@@ -5509,7 +5519,12 @@ export default function App() {
               <span>{win.title}</span>
             </div>
             
-            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+            <div 
+              className="flex items-center gap-1.5" 
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
               <button
                 type="button"
                 onClick={() => {
