@@ -23,10 +23,10 @@ import {
   Sun,
   Moon
 } from 'lucide-react';
-import { TranslationTone, GitRepoState, SessionStats } from '../types';
-import { translate } from '../i18n';
-import DirectoryBrowserModal from './DirectoryBrowserModal';
-import { resolveApiUrl } from '../utils/apiResolver';
+import { TranslationTone, GitRepoState, SessionStats } from '../../types';
+import { translate } from '../../i18n';
+import DirectoryBrowserModal from '../../components/DirectoryBrowserModal';
+import { resolveApiUrl } from '../../utils/apiResolver';
 
 interface RepoHeaderProps {
   repoState: GitRepoState;
@@ -47,6 +47,7 @@ interface RepoHeaderProps {
   onCloneRepo: (repoUrl: string, token: string) => Promise<boolean>;
   onRefresh: () => void;
   onOpenSettings?: () => void;
+  onOpenCommandPalette?: () => void;
   
   // Update verification highlights
   isVersionRed?: boolean;
@@ -192,6 +193,7 @@ export default function RepoHeader({
   onCloneRepo,
   onRefresh,
   onOpenSettings,
+  onOpenCommandPalette,
   isVersionRed = false,
   verifyBtnVisible = false,
   onVerifyInstallation
@@ -572,7 +574,7 @@ export default function RepoHeader({
             <button
               id="tone-joke-btn"
               onClick={() => onSetTone(TranslationTone.JOKE)}
-              className={`px-2 py-1 rounded transition-colors ${tone === TranslationTone.JOKE ? 'bg-sky-500 text-white font-medium' : theme === 'light' ? 'text-slate-550 hover:text-slate-800 hover:bg-slate-200/50' : 'text-slate-400 hover:text-white'}`}
+              className={`px-2 py-1 rounded transition-colors ${tone === TranslationTone.JOKE ? 'bg-indigo-600 text-white font-medium' : theme === 'light' ? 'text-slate-550 hover:text-slate-800 hover:bg-slate-200/50' : 'text-slate-400 hover:text-white'}`}
               title="Vietnamese Joke"
             >
               🤪 Joke
@@ -692,13 +694,13 @@ export default function RepoHeader({
                   onClick={onToggleAi}
                   className={`h-9 w-9 md:w-auto md:px-3 flex items-center justify-center gap-1.5 rounded-lg border transition-all cursor-pointer shadow-sm hover:scale-[1.05] active:scale-[0.96] duration-150 ${
                     isAiEnabled
-                      ? 'bg-indigo-50 border-violet-200 text-violet-700 dark:bg-indigo-950/45 dark:border-violet-500/35 dark:text-violet-300'
+                      ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/45 dark:border-indigo-500/35 dark:text-indigo-300'
                       : theme === 'light'
                       ? 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
                       : 'bg-slate-955 border-slate-800 text-slate-500 hover:text-slate-400'
                   }`}
                 >
-                  <Bot className={`w-4 h-4 ${isAiEnabled ? 'text-violet-400 animate-pulse' : 'text-slate-600'}`} />
+                  <Bot className={`w-4 h-4 ${isAiEnabled ? 'text-indigo-400 animate-pulse' : 'text-slate-600'}`} />
                   <span className="hidden md:inline text-[11px] font-bold uppercase tracking-wider">{labelText}</span>
                 </button>
                 <div className="absolute bottom-full mb-2.5 left-1/2 -translate-x-1/2 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center z-55">
@@ -711,6 +713,51 @@ export default function RepoHeader({
                   </div>
                   <div className={`w-1.5 h-1.5 rotate-45 -mt-[4px] border-r border-b ${
                     theme === 'light' ? 'bg-slate-900 border-slate-950' : 'bg-slate-955 border-slate-800'
+                  }`} />
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Command Palette Button */}
+          {onOpenCommandPalette && (() => {
+            const tooltipText = tone === TranslationTone.ENGLISH 
+              ? 'Open Command Palette & AI Doctor (Ctrl+K)' 
+              : 'Mở Bảng Lệnh & AI Doctor (Ctrl+K)';
+            const labelText = tone === TranslationTone.ENGLISH
+              ? 'Command Bar'
+              : 'Bảng Lệnh';
+            return (
+              <div className="relative group inline-flex items-center justify-center">
+                <button
+                  id="open-command-palette-btn"
+                  onClick={onOpenCommandPalette}
+                  className={`h-9 px-3 flex items-center justify-center gap-1.5 rounded-lg border transition-all cursor-pointer font-semibold shadow-sm hover:scale-[1.05] active:scale-[0.96] duration-150 ${
+                    theme === 'light'
+                      ? 'bg-indigo-50 border-indigo-200 text-indigo-600 hover:bg-indigo-100 shadow-sm'
+                      : 'bg-[#121524] border-indigo-500/30 text-indigo-400 hover:text-indigo-300 hover:bg-[#191d35]'
+                  }`}
+                >
+                  <Search className="w-4 h-4 text-indigo-400 animate-pulse" />
+                  <span className="hidden sm:inline text-[11px] font-bold uppercase tracking-wider">{labelText}</span>
+                  <kbd className={`inline-flex items-center justify-center h-4.5 px-1.5 font-mono text-[9px] font-bold rounded border ${
+                    theme === 'light'
+                      ? 'bg-white border-slate-200 text-slate-500'
+                      : 'bg-slate-900 border-slate-800 text-slate-400'
+                  }`}>
+                    Ctrl K
+                  </kbd>
+                </button>
+                <div className="absolute bottom-full mb-2.5 left-1/2 -translate-x-1/2 opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center z-55">
+                  <div className={`px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg shadow-xl border whitespace-nowrap leading-tight ${
+                    theme === 'light'
+                      ? 'bg-slate-900 border-slate-950 text-white'
+                      : 'bg-slate-955 border-slate-800 text-slate-100'
+                  }`}>
+                    {tooltipText}
+                  </div>
+                  <div className={`w-1.5 h-1.5 rotate-45 -mt-[4px] border-r border-b ${
+                    theme === 'light' ? 'bg-slate-900 border-slate-950' : 'bg-slate-955 border-slate-805'
                   }`} />
                 </div>
               </div>
@@ -953,7 +1000,7 @@ export default function RepoHeader({
                       disabled={!cloneUrl.trim()}
                       className={`px-4 py-2 text-xs rounded-lg font-mono transition-all duration-150 border font-bold shadow-md w-full md:w-auto flex items-center justify-center gap-1.5 cursor-pointer ${
                         cloneUrl.trim() 
-                          ? 'bg-gradient-to-r from-indigo-600 to-violet-600 border-indigo-500/30 text-white hover:from-indigo-500 hover:to-violet-500' 
+                          ? 'bg-gradient-to-r from-indigo-600 to-indigo-700 border-indigo-500/30 text-white hover:from-indigo-500 hover:to-indigo-600' 
                           : 'bg-slate-900 border-slate-800 text-slate-500 cursor-not-allowed'
                       }`}
                     >
@@ -1070,7 +1117,7 @@ export default function RepoHeader({
             </span>
             <span className="text-slate-700">|</span>
             <span className="flex items-center gap-1">
-              {loc.branch} <span className="text-sky-400 font-semibold">{repoState.currentBranch || 'N/A'}</span>
+              {loc.branch} <span className="text-indigo-400 font-semibold">{repoState.currentBranch || 'N/A'}</span>
             </span>
             <span className="text-slate-700">|</span>
             <span className="flex items-center gap-1 relative group">

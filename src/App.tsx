@@ -36,7 +36,12 @@ import {
   EyeOff,
   ArrowUpCircle,
   ArrowDownCircle,
-  Search
+  Search,
+  Columns,
+  AlignLeft,
+  AlignRight,
+  Layers,
+  Keyboard
 } from 'lucide-react';
 
 import { 
@@ -51,449 +56,21 @@ import { translate } from './i18n';
 import { getApiHeaders } from './utils/apiKeyHelper';
 
 // Modules
-import RepoHeader from './components/RepoHeader';
+import RepoHeader from './features/repo/RepoHeader';
 import SettingsModal from './components/SettingsModal';
-import WizardPanel from './components/WizardPanel';
-import BranchPanel from './components/BranchPanel';
-import TerminalPanel from './components/TerminalPanel';
-import ConflictSolver from './components/ConflictSolver';
-import GitVisualizerPanel from './components/GitVisualizerPanel';
-import AiDoctorFloatingChat from './components/AiDoctorFloatingChat';
-import ReflogRescuePanel from './components/ReflogRescuePanel';
+import WizardPanel from './features/wizard/WizardPanel';
+import BranchPanel from './features/repo/BranchPanel';
+import TerminalPanel from './features/terminal/TerminalPanel';
+import ConflictSolver from './features/doctor/ConflictSolver';
+import GitVisualizerPanel from './features/visualizer/GitVisualizerPanel';
+import AiDoctorFloatingChat from './features/doctor/AiDoctorFloatingChat';
+import ReflogRescuePanel from './features/reflog/ReflogRescuePanel';
+import StashPanel from './features/repo/StashPanel';
 import { resolveApiUrl } from './utils/apiResolver';
 
-const sanityLoc: Record<TranslationTone, {
-  title: string;
-  gitEnv: string;
-  githubCli: string;
-  rebaseStatus: string;
-  readyStatus: string;
-  emptyCommits: string;
-  simulationAnomalyBadge: string;
-  simulateAnomaliesHeading: string;
-  divergedSafeLabel: string;
-  divergedUnsafeLabel: string;
-  detachedSafeLabel: string;
-  detachedUnsafeLabel: string;
-  staleSafeLabel: string;
-  staleUnsafeLabel: string;
-  diagnosticsActionHeading: string;
-  uncommittedChangesTitle: string;
-  uncommittedChangesDesc: string;
-  diagnoseBtn: string;
-  firstAidHeader: string;
-  discardConfirm: string;
-  divergedTitle: string;
-  divergedDesc: string;
-  forcePushConfirm: string;
-  detachedTitle: string;
-  detachedDesc: string;
-  rescueBranchBtn: string;
-  staleBaseTitle: string;
-  staleBaseDesc: string;
-  cleanAllClearTitle: string;
-  cleanAllClearDesc: string;
-  doctorRep: string;
-  doctorExplanation: string;
-  doctorMitigation: string;
-  doctorApplyStash: string;
-  doctorApplyRebase: string;
-  doctorApplyRescue: string;
-  doctorApplySync: string;
-  scanAnomaliesLoading: string;
-  visualTimelineTitle: string;
-  squashCompletedTitle: string;
-  dirtyFilesLabel: string;
-  zoomIn: string;
-  zoomOut: string;
-  resetLayout: string;
-  nodeSizeLabel: string;
-  rotationLabel: string;
-  dragTip: string;
-  panModeLabel: string;
-  dragNodeModeLabel: string;
-  simScenarioHeading: string;
-  simScenarioLinear: string;
-  simScenarioNonLinear: string;
-  simScenarioRewrite: string;
-  simScenarioStale: string;
-  simScenarioDetached: string;
-  simScenarioLargeHistory: string;
-  simScenarioLargeNonLinear: string;
-  simScenarioPowerBI: string;
-  simScenarioDesc: string;
-}> = {
-  [TranslationTone.PROFESSIONAL]: {
-    title: "CHẨN ĐOÁN & KIỂM TRA (GIT SANITY CHECKS)",
-    gitEnv: "Môi trường Git Binary:",
-    githubCli: "Kết nối GitHub CLI (gh):",
-    rebaseStatus: "Trạng thái Rebase:",
-    readyStatus: "✓ SẠCH SẼ (READY)",
-    emptyCommits: "Chọn một chi nhánh khác hoặc nhập base branch để vẽ lịch sử commits.",
-    simulationAnomalyBadge: "MÔ PHỎNG ANOMALY",
-    simulateAnomaliesHeading: "⚡ BẬT LỖI MÔ PHỎNG ĐỂ AI DOCTOR CHẨN TRỊ:",
-    divergedSafeLabel: "✓ Sạch (Diverged)",
-    divergedUnsafeLabel: "⚠️ Có Diverged",
-    detachedSafeLabel: "✓ Sạch (HEAD)",
-    detachedUnsafeLabel: "⚠️ Có Detached HEAD",
-    staleSafeLabel: "✓ Sạch (Base)",
-    staleUnsafeLabel: "⚠️ Có Stale Base",
-    diagnosticsActionHeading: "🚨 CHẨN ĐOÁN & SƠ CỨU BẤT THƯỜNG:",
-    uncommittedChangesTitle: "Workspace có file chưa commit",
-    uncommittedChangesDesc: "Còn {0} tệp tin chưa được lưu trữ.",
-    diagnoseBtn: "🩺 Chẩn đoán",
-    firstAidHeader: "Sơ cứu:",
-    discardConfirm: "Xác nhận: Xóa sạch code chưa lưu?",
-    divergedTitle: "Lệch pha Local & Remote (Diverged)",
-    divergedDesc: "Cả local và remote đều có các commits mới lệch pha.",
-    forcePushConfirm: "Nguy hiểm: Nhất quyết Force push đè lên server?",
-    detachedTitle: "Lịch sử rời neo (Detached HEAD)",
-    detachedDesc: "Bạn không đứng trên nhánh cụ thể; code mới dễ bị mất.",
-    rescueBranchBtn: "tạo nhánh rescue",
-    staleBaseTitle: "Nhánh base bị lỗi thời",
-    staleBaseDesc: "Nhánh base '{0}' bị chậm nhịp so với Remote.",
-    cleanAllClearTitle: "✓ HỆ THỐNG TRƠN TRU KHỎE MẠNH",
-    cleanAllClearDesc: "Thư mục làm việc hoàn toàn sạch sẽ. Các chỉ mục Git đều hoạt động hài hòa và sẵn sàng bùng nổ tiến trình Rebase!",
-    doctorRep: "🏥 PHÁC ĐỒ CHẨN TRỊ TỪ TRỢ LÝ AI",
-    doctorExplanation: "🔍 LÝ DO BẤT THƯỜNG (EXPLANATION):",
-    doctorMitigation: "💊 PHƯƠNG ÁN ĐIỀU TRỊ (MITIGATION):",
-    doctorApplyStash: "Áp dụng: git stash",
-    doctorApplyRebase: "Áp dụng: Pull --rebase",
-    doctorApplyRescue: "Áp dụng: Tạo cứu hộ",
-    doctorApplySync: "Áp dụng: Đồng bộ nhánh base",
-    scanAnomaliesLoading: "Đang quét lỗi bất thường của kho lưu trữ...",
-    visualTimelineTitle: "TRỰC QUAN HÓA SƠ ĐỒ COMMITS (VISUAL COMMIT TIMELINE GRAPH)",
-    squashCompletedTitle: "HỢP NHẤT THÀNH CÔNG (CÒN LẠI 1 COMMIT)",
-    dirtyFilesLabel: "Danh sách tệp tin chưa commit:",
-    zoomIn: "Phóng to (+)",
-    zoomOut: "Thu nhỏ (-)",
-    resetLayout: "Đặt lại vị trí",
-    nodeSizeLabel: "Kích thước các ô:",
-    rotationLabel: "Xoay chiều (Dọc/Ngang)",
-    dragTip: "💡 Kéo thả tự do các ô commit để tổ chức sắp xếp sơ đồ!",
-    panModeLabel: "🖐️ Cuộn sơ đồ",
-    dragNodeModeLabel: "🖱️ Kéo thả ô",
-    simScenarioHeading: "🧬 KỊCH BẢN GIẢ LẬP ĐỂ TEST (SCENARIOS):",
-    simScenarioLinear: "Nhánh ngon / Tuyến tính (Linear)",
-    simScenarioNonLinear: "Merge Commit từ develop trước đó (Merge)",
-    simScenarioRewrite: "Develop bị Rewrite History (Diverged)",
-    simScenarioStale: "Nhánh Base bị cũ mốc (Stale Base)",
-    simScenarioDetached: "Lịch sử rỗng rênh (Detached HEAD)",
-    simScenarioLargeHistory: "Kịch bản siêu nhiều commits (30+ commits tuyến tính)",
-    simScenarioLargeNonLinear: "Kịch bản siêu lớn + phi tuyến (40+ commits, nhiều nhánh)",
-    simScenarioPowerBI: "Xung đột Power BI phức tạp (.tmdl + .json) (Power BI)",
-    simScenarioDesc: "Mô phỏng lại các kịch bản khó nhằn trong Git để kiểm thử trực quan và phác đồ AI Doctor."
-  },
-  [TranslationTone.JOKE]: {
-    title: "KHÁM SỨC KHỎE REPO (GIT SANITY CHECKS)",
-    gitEnv: "Hệ điều hành Git:",
-    githubCli: "Gia thế GitHub (gh-cli):",
-    rebaseStatus: "Cục diện Rebase:",
-    readyStatus: "✓ TRƠN TRU (READY)",
-    emptyCommits: "Sếp lướt sang nhánh khác hoặc gõ tên bến đỗ (base branch) để em vẽ lịch sử nhé.",
-    simulationAnomalyBadge: "ẢO LÒI ANOMALY 🌀",
-    simulateAnomaliesHeading: "🔥 TRIỆU HỒI LỖI GIẢ LẬP CHO AI GÕ ĐẦU:",
-    divergedSafeLabel: "✓ Diverged Sạch Bóng",
-    divergedUnsafeLabel: "⚠️ Có Diverged Rồi Sếp",
-    detachedSafeLabel: "✓ HEAD Đã Cắm Neo",
-    detachedUnsafeLabel: "⚠️ HEAD Đang Bay Màu",
-    staleSafeLabel: "✓ Base Mới Cứng",
-    staleUnsafeLabel: "⚠️ Base Mốc Meo",
-    diagnosticsActionHeading: "🛎️ PHÒNG KHÁM CẤP CỨU ĐỘC LẬP:",
-    uncommittedChangesTitle: "Workspace Đang Bẩn Thỉu",
-    uncommittedChangesDesc: "Còn {0} file đang bơ vơ ngoài đường chưa được cất giữ.",
-    diagnoseBtn: "🩺 Khám bệnh",
-    firstAidHeader: "Sơ cứu nhanh:",
-    discardConfirm: "Tính vứt sạch hết tinh hoa code chưa lưu à sếp?",
-    divergedTitle: "Trống đánh xuôi kèn thổi ngược (Diverged)",
-    divergedDesc: "Local và Remote mỗi bên đi một ngả mất rồi.",
-    forcePushConfirm: "Dùng tuyệt chiêu tối thượng Force Push đè nát server nhé?",
-    detachedTitle: "Đầu lìa khỏi cổ (Detached HEAD)",
-    detachedDesc: "Đang bay lơ lửng giữa hư vô không có nhánh nâng đỡ.",
-    rescueBranchBtn: "mở phao cứu hộ",
-    staleBaseTitle: "Base rệu rã (Stale Base)",
-    staleBaseDesc: "Nhánh gốc '{0}' đang mốc meo so với trên mây rồi.",
-    cleanAllClearTitle: "✓ TRỜI QUANG MÂY TẢNH KHÔNG BỆNH TẬT",
-    cleanAllClearDesc: "Sạch sẽ láng o như chưa từng code hỏng, quẩy thôi sếp ơi!",
-    doctorRep: "🏥 QUẺ PHÁN BỆNH TỪ THẦY AI",
-    doctorExplanation: "🔍 CAO NHÂN CHỈ ĐIỂM (EXPLANATION):",
-    doctorMitigation: "💊 PHÉP MÀU KHẮC PHỤC (MITIGATION):",
-    doctorApplyStash: "Triển ngay: git stash",
-    doctorApplyRebase: "Triển ngay: Pull --rebase",
-    doctorApplyRescue: "Triển ngay: Tạo phao cứu sinh",
-    doctorApplySync: "Triển ngay: Đồng bộ nhánh base",
-    scanAnomaliesLoading: "Thầy bói đang xem mạch kho chứa...",
-    visualTimelineTitle: "RẠP CHIẾU HOẠT HÌNH GIT TRỰC QUAN (GIT MOVIE THEATER)",
-    squashCompletedTitle: "HỢP NHẤT XONG XUÔI (CÒN ĐÚNG 1 COMMIT DUY NHẤT)",
-    dirtyFilesLabel: "Mấy quả file đang bừa bãi chưa dọn dẹp:",
-    zoomIn: "Phóng to nha sếp",
-    zoomOut: "Thu bé lại",
-    resetLayout: "Hoàn tác khung hình",
-    nodeSizeLabel: "Phóng to dẹt ô:",
-    rotationLabel: "Xoay dọc/ngang cực phê",
-    dragTip: "💡 Sếp kéo kéo thả thả mấy cục commit bay lượn tung tăng kìa!",
-    panModeLabel: "🖐️ Kéo nền",
-    dragNodeModeLabel: "🖱️ Kéo ô",
-    simScenarioHeading: "🧬 KHUNG TRẬN GIẢ LẬP SIÊU CẤP (SCENARIOS):",
-    simScenarioLinear: "Nhánh ngoan hiền / Thẳng tuột (Linear)",
-    simScenarioNonLinear: "Có Merge Commit phá đám từ develop (Merge)",
-    simScenarioRewrite: "Sau lưng đã bị viết lại lịch sử (Diverged)",
-    simScenarioStale: "Base ở xó chợ mốc meo (Stale Base)",
-    simScenarioDetached: "Đứt dây neo trôi vô định (Detached HEAD)",
-    simScenarioLargeHistory: "Nhánh th siêu dài thườn thượt (30+ commits tuyến tính)",
-    simScenarioLargeNonLinear: "Nhánh khủng phi tuyến lằng nhằng (40+ commits, 3 nhánh quấn nhau)",
-    simScenarioPowerBI: "Độ bom xịt Power BI siêu rắc rối (.tmdl & .json) (Power BI)",
-    simScenarioDesc: "Toàn bộ kịch bản bốc mùi của Git để sếp nghịch cho biết thế nào là đau đớn."
-  },
-  [TranslationTone.TOXIC]: {
-    title: "BỆNH ÁN GIT (GIT SANITY CHECKS)",
-    gitEnv: "Hàng Auth hay Fake:",
-    githubCli: "Hộ khẩu Github (gh):",
-    rebaseStatus: "Bãi chiến trường Rebase:",
-    readyStatus: "✓ HẾT SỐC (READY)",
-    emptyCommits: "Mày sang nhánh khác hoặc phang tên base branch vào để tao nặn mấy cái commits coi!",
-    simulationAnomalyBadge: "ĐỐNG RÁC MÔ PHỎNG",
-    simulateAnomaliesHeading: "💩 KHẤN VÁI TỰ BẬT LỖI RA ĐÂY:",
-    divergedSafeLabel: "✓ Éo Diverged",
-    divergedUnsafeLabel: "⚠️ Đứng Hình (Diverged)",
-    detachedSafeLabel: "✓ HEAD Không Rời Cổ",
-    detachedUnsafeLabel: "⚠️ HEAD Rời Cỏ",
-    staleSafeLabel: "✓ Base Sạch",
-    staleUnsafeLabel: "⚠️ Base Cũ Rích",
-    diagnosticsActionHeading: "🚑 NHÀ XÁC DI ĐỘNG & GẶM NHẤM LỖI:",
-    uncommittedChangesTitle: "Workspace Bừa Bộn Như Bãi Rác",
-    uncommittedChangesDesc: "Chừa {0} cái file mốc chưa thèm commit kìa.",
-    diagnoseBtn: "🩺 Mổ xẻ",
-    firstAidHeader: "Sửa gấp:",
-    discardConfirm: "Xoá sạch sành sanh code hả? Mất ráng chịu nha!",
-    divergedTitle: "Lệch pha banh chành (Diverged)",
-    divergedDesc: "Local với Server đập nhau chan chát rồi cụ ơi.",
-    forcePushConfirm: "Liều mạng đè nát code của đồng đội bằng Force Push à?",
-    detachedTitle: "Rụng đầu mất xác (Detached HEAD)",
-    detachedDesc: "Không chịu đứng trên nhánh nào cả, code bay màu ráng chịu.",
-    rescueBranchBtn: "nhặt xác lập nhánh rescue",
-    staleBaseTitle: "Base rách lỗi thời",
-    staleBaseDesc: "Nhánh gốc '{0}' rách nát chậm rùa bò so với Remote server rồi.",
-    cleanAllClearTitle: "✓ CHỬI AI NỮA CODE NGON RỒI",
-    cleanAllClearDesc: "Sạch sẽ rồi đấy, nổ máy Rebase lẹ đi ngủ chứ thức đêm hoài báo quá báo!",
-    doctorRep: "🏥 GIẤY KHÁM BỆNH CỦA QUÁI VẬT AI",
-    doctorExplanation: "🔍 LỖI NGU ĐẦY ĐƯỜNG (EXPLANATION):",
-    doctorMitigation: "💊 THUỐC ĐẮNG DÃ TẬT (MITIGATION):",
-    doctorApplyStash: "Bấm đại: git stash",
-    doctorApplyRebase: "Bấm đại: Pull --rebase",
-    doctorApplyRescue: "Bấm đại: Tạo cứu thương",
-    doctorApplySync: "Bấm đại: Đồng bộ nhánh base",
-    scanAnomaliesLoading: "Đang dọn rác bất thường...",
-    visualTimelineTitle: "SƠ ĐỒ COMMITS BẤT HỦ (VISUAL COMMIT TIMELINE GRAPH)",
-    squashCompletedTitle: "SQUASH SẠCH BÓNG (CÒN LẠI 1 TÊN COMMIT SỐNG SÓT)",
-    dirtyFilesLabel: "Đống nợ chưa thèm thắt nút cứu vớt:",
-    zoomIn: "Bành to ra",
-    zoomOut: "Bóp bé tí",
-    resetLayout: "Dẹp hết dọn về chỗ cũ",
-    nodeSizeLabel: "Kích cỡ đống tạ:",
-    rotationLabel: "Xoay vẹo ngang dọc",
-    dragTip: "💡 Thích thì ném quăng quật mấy cục commit cho đỡ ngứa mắt nhé!",
-    panModeLabel: "🖐️ Lướt nền",
-    dragNodeModeLabel: "🖱️ Bốc đầu ô",
-    simScenarioHeading: "🧬 BÃI PHÂN TÍCH GIẢ LẬP ĐỂ CHỬI (SCENARIOS):",
-    simScenarioLinear: "Nhánh thẳng tuột như ruột ngựa (Linear)",
-    simScenarioNonLinear: "Merge Commit bốc mùi từ develop (Merge)",
-    simScenarioRewrite: "Develop bị đè nát (Rewrite/Diverged)",
-    simScenarioStale: "Base cổ lỗ sĩ mốc xanh (Stale Base)",
-    simScenarioDetached: "Bay đầu mất xác giữa chợ (Detached HEAD)",
-    simScenarioLargeHistory: "Nhánh dài tổ bố 30+ phát commit tuyến tính",
-    simScenarioLargeNonLinear: "Đống rác khổng lồ 40+ commits quấn lộn lằng nhằn",
-    simScenarioPowerBI: "Bãi rác Power BI lằng nhằng nổ tung đầu (.tmdl & .json) (Power BI)",
-    simScenarioDesc: "Mấy quả phá hoại Git điển hình để test não AI Doctor và cách chữa bệnh."
-  },
-  [TranslationTone.ENGLISH]: {
-    title: "DIAGNOSTICS & GIT SANITY CHECKS",
-    gitEnv: "Git Binary Environment:",
-    githubCli: "GitHub CLI Connection (gh):",
-    rebaseStatus: "Rebase Status:",
-    readyStatus: "✓ CLEAN (READY)",
-    emptyCommits: "Select a different branch or provide a base branch to render commit history.",
-    simulationAnomalyBadge: "SIMULATED ANOMALY",
-    simulateAnomaliesHeading: "⚡ ENABLE SIMULATED ANOMALIES FOR AI DOCTOR TO TREAT:",
-    divergedSafeLabel: "✓ Clear (Diverged)",
-    divergedUnsafeLabel: "⚠️ Has Diverged",
-    detachedSafeLabel: "✓ Clear (HEAD)",
-    detachedUnsafeLabel: "⚠️ Has Detached HEAD",
-    staleSafeLabel: "✓ Clear (Base)",
-    staleUnsafeLabel: "⚠️ Has Stale Base",
-    diagnosticsActionHeading: "🚨 DIAGNOSTICS & FIRST AID:",
-    uncommittedChangesTitle: "Uncommitted Changes (Dirty Workspace)",
-    uncommittedChangesDesc: "{0} uncommitted/unstaged file(s) remaining.",
-    diagnoseBtn: "🩺 Diagnose",
-    firstAidHeader: "First aid:",
-    discardConfirm: "Discard all modified code? This cannot be undone!",
-    divergedTitle: "Diverged Local & Remote Branches",
-    divergedDesc: "Local and remote repositories have diverged with conflicting timelines.",
-    forcePushConfirm: "Perform force push? This overrides remote changes!",
-    detachedTitle: "Detached HEAD State",
-    detachedDesc: "You are not currently on any active branch container.",
-    rescueBranchBtn: "create rescue branch",
-    staleBaseTitle: "Stale Reference Base Branch",
-    staleBaseDesc: "Base branch '{0}' is outdated compared to the remote.",
-    cleanAllClearTitle: "✓ ALL CLEAR (NO ISSUES)",
-    cleanAllClearDesc: "Your working tree is completely clean. All Git parameters are aligned and ready for a smooth Rebase replay!",
-    doctorRep: "🏥 DYNAMIC BACTERIA REPORT BY AI ASSISTANT",
-    doctorExplanation: "🔍 ANOMALY EXPLANATION (EXPLANATION):",
-    doctorMitigation: "💊 ACTION PLAN (MITIGATION):",
-    doctorApplyStash: "Apply: git stash",
-    doctorApplyRebase: "Apply: Pull --rebase",
-    doctorApplyRescue: "Apply: Create rescue branch",
-    doctorApplySync: "Apply: Sync reference",
-    scanAnomaliesLoading: "Scanning repository anomalies...",
-    visualTimelineTitle: "VISUAL COMMIT TIMELINE GRAPH",
-    squashCompletedTitle: "SQUASH COMPLETED (1 COMMIT REMAINING)",
-    dirtyFilesLabel: "Detailed list of uncommitted changes:",
-    zoomIn: "Zoom In (+)",
-    zoomOut: "Zoom Out (-)",
-    resetLayout: "Reset Layout",
-    nodeSizeLabel: "Node Size:",
-    rotationLabel: "Toggle Vertical/Horizontal",
-    dragTip: "💡 Free drag and reposition commit nodes around the canvas board!",
-    panModeLabel: "🖐️ Pan Canvas",
-    dragNodeModeLabel: "🖱️ Drag Nodes",
-    simScenarioHeading: "🧬 CHOOSE SIMULATED SCENARIO TO TEST:",
-    simScenarioLinear: "Linear Feature Branch (Linear)",
-    simScenarioNonLinear: "Merge Commit Checkpoint from develop (Merge)",
-    simScenarioRewrite: "Diverged History / Rewrite (Diverged)",
-    simScenarioStale: "Stale Base Branch Reference (Stale Base)",
-    simScenarioDetached: "Detached HEAD State (Detached HEAD)",
-    simScenarioLargeHistory: "Large Linear Branch History (30+ Commits)",
-    simScenarioLargeNonLinear: "Large Non-Linear History (40+ Commits, Multi-branch)",
-    simScenarioPowerBI: "Complex Power BI Conflict Scenario (.tmdl & .json) (Power BI)",
-    simScenarioDesc: "Simulate complex, real-world, non-linear Git histories to test commit graph layout and live anomaly warning diagnostics."
-  }
-};
-
-const staleWarningLoc = {
-  [TranslationTone.PROFESSIONAL]: {
-    modalTitle: "Cảnh báo: Nhánh quá cũ! 🕒",
-    desc: (branch: string, age: string) => `Nhánh "${branch}" đã không có cập nhật mới trong ${age}. Việc trực tiếp Checkout / Rebase nhánh này có thể tiềm ẩn rủi ro xung đột (conflict) cực kỳ nghiêm trọng do code nền của dự án đã thay đổi quá nhanh.`,
-    suggestion: "💡 Đề xuất an toàn: Khởi tạo một nhánh siêu sạch mới từ Base Branch hiện tại và đắp toàn bộ code thay đổi (commit changes) từ nhánh cũ sang.",
-    selectBase: "Chọn nhánh nền (Base Branch) để rẽ nhánh mới:",
-    newBranchInput: "Tên nhánh sạch mới:",
-    buttonAutoMigrate: "Tự động Di chuyển & Làm sạch 🚀",
-    buttonCheckoutAnyway: "Vẫn chuyển nhánh (Mạo hiểm ⚠️)",
-    buttonCancel: "Hủy bỏ",
-    migratingTitle: "Đang di chuyển nhánh cũ...",
-    migrateSuccess: "✓ Đã tạo nhánh sạch mới và đồng bộ toàn bộ thay đổi thành công!",
-  },
-  [TranslationTone.JOKE]: {
-    modalTitle: "Ới sếp! Nhánh này từ thời đồ đá rồi! 🦖",
-    desc: (branch: string, age: string) => `Nhánh "${branch}" đóng băng tận ${age} rồi ní ơi. Leo lên thuyền này rebase hay checkout là va phải đá ngầm, conflict ngập mặt mệt xỉu á nha!`,
-    suggestion: "💡 Kế khích tướng: Đẻ một nhánh tút lại vẻ đẹp trai từ nhánh base hiện tại rồi bê nguyên đai nguyên kiện ruột code cũ sang cho mượt bốc đầu.",
-    selectBase: "Chọn gốc tổ tiên (Base Branch) để đu bám:",
-    newBranchInput: "Tên nhánh mướt rượt mới:",
-    buttonAutoMigrate: "Đẻ nhánh mới gom code auto 🚀",
-    buttonCheckoutAnyway: "Kệ, cứ nhảy hố vôi (Liều ăn nhiều ⚠️)",
-    buttonCancel: "Thôi quay xe",
-    migratingTitle: "Đang gột rửa code thời đồ đá...",
-    migrateSuccess: "✓ Đẻ nhánh mới mượt mà, bê code cũ sang sạch coong sếp ơi!",
-  },
-  [TranslationTone.TOXIC]: {
-    modalTitle: "⚠️ CẢNH BÁO: NHÁNH CỔ LỖ SĨ, ĐỪNG CÓ NGU! ⚠️",
-    desc: (branch: string, age: string) => `Cái nhánh rác rưởi "${branch}" này chết trôi ${age} rồi chưa chịu chôn! Mày định đâm đầu lôi nó ra rebase để ăn cả tấn conflict vào mồm à thằng ngốc?`,
-    suggestion: "💡 Lời khuyên cho bớt ngu: Đẻ nhánh mới tinh từ gốc xịn, sau đó gom hết code rác từ nhánh cũ nhét sang một nốt nhạc.",
-    selectBase: "Nhánh tổ tông rác ở đâu để bám:",
-    newBranchInput: "Đặt tên nhánh rác mới lẹ lên:",
-    buttonAutoMigrate: "Gom rác sang nhánh mới tự động 🚀",
-    buttonCheckoutAnyway: "Cút sang luôn đi tao xem mày khổ ⚠️",
-    buttonCancel: "Sợ quá, hủy gấp!",
-    migratingTitle: "Đang dọn rác cổ lỗ sĩ...",
-    migrateSuccess: "✓ Đã nhét hết code rác sang nhánh mới sạch sẽ rồi đấy!",
-  },
-  [TranslationTone.ENGLISH]: {
-    modalTitle: "Warning: Stale Branch Detected! 🕒",
-    desc: (branch: string, age: string) => `The branch "${branch}" hasn't been active in ${age}. Directly checking out or rebasing this branch poses a high risk of heavy merge conflicts as the base branch has evolved significantly.`,
-    suggestion: "💡 Recommended Strategy: Spawn a fresh branch starting from the active base branch and automatically consolidate/cherry-pick the stale changes on top of it.",
-    selectBase: "Choose Base Branch to spawn from:",
-    newBranchInput: "Fresh branch name:",
-    buttonAutoMigrate: "Auto-Migrate to Fresh Branch 🚀",
-    buttonCheckoutAnyway: "Checkout anyway (Risky ⚠️)",
-    buttonCancel: "Cancel",
-    migratingTitle: "Migrating stale commits...",
-    migrateSuccess: "✓ Created a healthy fresh branch and fully synced consolidated changes!",
-  }
-};
-
-const tooltipTexts: Record<TranslationTone, Record<string, { why: string; how: string }>> = {
-  [TranslationTone.PROFESSIONAL]: {
-    dirty: {
-      why: "Workspace đang có thay đổi chưa được commit. Tiến trình Rebase yêu cầu một thư mục làm việc sạch sẽ (clean working tree) để có thể tạm nén và sau đó áp dụng tuần tự từng commit mới của bạn lên phía trên nhánh base mà không gây đè hoặc mất dữ liệu.",
-      how: "Hãy chạy lệnh 'git stash' để lưu tạm thời các sửa đổi hiện tại vào bộ nhớ đệm ẩn, hoặc bấm nút 'discard' để xóa sạch các thay đổi nháp nếu bạn không cần sử dụng chúng nữa."
-    },
-    diverged: {
-      why: "Nhánh ở local máy tính của bạn và nhánh theo dõi từ xa (remote tracking branch) trên GitHub đều có thêm các commit mới khác nhau. Điều này khiến dòng lịch sử bị rẽ đôi chéo, Git không thể tự động fast-forward khi push.",
-      how: "Nên sử dụng 'git pull --rebase' để chèn những commit chưa đẩy của bạn lên sau các commit mới nhất của remote. Chỉ dùng Force Push khi bạn muốn ghi đè hoàn toàn bảo bối của mình lên máy chủ."
-    },
-    detached: {
-      why: "Con trỏ HEAD đang trỏ thẳng vào một commit cụ thể thay vì bám trụ vào một nhánh tham chiếu cụ thể. Trạng thái này là 'vô gia cư', các commit mới tạo ra sẽ không thuộc nhánh nào và dễ bị tiến trình dọn dẹp bộ nhớ (garbage collection) của Git xóa mất.",
-      how: "Hãy nhấp ngay nút 'tạo nhánh rescue' (mô phỏng 'git checkout -b <nhánh_mới>') để gắn neo liên kết, giữ an toàn toàn vẹn cho đống lịch sử code của bạn."
-    },
-    stale: {
-      why: "Nhánh đích cơ sở (thường là 'develop' hoặc 'main') đang bị tụt hậu so với remote server mây, khiến bạn chuẩn bị Rebase trên một cái nền móng cũ kĩ và dễ dẫn tới hàng tấn xung đột không đáng có.",
-      how: "Chọn cách 'fetch & pull sync' để cập nhật nhanh móng nhà base về trạng thái mới nhất, giúp quá trình nhấc - đặt commit diễn ra mượt mờ."
-    }
-  },
-  [TranslationTone.JOKE]: {
-    dirty: {
-      why: "Workspace ngổn ngang quần áo chưa gấp (chưa commit) kìa sếp! Đang tái cấu trúc lịch sử mà đồ đạc quăng lung tung là Git nó bạo loạn làm loạn xì ngầu đó.",
-      how: "Gấp gọn nhét tủ bằng 'git stash' hoặc vứt sọt rác bằng Discard cho nhẹ gánh giang hồ nha sếp."
-    },
-    diverged: {
-      why: "Sếp đi đường sếp, Server đi đường Server, hai bên đã rẽ lối chia hai ngả rồi kìa. Push đè lên là ăn dép của đồng nghiệp ngay!",
-      how: "Triển chiêu 'pull --rebase' dỗ dành kéo hai bên sát lại gần nhau, hoặc bá đạo hơn thì 'force push' đè bẹp server luôn."
-    },
-    detached: {
-      why: "Đầu lìa khỏi xác rồi sếp ơi! Trùng khơi vô định không bến đỗ, tắt máy đi ngủ là đống commit bay màu không dấu vết như người yêu cũ luôn.",
-      how: "Nhanh tay quăng phao 'tạo nhánh rescue' buộc cổ HEAD lại ngay kẻo code trôi sông trôi biển!"
-    },
-    stale: {
-      why: "Nhánh móng (base) mốc meo từ thời tống rồi kìa sếp! Móng nhà rệu rã thế này mà xây đè gạch rebase lên là nát bét đó.",
-      how: "Bật ngay 'fetch & pull' hút tinh khí từ remote về bơm căng nhánh base cho tươi trẻ lại sếp ơi."
-    }
-  },
-  [TranslationTone.TOXIC]: {
-    dirty: {
-      why: "Code bôi ra lung tung chưa thèm dọn dẹp mà đòi múa Rebase rồi à? Đừng để đống bừa bộn này làm hỏng bét cả tiến trình gộp nhé cụ.",
-      how: "Thả đống rác vào túi 'git stash' cất đi, hoặc bấm nút 'discard' xoá hết công sức xạo xạo vừa bôi ra đi cho rảnh."
-    },
-    diverged: {
-      why: "Mỗi bên đi một ngả chọc gáy nhau rồi. Nghĩ sao đòi push thẳng khi server đang có hàng xịn hơn? Úp sọt lộn xộn rồi đó.",
-      how: "Nhanh cái tay gõ 'pull --rebase' xếp hàng trật tự đi. Còn nếu thích ăn chửi thì phang 'force push' đè nát cả lò server."
-    },
-    detached: {
-      why: "HEAD mất xác, bay đầu lơ lửng ngoài vũ trụ rồi con giời ơi! Code vớ vẩn này không bám vào nhánh nào thì tắt tab một cái là bay màu sạch đừng khóc.",
-      how: "Hồn về với xác lẹ! Bấm mịa nó nút 'rescue' để tự chế ra cái nhánh cứu rỗi linh hồn đống commit đi kìa!"
-    },
-    stale: {
-      why: "Nhánh gốc (base) nát từ kiếp nào rồi không chịu cập nhật, tính Rebase đè lên cái nền mục nát để ăn cám cả lũ à?",
-      how: "Bớt lười lại, bấm 'fetch & pull sync' dọn dẹp móng cho sạch mới mong code chạy mượt được."
-    }
-  },
-  [TranslationTone.ENGLISH]: {
-    dirty: {
-      why: "You have uncommitted modifications in your workspace. Rebasing works by rewriting commit history, which strictly requires a clean working tree to prevent conflicting untracked code collisions.",
-      how: "Run 'git stash' to store your current progress into a temporary stack cabinet, or click 'discard' to wipe them if you don't need them anymore."
-    },
-    diverged: {
-      why: "Your local branch and remote origin have diverged with differing commit chains. Git will reject standard push requests because the remote history is not a parent of local HEAD.",
-      how: "Perform 'git pull --rebase' to cleanly fetch and replay your commits over the fetched remote timeline, or use force push to override."
-    },
-    detached: {
-      why: "HEAD is in a detached state, pointing directly to a naked commit instead of a reference branch container. Any future commits here are orphaned and at risk of being pruned by Git's garbage collection.",
-      how: "Instantly create a rescue branch ('git checkout -b rescue-branch') to anchor and safely secure your commits under a permanent pointer."
-    },
-    stale: {
-      why: "Your reference base branch is stale and outdated compared to remote origin master. Rebasing features on a stale root will yield severe and unnecessary merge conflicts.",
-      how: "Trigger origin sync using 'fetch & pull' to bring the base branch reference completely up-to-date, ensuring smooth rebase operations."
-    }
-  }
-};
+// Locales and visualizer subcomponents
+import { sanityLoc, staleWarningLoc, tooltipTexts } from './features/doctor/sanityLocales';
+import CommitNodeCard from './features/visualizer/CommitNodeCard';
 
 async function safeParseError(res: Response, fallbackMsg: string): Promise<string> {
   try {
@@ -507,335 +84,6 @@ async function safeParseError(res: Response, fallbackMsg: string): Promise<strin
   } catch (err: any) {
     return `${fallbackMsg} (${err.message})`;
   }
-}
-
-interface CommitNodeCardProps {
-  c: Commit;
-  theme: 'light' | 'dark';
-  tone: TranslationTone;
-  activeTool: 'pan' | 'dragNode';
-  isMobile: boolean;
-  wizard: WizardState;
-  expandedNodes: Record<string, boolean>;
-  setExpandedNodes: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
-  nodeSizes: Record<string, { width: number; height: number }>;
-  isSimulation: boolean;
-  track: number;
-  isGraphVertical: boolean;
-  nodeWidth: number;
-  nodeRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
-  updateConnectionPaths: () => void;
-  triggerRenderTick: () => void;
-  handleResizeStart: (e: React.PointerEvent, sha: string, dir: 'w' | 'h' | 'both') => void;
-  hoveredSha: string | null;
-  setHoveredSha: (sha: string | null) => void;
-  fetchCommitFiles: (sha: string) => void;
-  loadingFilesShas: Record<string, boolean>;
-  commitFiles: Record<string, Array<{ filepath: string; status: string }>>;
-  isTouchOnly: boolean;
-}
-
-function CommitNodeCard({
-  c,
-  theme,
-  tone,
-  activeTool,
-  isMobile,
-  wizard,
-  expandedNodes,
-  setExpandedNodes,
-  nodeSizes,
-  isSimulation,
-  track,
-  isGraphVertical,
-  nodeWidth,
-  nodeRefs,
-  updateConnectionPaths,
-  triggerRenderTick,
-  handleResizeStart,
-  hoveredSha,
-  setHoveredSha,
-  fetchCommitFiles,
-  loadingFilesShas,
-  commitFiles,
-  isTouchOnly,
-}: CommitNodeCardProps) {
-  const dragControls = useDragControls();
-
-  const isSelect = wizard.selectedCommits.includes(c.sha) || wizard.selectedCommits.length === 0;
-  const isExpanded = !!expandedNodes[c.sha];
-  const customSz = nodeSizes[c.sha];
-  const finalWidth = customSz?.width ?? (isExpanded ? nodeWidth + 120 : nodeWidth);
-  const finalHeight = customSz?.height ?? (isExpanded ? 140 : 80);
-
-  let nodeOffsetX = 0;
-  let nodeOffsetY = 0;
-  if (isSimulation) {
-    if (isGraphVertical) {
-      if (track === 0) nodeOffsetX = -180;
-      if (track === 2) nodeOffsetX = 180;
-    } else {
-      if (track === 0) nodeOffsetY = -110;
-      if (track === 2) nodeOffsetY = 110;
-    }
-  }
-
-  return (
-    <motion.div
-      ref={(el) => {
-        nodeRefs.current[c.sha] = el;
-      }}
-      drag={!isMobile && activeTool === 'dragNode'}
-      dragControls={dragControls}
-      dragListener={false}
-      dragConstraints={false}
-      dragElastic={0.2}
-      layout
-      whileDrag={{
-        scale: 1.03,
-        zIndex: 50,
-        boxShadow: theme === 'light' ? '0 10px 20px rgba(0,0,0,0.1)' : '0 10px 25px rgba(0,0,0,0.4)',
-      }}
-      onDrag={() => {
-        updateConnectionPaths();
-      }}
-      onDragEnd={() => {
-        updateConnectionPaths();
-      }}
-      onMouseEnter={() => {
-        setHoveredSha(c.sha);
-        fetchCommitFiles(c.sha);
-      }}
-      onMouseLeave={() => {
-        setHoveredSha(null);
-      }}
-      style={{
-        width: `${finalWidth}px`,
-        height: customSz?.height ? `${finalHeight}px` : 'auto',
-        minHeight: customSz?.height ? `${finalHeight}px` : undefined,
-        marginLeft: isGraphVertical ? `${nodeOffsetX}px` : undefined,
-        marginTop: !isGraphVertical ? `${nodeOffsetY}px` : undefined,
-      }}
-      className={`flex flex-col items-stretch p-3 text-left border rounded-xl hover:shadow-md transition-colors duration-150 relative shrink-0 ${
-        !isMobile && activeTool === 'dragNode' ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
-      } ${
-        theme === 'light'
-          ? 'bg-white border-slate-200/80 shadow-sm text-slate-800'
-          : 'bg-slate-900/60 border-slate-800 text-slate-100 shadow'
-      }`}
-    >
-      {/* Top header of node */}
-      <div className="flex items-center justify-between gap-1.5 mb-2 pointer-events-auto">
-        <div className="flex items-center gap-1 min-w-0 flex-1">
-          <span
-            className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border shrink-0 ${
-              isSelect
-                ? 'bg-indigo-500/10 text-indigo-500 border-indigo-200/50 dark:bg-indigo-500/20 dark:text-indigo-400 dark:border-indigo-500/30'
-                : 'bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-950 dark:text-slate-500 dark:border-slate-900'
-            }`}
-          >
-            {isExpanded ? c.sha : c.sha.substring(0, 7)}
-          </span>
-
-          {/* Branch Track Badge */}
-          {isSimulation && track === 0 && (
-            <span className="text-[8px] font-mono font-bold px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 uppercase tracking-wider scale-[0.9] origin-left truncate max-w-[70px]">
-              develop
-            </span>
-          )}
-          {isSimulation && track === 2 && (
-            <span className="text-[8px] font-mono font-bold px-1 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 uppercase tracking-wider scale-[0.9] origin-left truncate max-w-[70px]" title="origin/remote">
-              origin/remote
-            </span>
-          )}
-          {isSimulation && track === 1 && c.isMergeCommit && (
-            <span className="text-[8px] font-mono font-bold px-1 py-0.5 rounded bg-fuchsia-500/15 text-fuchsia-400 border border-fuchsia-500/20 uppercase tracking-wider scale-[0.9] origin-left truncate max-w-[70px]">
-              merge
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-1.5 select-none shrink-0">
-          {/* Hover Grab Handle Indicator */}
-          {!isMobile && activeTool === 'dragNode' && (
-            <Move
-              onPointerDown={(e) => {
-                e.preventDefault();
-                dragControls.start(e);
-              }}
-              className="w-3.5 h-3.5 text-slate-400 hover:text-indigo-400 cursor-grab active:cursor-grabbing transition-colors"
-              title="Nhấn giữ để di chuyển (Hold to drag)"
-            />
-          )}
-
-          {/* Maximize / Collapse Resize Button */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setExpandedNodes((prev) => ({ ...prev, [c.sha]: !prev[c.sha] }));
-              setTimeout(() => {
-                updateConnectionPaths();
-                triggerRenderTick();
-              }, 80);
-            }}
-            className={`p-1 rounded cursor-pointer transition-colors ${
-              theme === 'light' ? 'hover:bg-slate-100 text-slate-500' : 'hover:bg-slate-800 text-slate-400'
-            }`}
-            title={isExpanded ? "Collapse Details" : "Expand to view details"}
-          >
-            {isExpanded ? (
-              <Minimize2 className="w-3 h-3 text-rose-400" />
-            ) : (
-              <Maximize2 className="w-3 h-3 text-emerald-400" />
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Body of node */}
-      <div className="flex flex-col gap-1.5 flex-1 overflow-hidden">
-        <span
-          className={`text-[11px] font-medium leading-tight ${
-            isExpanded ? 'whitespace-normal block break-words text-xs' : 'truncate block w-full text-[10px]'
-          } ${
-            isSelect ? (theme === 'light' ? 'text-slate-800' : 'text-slate-100') : 'text-slate-400 line-through opacity-60'
-          }`}
-          title={c.message}
-        >
-          {c.message}
-        </span>
-
-        {/* Smooth framer-motion expanded detailed contents */}
-        <AnimatePresence>
-          {isExpanded && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="border-t border-dashed border-slate-700 mt-2 pt-2 flex flex-col gap-1 text-[10px] font-mono text-slate-400"
-            >
-              {c.type && (
-                <div className="flex items-center gap-1.5">
-                  <span className="font-bold shrink-0 text-slate-500">Type:</span>
-                  <span
-                    className={`px-1 py-0.2 rounded font-black uppercase text-[8px] ${
-                      c.type === 'feat'
-                        ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                        : c.type === 'fix'
-                        ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                        : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
-                    }`}
-                  >
-                    {c.type}
-                  </span>
-                </div>
-              )}
-
-              {c.author && (
-                <div className="truncate">
-                  <span className="font-bold text-slate-500 text-[9px]">Author:</span> {c.author}
-                </div>
-              )}
-
-              {c.date && (
-                <div className="text-[9px]">
-                  <span className="font-bold text-slate-500">Date:</span> {c.date}
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Custom Drag-to-Resize Handles on Board Borders (hidden on touch machines) */}
-      {!isTouchOnly && (
-        <>
-          {/* Right side resize handle */}
-          <div
-            onPointerDown={(e) => handleResizeStart(e, c.sha, 'w')}
-            className="absolute top-0 right-0 w-2 h-full cursor-ew-resize hover:bg-indigo-500/30 active:bg-indigo-500/40 transition-colors z-20 group"
-            title="Kéo để chỉnh độ rộng (Drag to resize width)"
-          >
-            <div className="w-1 h-1/3 bg-slate-400/25 group-hover:bg-indigo-400/80 rounded mx-auto my-auto top-1/3 relative" />
-          </div>
-
-          {/* Bottom side resize handle */}
-          <div
-            onPointerDown={(e) => handleResizeStart(e, c.sha, 'h')}
-            className="absolute bottom-0 left-0 h-2 w-full cursor-ns-resize hover:bg-indigo-500/30 active:bg-indigo-500/40 transition-colors z-20 group"
-            title="Kéo để chỉnh chiều cao (Drag to resize height)"
-          >
-            <div className="h-1 w-1/3 bg-slate-400/25 group-hover:bg-indigo-400/80 rounded mx-auto my-auto left-1/3 relative" />
-          </div>
-
-          {/* Bottom-right diagonal resize handle */}
-          <div
-            onPointerDown={(e) => handleResizeStart(e, c.sha, 'both')}
-            className="absolute bottom-0 right-0 w-4.5 h-4.5 cursor-se-resize hover:bg-indigo-500/50 hover:scale-110 active:scale-95 transition-all z-30 flex items-center justify-center rounded-bl group-hover:bg-indigo-500/10"
-            title="Chỉnh cả 2 chiều (Resize both width and height)"
-          >
-            <svg
-              className="w-3 h-3 text-slate-400 group-hover:text-indigo-400 pointer-events-none"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={3.5}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 19H5m14 0V5" />
-            </svg>
-          </div>
-        </>
-      )}
-
-      {/* Interactive hover tooltip previewing file changes */}
-      <AnimatePresence>
-        {hoveredSha === c.sha && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, x: 10 }}
-            animate={{ opacity: 1, scale: 1, x: 0 }}
-            exit={{ opacity: 0, scale: 0.95, x: 10 }}
-            transition={{ duration: 0.15 }}
-            style={{
-              width: '260px',
-            }}
-            className={`absolute left-[103%] top-0 z-55 p-3.5 rounded-xl border-2 shadow-2xl flex flex-col gap-2.5 backdrop-blur-md font-sans text-xs ${
-              theme === 'light'
-                ? 'bg-white/95 border-indigo-100 text-slate-800 shadow-slate-300/60'
-                : 'bg-slate-950/95 border-indigo-900/80 text-slate-100 shadow-black/90'
-            }`}
-          >
-            <div className="flex items-center justify-between border-b pb-1.5 border-dashed border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-1.5 font-bold font-mono text-[10px]">
-                <span className="text-indigo-400">#</span>
-                <span>{translate('commit_files_changed', tone)}</span>
-              </div>
-              <span className="text-[9px] font-mono opacity-60">{c.sha.substring(0, 7)}</span>
-            </div>
-
-            {loadingFilesShas[c.sha] ? (
-              <div className="flex items-center gap-2 py-3 justify-center text-[10px] text-slate-400 animate-pulse font-mono">
-                <RefreshCw className="w-3 h-3 animate-spin text-indigo-400" />
-                <span>{translate('commit_files_loading', tone)}</span>
-              </div>
-            ) : !commitFiles[c.sha] || commitFiles[c.sha].length === 0 ? (
-              <div className="text-[10px] text-slate-500 py-3 text-center italic font-mono">
-                {translate('commit_files_none', tone)}
-              </div>
-            ) : (
-              <div className="flex flex-col gap-1 max-h-[140px] overflow-y-auto pr-1">
-                {commitFiles[c.sha].map((file, fi) => (
-                  <div key={fi} className="flex items-center gap-1.5 text-[9.5px] font-mono truncate text-slate-300">
-                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
-                    <span className="truncate">{file.filepath}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  );
 }
 
 export default function App() {
@@ -977,6 +225,23 @@ export default function App() {
   });
   const [showNightOwlBanner, setShowNightOwlBanner] = React.useState<boolean>(true);
 
+  // Modern dashboard Mode Switcher state
+  const [dashboardMode, setDashboardMode] = React.useState<'daily' | 'rescue' | 'learning'>(() => {
+    try {
+      const saved = localStorage.getItem('rebase_overlord_dashboard_mode');
+      if (saved === 'daily' || saved === 'rescue' || saved === 'learning') {
+        return saved;
+      }
+    } catch (e) {}
+    return 'daily';
+  });
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('rebase_overlord_dashboard_mode', dashboardMode);
+    } catch (e) {}
+  }, [dashboardMode]);
+
   // Custom API configuration for serverless deployment fallback (Vercel, GitHub Pages, etc.)
   const [backendStatus, setBackendStatus] = React.useState<'checking' | 'connected' | 'unreachable'>('checking');
   const [customBackendUrl, setCustomBackendUrl] = React.useState<string>(() => {
@@ -1037,6 +302,191 @@ export default function App() {
 
   const [activeTooltip, setActiveTooltip] = React.useState<string | null>(null);
 
+  // TECH ISSUE-006: Electron Desktop/IDE Native Experience states
+  const [dockTerminalPosition, setDockTerminalPosition] = React.useState<'right' | 'bottom'>(() => {
+    try {
+      const saved = localStorage.getItem('rebase_overlord_dock_terminal');
+      return saved === 'bottom' ? 'bottom' : 'right';
+    } catch (_) { return 'right'; }
+  });
+  const [sidebarPosition, setSidebarPosition] = React.useState<'right' | 'left'>(() => {
+    try {
+      const saved = localStorage.getItem('rebase_overlord_sidebar_position');
+      return saved === 'left' ? 'left' : 'right';
+    } catch (_) { return 'right'; }
+  });
+  const [workspaceLayout, setWorkspaceLayout] = React.useState<'split' | 'fullscreen'>(() => {
+    try {
+      const saved = localStorage.getItem('rebase_overlord_workspace_layout');
+      return saved === 'fullscreen' ? 'fullscreen' : 'split';
+    } catch (_) { return 'split'; }
+  });
+  const [showShortcutCheatSheet, setShowShortcutCheatSheet] = React.useState<boolean>(false);
+  const [detachedWindows, setDetachedWindows] = React.useState<{ id: string; title: string; type: 'commits' | 'visualizer' | 'diagnostics' | 'shortcuts' | 'terminal'; x: number; y: number; width?: number; height?: number }[]>([]);
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('rebase_overlord_dock_terminal', dockTerminalPosition);
+    } catch (_) {}
+  }, [dockTerminalPosition]);
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('rebase_overlord_sidebar_position', sidebarPosition);
+    } catch (_) {}
+  }, [sidebarPosition]);
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('rebase_overlord_workspace_layout', workspaceLayout);
+    } catch (_) {}
+  }, [workspaceLayout]);
+
+  // Global Shortcut listener for Electron native desktop feel
+  React.useEffect(() => {
+    const handleGlobalShortcuts = (e: KeyboardEvent) => {
+      // Check if user is typing in an input or textarea
+      const target = e.target as HTMLElement;
+      const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+
+      // Ctrl + I (or Meta + I) for Command Palette (Dispatch custom event so Floating Chat opens)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent('toggle-ai-doctor'));
+        return;
+      }
+
+      // If user is inside an input, only support Ctrl+K and Ctrl+I triggers, ignore other single-hotkeys or Alt-hotkeys to prevent collision
+      if (isInput) return;
+
+      // Alt + 1: Daily tab
+      if (e.altKey && e.key === '1') {
+        e.preventDefault();
+        setDashboardMode('daily');
+        triggerToast('info', '⌨️ Alt+1 SHORTCUT', 'Chuyển sang màn hình Developer Daily thành công!', '💻');
+      }
+      // Alt + 2: Rescue tab
+      else if (e.altKey && e.key === '2') {
+        e.preventDefault();
+        setDashboardMode('rescue');
+        triggerToast('info', '⌨️ Alt+2 SHORTCUT', 'Chuyển sang màn hình khôi phục Git Rescue / Reflog!', '🚑');
+      }
+      // Alt + 3: Learning tab
+      else if (e.altKey && e.key === '3') {
+        e.preventDefault();
+        setDashboardMode('learning');
+        triggerToast('info', '⌨️ Alt+3 SHORTCUT', 'Chuyển sang Sa bàn mô phỏng trực quan & Wizard!', '🏫');
+      }
+      // Alt + T: Clear logs
+      else if (e.altKey && e.key.toLowerCase() === 't') {
+        e.preventDefault();
+        setLogs([]);
+        triggerToast('milestone', '🧹 Alt+T LOGS CLEARED', 'Lịch sử dòng lệnh Terminal đã được dọn dẹp sạch sẽ!', '✨');
+      }
+      // Alt + D: Toggle dock terminal position
+      else if (e.altKey && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        setDockTerminalPosition(prev => {
+          const next = prev === 'right' ? 'bottom' : 'right';
+          triggerToast('info', '⌨️ Alt+D SHORTCUT', `Đã di chuyển Panel Terminal & Logs xuống: ${next.toUpperCase()}`, '⚓');
+          return next;
+        });
+      }
+      // Alt + S: Toggle sidebar alignment
+      else if (e.altKey && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        setSidebarPosition(prev => {
+          const next = prev === 'right' ? 'left' : 'right';
+          triggerToast('info', '⌨️ Alt+S SHORTCUT', `Đã chuyển thanh Sidebar sang bên: ${next.toUpperCase()}`, '🎛️');
+          return next;
+        });
+      }
+      // Alt + W: Toggle workspace layout split vs fullscreen
+      else if (e.altKey && e.key.toLowerCase() === 'w') {
+        e.preventDefault();
+        setWorkspaceLayout(prev => {
+          const next = prev === 'split' ? 'fullscreen' : 'split';
+          triggerToast('info', '⌨️ Alt+W SHORTCUT', `Đã đổi chế độ bố cục màn hình: ${next.toUpperCase()}`, '🖥️');
+          return next;
+        });
+      }
+      // Alt + J: Detach current view / open custom window
+      else if (e.altKey && e.key.toLowerCase() === 'j') {
+        e.preventDefault();
+        // Spawn a detached floating window
+        const randomX = 100 + Math.random() * 150;
+        const randomY = 100 + Math.random() * 150;
+        const types: ('commits' | 'visualizer' | 'diagnostics' | 'shortcuts')[] = ['commits', 'diagnostics', 'shortcuts'];
+        const activeType = types[detachedWindows.length % types.length];
+        const titles = {
+          commits: '🌳 Detached Git Commit Graph',
+          diagnostics: '🩺 Detached Live Diagnostician',
+          shortcuts: '⌨️ Shortcuts Quick Reference Window'
+        };
+        const newWin = {
+          id: `win-${Date.now()}`,
+          title: titles[activeType],
+          type: activeType,
+          x: randomX,
+          y: randomY,
+          width: 440,
+          height: 380
+        };
+        setDetachedWindows(prev => [...prev, newWin]);
+        triggerToast('milestone', '🖥️ MULTI-WINDOW SPAWNED', `Đã mở một cửa sổ phụ phác đồ: ${titles[activeType]}`, '🪟');
+      }
+      // Alt + H or Alt + / (e.g. e.key === '?'): Toggle Help Cheat Sheet
+      else if (e.altKey && (e.key.toLowerCase() === 'h' || e.key === '/' || e.key === '?')) {
+        e.preventDefault();
+        setShowShortcutCheatSheet(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalShortcuts);
+    return () => window.removeEventListener('keydown', handleGlobalShortcuts);
+  }, [detachedWindows, triggerToast]);
+
+  const handleDragWindowStart = (e: React.PointerEvent, windowId: string) => {
+    e.preventDefault();
+    const activeWindow = document.getElementById(`detached-win-${windowId}`);
+    if (!activeWindow) return;
+    activeWindow.setPointerCapture(e.pointerId);
+    
+    // Get initial cursor offset
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const winObj = detachedWindows.find(w => w.id === windowId);
+    if (!winObj) return;
+    const initialX = winObj.x;
+    const initialY = winObj.y;
+    
+    const onPointerMove = (moveEvent: PointerEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const deltaY = moveEvent.clientY - startY;
+      setDetachedWindows(prev => prev.map(w => {
+        if (w.id === windowId) {
+          return {
+            ...w,
+            x: Math.max(10, Math.min(window.innerWidth - 300, initialX + deltaX)),
+            y: Math.max(10, Math.min(window.innerHeight - 200, initialY + deltaY))
+          };
+        }
+        return w;
+      }));
+    };
+    
+    const onPointerUp = (upEvent: PointerEvent) => {
+      try {
+        activeWindow.releasePointerCapture(upEvent.pointerId);
+      } catch (_) {}
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+    
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+  };
+
   // Core Git States with localStorage fallback
   const [repoState, setRepoState] = React.useState<GitRepoState>(() => {
     const defaultBase = localStorage.getItem('default_base_branch') || 'develop';
@@ -1070,7 +520,8 @@ export default function App() {
       conflicts: [],
       ghAvailable: true,
       ghErrorKey: '',
-      commandHistory: []
+      commandHistory: [],
+      stashes: []
     };
   });
 
@@ -3433,6 +2884,51 @@ export default function App() {
     }
   };
 
+  const handleUnstash = async (index: number) => {
+    const stashName = `stash@{${index}}`;
+    addLog(`$ git stash pop "${stashName}"`);
+    setIsFetchingGlobal(true);
+    
+    try {
+      const res = await fetch(resolveApiUrl('/api/execute-command'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: `git stash pop "${stashName}"` })
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        if (data.code === 0) {
+          addLog(`✓ Successfully pop stashed item: ${stashName}`);
+          triggerToast(
+            'ok',
+            tone === TranslationTone.ENGLISH ? 'STASH POPPED' : 'ĐÃ KHÔI PHỤC STASH',
+            tone === TranslationTone.ENGLISH 
+              ? `Workspace restored from ${stashName} successfully.` 
+              : `Đã lôi đống tệp tin khôi phục từ ${stashName} thành công.`,
+            '📦'
+          );
+        } else {
+          addLog(`! Error popping stash: ${data.stderr || data.stdout}`);
+          triggerToast(
+            'warn',
+            tone === TranslationTone.ENGLISH ? 'STASH POP FAILED' : 'KHÔNG THỂ GIẢI BẢN NHÁP',
+            data.stderr || data.stdout || 'Conflicts detected or command failed.',
+            '⚠️'
+          );
+        }
+        handleRefresh();
+      } else {
+        const errMsg = await safeParseError(res, 'Unknown error popping stash');
+        addLog(`! Error popping stash: ${errMsg}`);
+      }
+    } catch (err: any) {
+      addLog(`! Network timeout popping stash: ${err.message}`);
+    } finally {
+      setIsFetchingGlobal(false);
+    }
+  };
+
   const handleFetch = async () => {
     setIsFetchingGlobal(true);
     addLog(`$ git fetch origin --prune`);
@@ -3624,7 +3120,294 @@ export default function App() {
     }
   };
 
+  const renderSidebarContent = () => {
+    const doctorStatusItems = [
+      {
+        title: tone === TranslationTone.ENGLISH ? 'WORKING TREE' : 'CÂY THƯ MỤC',
+        status: doctorProblem === 'uncommitted_changes' ? 'fail' : 'ok',
+        badge: doctorProblem === 'uncommitted_changes' ? '⚠️ DIRTY' : '✓ CLEAN',
+        fixAvailable: true,
+        message: doctorProblem === 'uncommitted_changes'
+          ? (tone === TranslationTone.ENGLISH
+              ? 'You have uncommitted changes in your workspace. Please commit or stash them.'
+              : 'Bạn đang có các thay đổi chưa commit. Hãy commit hoặc tạm cất (stash) chúng.')
+          : (tone === TranslationTone.ENGLISH
+              ? 'Working tree is clean. No uncommitted modifications.'
+              : 'Thư mục làm việc hoàn toàn sạch sẽ, không có thay đổi dở dang.')
+      },
+      {
+        title: tone === TranslationTone.ENGLISH ? 'LOCAL & REMOTE SYNC' : 'ĐỒNG BỘ LOCAL & REMOTE',
+        status: doctorProblem === 'diverged_branch' ? 'fail' : 'ok',
+        badge: doctorProblem === 'diverged_branch' ? '⚠️ DIVERGED' : '✓ SYNCED',
+        fixAvailable: true,
+        message: doctorProblem === 'diverged_branch'
+          ? (tone === TranslationTone.ENGLISH
+              ? 'Your local branch is out of sync with upstream remote. Rebase pull suggested.'
+              : 'Nhánh local của bạn đang lệch pha với Remote thượng nguồn. Hãy chạy Rebase Pull.')
+          : (tone === TranslationTone.ENGLISH
+              ? 'Local branch is fully synced with upstream remote.'
+              : 'Nhánh local đã đồng bộ hoàn hảo với máy chủ remote.')
+      },
+      {
+        title: tone === TranslationTone.ENGLISH ? 'HEAD POSITION' : 'VỊ TRÍ ĐẦU HEAD',
+        status: doctorProblem === 'detached_head' ? 'fail' : 'ok',
+        badge: doctorProblem === 'detached_head' ? '⚠️ DETACHED' : '✓ LINKED',
+        fixAvailable: true,
+        message: doctorProblem === 'detached_head'
+          ? (tone === TranslationTone.ENGLISH
+              ? 'HEAD is detached. You are commit-safe but your branch lineage is broken.'
+              : 'Đầu HEAD đang bị tách rời (Detached HEAD). Nhánh lưu trữ của bạn đang bị đứt gãy.')
+          : (tone === TranslationTone.ENGLISH
+              ? 'HEAD is correctly pointed to active branch tip.'
+              : 'HEAD đang trỏ chính xác vào đầu mút nhánh hoạt động.')
+      },
+      {
+        title: tone === TranslationTone.ENGLISH ? 'BASE BRANCH HEALTH' : 'SỨC KHỎE NHÁNH GỐC',
+        status: doctorProblem === 'stale_base_branch' ? 'fail' : 'ok',
+        badge: doctorProblem === 'stale_base_branch' ? '⚠️ STALE' : '✓ FRESH',
+        fixAvailable: true,
+        message: doctorProblem === 'stale_base_branch'
+          ? (tone === TranslationTone.ENGLISH
+              ? 'Developing base branch is behind remote. Suggest base branch synchronization.'
+              : 'Nhánh gốc cơ sở (develop/main) đã lạc hậu so với Remote. Hãy chạy đồng bộ nhánh gốc.')
+          : (tone === TranslationTone.ENGLISH
+              ? 'Base branch is completely fresh and up to date.'
+              : 'Nhánh gốc cơ sở hoàn toàn mới và cập nhật.')
+      }
+    ];
 
+    return (
+      <React.Fragment>
+        {/* Git Branch Interactive Hub switcher */}
+        {(dashboardMode === 'daily' || dashboardMode === 'rescue') && (
+          <BranchPanel
+            branches={repoState.branches}
+            currentBranch={repoState.currentBranch}
+            tone={tone}
+            useEmoji={useEmoji}
+            theme={theme}
+            checkingOutBranch={checkingOutBranch}
+            onCheckout={handleCheckoutBranch}
+            onCreateBranch={handleCreateBranch}
+            onDeleteBranch={handleDeleteBranch}
+            onFetch={handleFetch}
+            onPullBranch={handlePullBranch}
+            onPushBranch={handlePushBranch}
+            isFetchingGlobal={isFetchingGlobal}
+          />
+        )}
+
+        {/* Simulated Live Diagnostic Warnings Panel with AI Git Doctor Integration */}
+        {(dashboardMode === 'rescue' || dashboardMode === 'learning') && (
+          !showWarningsPanel ? (
+            <div id="git-warnings-collapsed" className={`rounded-xl p-3 flex justify-between items-center transition-all duration-200 ${theme === 'light' ? 'bg-slate-50/70 text-slate-600' : 'bg-[#0b0c10]/40 text-slate-455'}`}>
+              <div className="flex items-center gap-2 text-xs text-slate-450 font-mono">
+                <Settings className="w-3.5 h-3.5 text-slate-400" />
+                <span className="font-semibold uppercase tracking-wider">{sloc.title}</span>
+                <span className="text-[10px] text-slate-405 opacity-60">
+                  ({tone === TranslationTone.ENGLISH ? 'Hidden' : 'Đang ẩn'})
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowWarningsPanel(true)}
+                className={`p-1.5 rounded cursor-pointer border shrink-0 flex items-center justify-center transition-all ${
+                  theme === 'light'
+                    ? 'bg-indigo-50 border-indigo-200 text-indigo-750 hover:bg-indigo-100'
+                    : 'bg-[#1e293b] border-indigo-505/20 text-indigo-400 hover:text-indigo-303'
+                }`}
+                title={tone === TranslationTone.ENGLISH ? 'Show' : 'Hiển thị'}
+              >
+                <Eye className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div id="git-warnings-board" className={`rounded-xl p-4 flex flex-col gap-3 transition-all duration-200 ${theme === 'light' ? 'bg-slate-50/60 text-slate-700 font-mono text-[11px]' : 'bg-[#0b0c10]/40 text-slate-300 font-mono text-[11px]'}`}>
+              <div className={`flex items-center justify-between border-b pb-2 ${theme === 'light' ? 'border-slate-200/50' : 'border-slate-800/40'}`}>
+                <h3 className={`text-[11px] font-bold uppercase font-mono tracking-wider flex items-center gap-1.5 ${theme === 'light' ? 'text-slate-500' : 'text-slate-500'}`}>
+                  <Settings className="w-3.5 h-3.5 text-slate-455 animate-spin-slow" />
+                  <span>{sloc.title}</span>
+                </h3>
+                <div className="flex items-center gap-2">
+                  {isSimulation && (
+                    <span className="text-[9px] font-mono text-indigo-400 bg-indigo-501/10 px-1.5 py-0.5 rounded border border-indigo-501/15">
+                      {sloc.simulationAnomalyBadge}
+                    </span>
+                  )}
+
+                  {/* Collapse Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => setShowWarningsPanel(false)}
+                    className={`p-1.5 rounded transition-all text-xs flex items-center gap-1 font-mono cursor-pointer border shrink-0 ${
+                      theme === 'light' 
+                        ? 'bg-slate-100 border-slate-250 text-slate-650 hover:bg-slate-200 hover:text-slate-900' 
+                        : 'bg-slate-950 border border-slate-900 text-slate-500 hover:text-slate-355'
+                    }`}
+                    title={tone === TranslationTone.ENGLISH ? 'Collapse Panel' : 'Thu gọn Panel'}
+                  >
+                    <EyeOff className="w-3.5 h-3.5 shrink-0" />
+                  </button>
+                </div>
+              </div>
+
+              <div className={`flex flex-col gap-1.5 text-xs font-mono border-b pb-2 ${theme === 'light' ? 'border-slate-200/50' : 'border-slate-800/40'}`}>
+                {/* 1. Git Installation Health */}
+                <div className={`flex justify-between items-center p-1.5 rounded ${theme === 'light' ? 'bg-white/80' : 'bg-slate-900/30'}`}>
+                  <span className="text-slate-455">{sloc.gitEnv}</span>
+                  <span className="text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 text-[10px]">
+                    ✓ STABLE (v2.41)
+                  </span>
+                </div>
+
+                {/* 2. GitHub auth check */}
+                <div className={`flex justify-between items-center p-1.5 rounded ${theme === 'light' ? 'bg-white/80' : 'bg-slate-900/30'}`}>
+                  <span className="text-slate-455">{sloc.githubCli}</span>
+                  {repoState.ghAvailable ? (
+                    <span className="text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 text-[10px] flex items-center gap-1">
+                      <Github className="w-3" /> ✓ AUTHORIZED
+                    </span>
+                  ) : (
+                    <span className="text-rose-455 font-bold bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/15 text-[10px]" title="Please sign-in to gh-cli on system">
+                      ⚠️ NOT SIGNED
+                    </span>
+                  )}
+                </div>
+
+                {/* 3. Rebase health check indicator */}
+                <div className={`flex justify-between items-center p-1.5 rounded ${theme === 'light' ? 'bg-white/80' : 'bg-slate-900/30'}`}>
+                  <span className="text-slate-455">{sloc.rebaseStatus}</span>
+                  {repoState.rebaseInProgress ? (
+                    <span className="text-rose-400 font-bold bg-rose-550/10 px-1.5 py-0.5 rounded border border-rose-550/15 text-[10px] animate-pulse">
+                      ⚡ REBASING (PAUSED)
+                    </span>
+                  ) : repoState.mergeInProgress ? (
+                    <span className="text-amber-400 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 text-[10px]">
+                      ⚡ MERGING (CONFLICTS)
+                    </span>
+                  ) : (
+                    <span className="text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 text-[10px]">
+                      ✓ COMPLIANT
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Warnings diagnostics lists */}
+              <div className="space-y-4 max-h-[480px] overflow-y-auto pr-1">
+                {doctorStatusItems.map((item, index) => (
+                  <div 
+                    key={index} 
+                    id={`diagnostic-item-${index}`}
+                    className={`border-b pb-3.5 last:border-0 last:pb-0 ${theme === 'light' ? 'border-slate-200/50' : 'border-slate-800/40'}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-bold text-slate-455 font-mono tracking-tight text-[10px] uppercase">
+                        {item.title}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-bold font-mono tracking-wide ${
+                        item.status === 'ok' 
+                          ? 'bg-emerald-550/15 text-emerald-400 border border-emerald-500/10' 
+                          : 'bg-rose-550/15 text-rose-450 border border-rose-550/10 animate-pulse'
+                      }`}>
+                        {item.badge}
+                      </span>
+                    </div>
+
+                    <p className={`text-xs font-sans font-medium mt-1.5 leading-relaxed ${theme === 'light' ? 'text-slate-655' : 'text-slate-355'}`}>
+                      {item.message}
+                    </p>
+
+                    {item.status !== 'ok' && item.fixAvailable ? (
+                      <div className="mt-2.5 flex flex-col gap-1.5 bg-rose-500/5 dark:bg-rose-600/5 p-2 rounded border border-rose-500/10 dark:border-rose-500/5">
+                        <div className="flex items-center gap-1.5 text-[10px] text-rose-400">
+                          <AlertTriangle className="w-3 h-3 text-rose-400 animate-pulse" />
+                          <span className="font-semibold">AI Doctor Recommendations</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              window.dispatchEvent(new CustomEvent('toggle-ai-doctor'));
+                              addLog(`🩹 AI Doctor: Hướng dẫn sơ cứu lỗi ${item.title}`);
+                            }}
+                            className={`px-1.5 py-0.5 rounded transition-all font-sans text-[9px] shadow-sm font-semibold capitalize border cursor-pointer ${
+                              theme === 'light'
+                                ? 'bg-white hover:bg-slate-5 border-slate-200 text-slate-700'
+                                : 'bg-[#151b2d] border-indigo-501/20 text-indigo-300 hover:bg-[#1a233d]'
+                            }`}
+                          >
+                            {sloc.doctorAskAI}
+                          </button>
+                          {doctorProblem === 'uncommitted_changes' && (
+                            <button
+                              onClick={() => handleTriggerDoctorAction('uncommitted_changes', 'stash')}
+                              className="px-2 py-1 bg-indigo-650 text-white font-mono text-[9px] font-bold rounded transition-all cursor-pointer"
+                            >
+                              {sloc.doctorApplyStash}
+                            </button>
+                          )}
+                          {doctorProblem === 'diverged_branch' && (
+                            <button
+                              onClick={() => handleTriggerDoctorAction('diverged_branch', 'rebase_pull')}
+                              className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-[9px] font-bold rounded transition-all cursor-pointer"
+                            >
+                              {sloc.doctorApplyRebase}
+                            </button>
+                          )}
+                          {doctorProblem === 'detached_head' && (
+                            <button
+                              onClick={() => handleTriggerDoctorAction('detached_head', 'recover')}
+                              className="px-2 py-1 bg-rose-650 text-white font-mono text-[9px] font-bold rounded transition-all cursor-pointer"
+                            >
+                              {sloc.doctorApplyRescue}
+                            </button>
+                          )}
+                          {doctorProblem === 'stale_base_branch' && (
+                            <button
+                              onClick={() => handleTriggerDoctorAction('stale_base_branch', 'sync_base')}
+                              className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-[9px] font-bold rounded transition-all cursor-pointer"
+                            >
+                              {sloc.doctorApplySync}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        )}
+
+        {isUpgraded && dashboardMode === 'rescue' && (
+          <ReflogRescuePanel
+            theme={theme}
+            tone={tone}
+            onRescueCommit={handleRescueCommit}
+          />
+        )}
+
+        {/* Neo Terminal - DOCK ON RIGHT */}
+        {dockTerminalPosition === 'right' && (dashboardMode === 'daily' || dashboardMode === 'rescue') && (
+          <TerminalPanel
+            logs={logs}
+            showLogPanel={showLogPanel}
+            onToggleLogPanel={() => setShowLogPanel(!showLogPanel)}
+            onClearLogs={() => setLogs([])}
+            tone={tone}
+            isSimulation={isSimulation}
+            isAiEnabled={isAiEnabled}
+            onCommandExecuted={() => handleRefresh(true)}
+            addLog={addLog}
+            resolveApiUrl={resolveApiUrl}
+            theme={theme}
+          />
+        )}
+      </React.Fragment>
+    );
+  };
 
   return (
     <div id="rebase-overlord-app" className={`min-h-screen transition-colors duration-205 p-4 font-sans select-none antialiased ${theme === 'light' ? 'bg-slate-50 text-slate-900' : 'bg-[#060814] text-slate-100'}`}>
@@ -3717,6 +3500,7 @@ export default function App() {
           verifyBtnVisible={verifyBtnVisible}
           onVerifyInstallation={() => verifyInstallationWithMetadata(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenCommandPalette={() => window.dispatchEvent(new CustomEvent('toggle-ai-doctor'))}
         />
 
         <SettingsModal
@@ -3738,8 +3522,205 @@ export default function App() {
           }}
         />
 
+        {/* Unified Mode Switcher Menu Bar */}
+        <div 
+          id="dashboard-mode-selector" 
+          className={`p-1.5 rounded-xl border flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-md backdrop-blur-md transition-all duration-300 ${
+            theme === 'light' 
+              ? 'bg-white/80 border-slate-200/90 shadow-indigo-100/10' 
+              : 'bg-[#0a0f1d]/75 border-slate-800/40 shadow-black/20'
+          }`}
+        >
+          {/* Active Mode Tabs */}
+          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+            <button
+              onClick={() => {
+                setDashboardMode('daily');
+                addLog(`⚙️ Mode switched to: DEVELOPER DAILY. Daily work view activated.`);
+                triggerToast('owl', 'DEVELOPER DAILY', tone === TranslationTone.ENGLISH ? 'Showing branches, commit tree history, and stashes.' : 'Đang hiển thị nhánh, cây lịch sử commit, stash hàng ngày.', '💻');
+              }}
+              className={`px-3.5 py-1.5 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer select-none active:scale-95 ${
+                dashboardMode === 'daily'
+                  ? 'bg-indigo-600 text-white shadow-lg'
+                  : theme === 'light'
+                    ? 'text-slate-600 hover:bg-slate-100'
+                    : 'text-slate-400 hover:bg-slate-800/50'
+              }`}
+            >
+              <GitBranch className="w-3.5 h-3.5 shrink-0 text-current" />
+              <span>{tone === TranslationTone.ENGLISH ? "Daily Mode" : "Developer Daily"}</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setDashboardMode('rescue');
+                addLog(`🚨 Mode switched to: GIT RESCUE. Emergency recovery view activated.`);
+                triggerToast('rage', 'GIT RESCUE', tone === TranslationTone.ENGLISH ? 'Showing reflogs, interactive conflict solvers, and diagnostics.' : 'Đang hiển thị cứu hộ reflogs, giải quyết xung đột rebase, và chẩn đoán lỗi.', '🚑');
+              }}
+              className={`px-3.5 py-1.5 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer select-none active:scale-95 ${
+                dashboardMode === 'rescue'
+                  ? 'bg-rose-600 text-white shadow-lg'
+                  : theme === 'light'
+                    ? 'text-slate-600 hover:bg-slate-100'
+                    : 'text-slate-400 hover:bg-slate-800/50'
+              }`}
+            >
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-current animate-pulse" />
+              <span>{tone === TranslationTone.ENGLISH ? "Git Rescue" : "Git Rescue"}</span>
+              {repoState.rebaseInProgress && (
+                <span className="w-2 h-2 rounded-full bg-rose-450 animate-ping" />
+              )}
+            </button>
+
+            <button
+              onClick={() => {
+                setDashboardMode('learning');
+                addLog(`🎓 Mode switched to: LEARNING & SIMULATION. Rebase wizards and simulation models activated.`);
+                triggerToast('milestone', 'LEARNING & SIMULATION', tone === TranslationTone.ENGLISH ? 'Showing interactive tutorials, flow sandboxes, and simulated scenarios.' : 'Đang hiển thị kịch bản mô phỏng mẫu, bài tập rebase và sa bàn hướng dẫn.', '🏫');
+              }}
+              className={`px-3.5 py-1.5 rounded-lg text-[11px] font-mono font-bold uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer select-none active:scale-95 ${
+                dashboardMode === 'learning'
+                  ? 'bg-emerald-600 dark:bg-emerald-650 text-white shadow-lg'
+                  : theme === 'light'
+                    ? 'text-slate-600 hover:bg-slate-100'
+                    : 'text-slate-405 hover:bg-slate-800/50'
+              }`}
+            >
+              <Laptop className="w-3.5 h-3.5 shrink-0 text-current" />
+              <span>{tone === TranslationTone.ENGLISH ? "Learning & Sim" : "Learning Mode"}</span>
+            </button>
+          </div>
+
+          {/* Description of active mode */}
+          <div className="px-3 py-1 text-left flex-1 min-w-0 md:block hidden">
+            <p className={`text-[11px] leading-relaxed font-sans font-medium truncate ${theme === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
+              <strong className={`font-mono text-[9px] uppercase font-bold tracking-wider mr-1.5 ${
+                dashboardMode === 'daily' ? 'text-indigo-600 dark:text-indigo-400' : dashboardMode === 'rescue' ? 'text-rose-500' : 'text-emerald-500'
+              }`}>
+                {tone === TranslationTone.ENGLISH ? 'Scope' : 'Phạm vi'}:
+              </strong>
+              {dashboardMode === 'daily' 
+                ? (tone === TranslationTone.ENGLISH ? "Daily branch maintenance, commits history graph and stashes" : "Nhánh làm việc hàng ngày, biểu đồ lịch sử commit và quản lý stash")
+                : dashboardMode === 'rescue'
+                ? (tone === TranslationTone.ENGLISH ? "Reflog rescue, conflict solver and repo health diagnostics" : "Khôi phục Reflog, xử lý xung đột Rebase và chẩn đoán sức khỏe Repo")
+                : (tone === TranslationTone.ENGLISH ? "Rebase visual wizard, flow simulations and AI clinical lessons" : "Wizard hướng dẫn Rebase, sa bàn mô phỏng kịch bản và thực hành AI")
+              }
+            </p>
+          </div>
+
+          {/* Electron Desktop/IDE Workspace Toolbar */}
+          <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-200/40">
+            <span className="text-[9px] font-mono font-bold tracking-widest uppercase opacity-45 px-1 sm:block hidden">
+              WORKSPACE:
+            </span>
+            
+            {/* Split layout toggle */}
+            <button
+              type="button"
+              onClick={() => setWorkspaceLayout(v => v === 'split' ? 'fullscreen' : 'split')}
+              className={`p-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
+                workspaceLayout === 'split'
+                  ? theme === 'light' ? 'bg-slate-50 hover:bg-slate-150 text-slate-700 border-slate-205' : 'bg-[#151a2d] hover:bg-slate-900 text-slate-300 border-slate-800'
+                  : 'bg-indigo-600 text-white border-indigo-700 shadow-inner'
+              }`}
+              title="Chia cột (Alt+W) | Đổi giữa layout 2 cột IDE và layout Toàn màn hình rộng"
+            >
+              <Columns className="w-3.5 h-3.5 text-indigo-400" />
+              <span className="text-[10px] font-mono font-semibold hidden md:inline">
+                {workspaceLayout === 'split' ? 'Split' : 'Full'}
+              </span>
+            </button>
+
+            {/* Sidebar Left/Right toggle */}
+            {workspaceLayout !== 'fullscreen' && (
+              <button
+                type="button"
+                onClick={() => setSidebarPosition(v => v === 'left' ? 'right' : 'left')}
+                className={`p-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
+                  theme === 'light' ? 'hover:bg-slate-100 border-slate-200 text-slate-650' : 'hover:bg-slate-950 border-slate-800 text-slate-300'
+                }`}
+                title="Vị trí thanh bên (Alt+S) | Đổi vị trí sidebar sang Trái / Phải"
+              >
+                {sidebarPosition === 'left' ? <AlignLeft className="w-3.5 h-3.5 text-indigo-405" /> : <AlignRight className="w-3.5 h-3.5 text-indigo-405" />}
+                <span className="text-[10px] font-mono font-semibold hidden lg:inline capitalize">
+                  {sidebarPosition}
+                </span>
+              </button>
+            )}
+
+            {/* Terminal docking toggle */}
+            {(dashboardMode === 'daily' || dashboardMode === 'rescue') && (
+              <button
+                type="button"
+                onClick={() => setDockTerminalPosition(v => v === 'right' ? 'bottom' : 'right')}
+                className={`p-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
+                  dockTerminalPosition === 'right'
+                    ? theme === 'light' ? 'hover:bg-slate-100 border-slate-200 text-slate-650' : 'hover:bg-slate-950 border-slate-800 text-slate-300'
+                    : 'bg-[#115e59]/20 text-teal-400 border-[#115e59]/30'
+                }`}
+                title="Neo Terminal (Alt+D) | Chuyển terminal xuống Dưới (Bottom) hoặc sang Phải (Sidebar)"
+              >
+                <Layers className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
+                <span className="text-[10px] font-mono font-semibold hidden lg:inline capitalize">
+                  Dock: {dockTerminalPosition}
+                </span>
+              </button>
+            )}
+
+            {/* Multi-window spawn */}
+            <button
+              type="button"
+              onClick={() => {
+                const randomX = 120 + Math.random() * 120;
+                const randomY = 120 + Math.random() * 120;
+                const newWin = {
+                  id: `win-${Date.now()}`,
+                  title: '🌳 Detached Git Commit Graph',
+                  type: 'commits' as const,
+                  x: randomX,
+                  y: randomY,
+                  width: 440,
+                  height: 380
+                };
+                setDetachedWindows(prev => [...prev, newWin]);
+                triggerToast('milestone', '🖥️ MULTI-WINDOW SPAWNED', 'Đã mở cửa sổ phụ kéo thả real-time của Git Commits Graph!', '🪟');
+              }}
+              className={`p-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
+                theme === 'light' ? 'hover:bg-slate-100 border-slate-200 text-slate-650' : 'hover:bg-slate-955 border-slate-800 text-slate-300'
+              }`}
+              title="Spawn Window (Alt+J) | Mở thêm cửa sổ phác đồ phụ độc lập kéo thả tự do"
+            >
+              <Layers className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
+              <span className="text-[10px] font-mono font-semibold hidden md:inline">
+                Window
+              </span>
+            </button>
+
+            {/* Shortcut map */}
+            <button
+              type="button"
+              onClick={() => setShowShortcutCheatSheet(true)}
+              className={`p-1.5 rounded-lg border transition-all cursor-pointer flex items-center justify-center ${
+                showShortcutCheatSheet
+                  ? 'bg-indigo-600 text-white shadow'
+                  : theme === 'light' ? 'hover:bg-slate-100 border-slate-200 text-slate-655' : 'hover:bg-slate-955 border-slate-800 text-slate-300'
+                }`}
+              title="Phím tắt IDE (Alt+H) | Xem sơ đồ bàn phím của Rebase Overlord Pro"
+            >
+              <Keyboard className="w-3.5 h-3.5 text-indigo-400" />
+            </button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 w-full">
-          <div className="lg:col-span-8 flex flex-col gap-5">
+          {/* Sidebar on LEFT */}
+          {sidebarPosition === 'left' && workspaceLayout !== 'fullscreen' && (
+            <div className="lg:col-span-4 flex flex-col gap-5">
+              {renderSidebarContent()}
+            </div>
+          )}
+
+          <div className={`${workspaceLayout === 'fullscreen' ? 'lg:col-span-12' : 'lg:col-span-8'} flex flex-col gap-5`}>
 
         {/* Serverless / Vercel Host Warn & Config Banner */}
         {backendStatus === 'unreachable' && (
@@ -3814,203 +3795,200 @@ export default function App() {
         )}
 
         {/* Git Branch Metrics & Insights Panel */}
-        <div className={`p-4 rounded-xl border mb-3 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 font-sans text-xs transition-all ${
-          theme === 'light'
-            ? 'bg-white border-slate-200 shadow-sm'
-            : 'bg-slate-900/40 border-slate-800 text-slate-200'
-        }`}>
-          {/* Branch Status details */}
-          <div className="flex flex-wrap items-center gap-3">
-            <div className={`px-2.5 py-1 rounded-md border font-mono font-bold tracking-tight text-xs flex items-center gap-2 ${
-              theme === 'light' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-indigo-500/15 border-indigo-500/20 text-indigo-300'
-            }`}>
-              <div className="flex items-center gap-1.5">
-                <GitBranch className="w-3.5 h-3.5 text-indigo-400" />
-                <span>{repoState.currentBranch}</span>
-              </div>
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(repoState.currentBranch || '');
-                    setCopiedCurrentBranch(true);
-                    setTimeout(() => setCopiedCurrentBranch(false), 1500);
-                  } catch (err) {}
-                }}
-                className={`p-1 rounded cursor-pointer transition-all duration-150 shrink-0 flex items-center justify-center ${
-                  theme === 'light'
-                    ? 'hover:bg-slate-200/50 text-indigo-655 active:bg-slate-300/60'
-                    : 'hover:bg-slate-800/60 text-indigo-300 active:bg-slate-800/80'
-                }`}
-                title={tone === TranslationTone.ENGLISH ? "Copy branch name" : "Sao chép tên nhánh"}
-              >
-                {copiedCurrentBranch ? (
-                  <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                ) : (
-                  <Copy className="w-3.5 h-3.5 shrink-0 opacity-80" />
-                )}
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2 text-slate-500 dark:text-slate-405 font-medium">
-              <span>{tone === TranslationTone.ENGLISH ? "compared to" : "so với"}</span>
-              <div className="relative inline-block">
-                <select
-                  value={repoState.baseBranch || 'develop'}
-                  onChange={(e) => handleQuickBaseChange(e.target.value)}
-                  className={`font-mono font-semibold px-2 py-0.5 pr-6 rounded border text-[11px] outline-none cursor-pointer appearance-none transition-colors ${
+        {(dashboardMode === 'daily' || dashboardMode === 'rescue') && (
+          <div className={`p-4 rounded-xl border mb-3 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 font-sans text-xs transition-all ${
+            theme === 'light'
+              ? 'bg-white border-slate-200 shadow-sm'
+              : 'bg-slate-900/40 border-slate-800 text-slate-200'
+          }`}>
+            {/* Branch Status details */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className={`px-2.5 py-1 rounded-md border font-mono font-bold tracking-tight text-xs flex items-center gap-2 ${
+                theme === 'light' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-indigo-500/15 border-indigo-500/20 text-indigo-300'
+              }`}>
+                <div className="flex items-center gap-1.5">
+                  <GitBranch className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>{repoState.currentBranch}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(repoState.currentBranch || '');
+                      setCopiedCurrentBranch(true);
+                      setTimeout(() => setCopiedCurrentBranch(false), 1500);
+                    } catch (err) {}
+                  }}
+                  className={`p-1 rounded cursor-pointer transition-all duration-150 shrink-0 flex items-center justify-center ${
                     theme === 'light'
-                      ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-800'
-                      : 'bg-slate-850 hover:bg-slate-800 border-slate-700 text-slate-300'
+                      ? 'hover:bg-slate-200/50 text-indigo-655 active:bg-slate-300/60'
+                      : 'hover:bg-slate-800/60 text-indigo-300 active:bg-slate-800/80'
                   }`}
-                  style={{ backgroundImage: 'none' }}
+                  title={tone === TranslationTone.ENGLISH ? "Copy branch name" : "Sao chép tên nhánh"}
                 >
-                  {(() => {
-                    const customListStr = localStorage.getItem('custom_base_branches_list') || 'develop, main, master, dev, test';
-                    const customList = customListStr.split(',').map(s => s.trim()).filter(Boolean);
-                    const currentActive = repoState.baseBranch || 'develop';
-                    const finalOptions = Array.from(new Set([...customList, currentActive]));
-                    return finalOptions.map(bName => (
-                      <option key={bName} value={bName} className={theme === 'light' ? 'bg-white text-slate-800' : 'bg-slate-900 text-slate-200'}>
-                        {bName}
-                      </option>
-                    ));
-                  })()}
-                </select>
-                <div className="absolute inset-y-0 right-1.5 flex items-center pointer-events-none text-slate-500 dark:text-slate-400">
-                  <svg className="w-2.5 h-2.5 fill-current" viewBox="0 0 20 20">
-                    <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                  </svg>
+                  {copiedCurrentBranch ? (
+                    <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                  ) : (
+                    <Copy className="w-3.5 h-3.5 shrink-0 opacity-80" />
+                  )}
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2 text-slate-500 dark:text-slate-405 font-medium">
+                <span>{tone === TranslationTone.ENGLISH ? "compared to" : "so với"}</span>
+                <div className="relative inline-block">
+                  <select
+                    value={repoState.baseBranch || 'develop'}
+                    onChange={(e) => handleQuickBaseChange(e.target.value)}
+                    className={`font-mono font-semibold px-2 py-0.5 pr-6 rounded border text-[11px] outline-none cursor-pointer appearance-none transition-colors ${
+                      theme === 'light'
+                        ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-800'
+                        : 'bg-slate-850 hover:bg-slate-800 border-slate-700 text-slate-300'
+                    }`}
+                    style={{ backgroundImage: 'none' }}
+                  >
+                    {(() => {
+                      const customListStr = localStorage.getItem('custom_base_branches_list') || 'develop, main, master, dev, test';
+                      const customList = customListStr.split(',').map(s => s.trim()).filter(Boolean);
+                      const currentActive = repoState.baseBranch || 'develop';
+                      const finalOptions = Array.from(new Set([...customList, currentActive]));
+                      return finalOptions.map(bName => (
+                        <option key={bName} value={bName} className={theme === 'light' ? 'bg-white text-slate-800' : 'bg-slate-900 text-slate-200'}>
+                          {bName}
+                        </option>
+                      ));
+                    })()}
+                  </select>
+                  <div className="absolute inset-y-0 right-1.5 flex items-center pointer-events-none text-slate-500 dark:text-slate-400">
+                    <svg className="w-2.5 h-2.5 fill-current" viewBox="0 0 20 20">
+                      <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                    </svg>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Metrics Badges */}
-            <div className="flex items-center gap-2">
-              <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold flex items-center gap-1 border transition-all duration-150 ${
-                branchMetrics.ahead > 0
-                  ? (theme === 'light' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400')
-                  : (theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-slate-800/40 border-slate-800 text-slate-500')
-              }`} title={tone === TranslationTone.ENGLISH ? `${branchMetrics.ahead} ahead commits (ready to squash/rebase)` : `${branchMetrics.ahead} commit ahead (đã sẵn sàng để gộp hoặc rebase)`}>
-                <ArrowUpCircle className={`w-3 h-3 ${branchMetrics.ahead > 0 ? (theme === 'light' ? 'text-emerald-600' : 'text-emerald-400') : 'text-slate-400'}`} />
-                <span>Ahead: {branchMetrics.ahead}</span>
-              </span>
-
-              <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold flex items-center gap-1 border transition-all duration-150 ${
-                branchMetrics.behind > 0
-                  ? (theme === 'light' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-amber-500/10 border-amber-500/20 text-amber-400')
-                  : (theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-slate-800/40 border-slate-800 text-slate-500')
-              }`} title={tone === TranslationTone.ENGLISH ? `${branchMetrics.behind} behind commits (develop updates exist)` : `${branchMetrics.behind} commit behind (nhánh base đã có thay đổi mới)`}>
-                <ArrowDownCircle className={`w-3 h-3 ${branchMetrics.behind > 0 ? (theme === 'light' ? 'text-amber-600' : 'text-amber-400') : 'text-slate-400'}`} />
-                <span>Behind: {branchMetrics.behind}</span>
-              </span>
-
-              <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold flex items-center gap-1 border transition-all duration-150 ${
-                theme === 'light'
-                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                  : 'bg-indigo-500/15 border-indigo-500/25 text-indigo-400'
-              }`}>
-                <span>{tone === TranslationTone.ENGLISH ? 'To Process' : 'Sẽ xử lý'}: {branchMetrics.actionable}/{branchMetrics.total} commits</span>
-              </span>
-            </div>
-          </div>
-
-          {/* Status advice or warner based on ahead/behind metrics */}
-          {branchMetrics.behind > 0 ? (
-            <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/5 border border-amber-500/20 text-amber-500 max-w-md text-[11px] leading-snug">
-              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-              <span>
-                <strong>{tone === TranslationTone.ENGLISH ? "Conflict Warning:" : "Cảnh báo:"}</strong> {tone === TranslationTone.ENGLISH ? `Your branch is behind by ${branchMetrics.behind} commits. Rebasing is strongly recommended to stay updated.` : `Nhánh của bạn đang bị chậm ${branchMetrics.behind} commit so với base branch. Hãy chạy Rebase để cập nhật mã nguồn mới nhất và tránh xung đột khi merge!`}
-              </span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/25 text-emerald-400 text-[11px]">
-              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-              <span>{tone === TranslationTone.ENGLISH ? "Healthy branch! Fully up-to-date with base branch." : "Nhánh sạch sẽ, đã đồng bộ hoàn toàn với base branch!"}</span>
-            </div>
-          )}
-        </div>
-
-        {/* Dense Commits Handler: Pagination & Search filter */}
-        <div className={`p-3 rounded-xl border mb-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs select-none ${
-          theme === 'light' ? 'bg-slate-50 border-slate-200/80 shadow-sm' : 'bg-slate-900 border-slate-800/80 text-slate-200'
-        }`}>
-          {/* Search component */}
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-400" />
-            <input
-              type="text"
-              placeholder={tone === TranslationTone.ENGLISH ? "Search commits by msg or SHA..." : "Tìm commit bằng SHA hoặc nội dung..."}
-              value={commitSearchTerm}
-              onChange={(e) => {
-                setCommitSearchTerm(e.target.value);
-                setCommitPageOffset(0); // reset page offset on search change
-              }}
-              className={`w-full rounded-lg pl-8 pr-2.5 py-1.5 font-sans focus:outline-none focus:border-indigo-500 border ${
-                theme === 'light' ? 'bg-white border-slate-200 text-slate-805' : 'bg-[#060814] border-slate-800 text-slate-200'
-              }`}
-            />
-          </div>
-
-          {/* Range settings and pagination */}
-          <div className="flex flex-wrap items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-            {/* Max commits visible select */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">{tone === TranslationTone.ENGLISH ? "Nodes Limit:" : "Trượt màn hình:"}</span>
-              <select
-                value={maxVisibleCommits}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setMaxVisibleCommits(val === 'all' ? 'all' : parseInt(val, 10));
-                  setCommitPageOffset(0);
-                }}
-                className={`rounded border px-2 py-1 select-none font-mono text-[11px] focus:outline-none ${
-                  theme === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-slate-950 border-slate-850 text-slate-300'
-                }`}
-              >
-                <option value="5">5 commits</option>
-                <option value="10">10 commits ({tone === TranslationTone.ENGLISH ? 'Default' : 'Chuẩn'})</option>
-                <option value="15">15 commits</option>
-                <option value="25">25 commits</option>
-                <option value="all">{tone === TranslationTone.ENGLISH ? 'Show All' : 'Tất cả'} ({filteredCommitsForSquash.length})</option>
-              </select>
-            </div>
-
-            {/* Pagination Controls */}
-            {maxVisibleCommits !== 'all' && filteredCommitsForSquash.length > maxVisibleCommits && (
+              {/* Metrics Badges */}
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={commitPageOffset === 0}
-                  onClick={() => setCommitPageOffset(prev => Math.max(0, prev - 1))}
-                  className={`p-1 px-2.5 rounded transition-all cursor-pointer font-bold select-none border border-transparent disabled:opacity-40 disabled:cursor-not-allowed ${
-                    theme === 'light' ? 'bg-white border-slate-200 hover:bg-slate-100 hover:border-slate-300 text-slate-800 shadow-sm' : 'bg-slate-950 border-slate-800 hover:bg-slate-850 text-white shadow'
-                  }`}
-                  title={tone === TranslationTone.ENGLISH ? "Newer commits" : "Commit mới hơn / Trang trước"}
-                >
-                  &larr; {tone === TranslationTone.ENGLISH ? "Newer" : "Mới hơn"}
-                </button>
-                
-                <span className="text-[10px] font-mono font-bold px-2 py-1 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/15">
-                  {commitPageOffset + 1} / {Math.ceil(filteredCommitsForSquash.length / (maxVisibleCommits as number))}
+                <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold flex items-center gap-1 border transition-all duration-150 ${
+                  branchMetrics.ahead > 0
+                    ? (theme === 'light' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400')
+                    : (theme === 'light' ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-slate-800/40 border-slate-800 text-slate-500')
+                }`} title={tone === TranslationTone.ENGLISH ? `${branchMetrics.ahead} ahead commits (ready to squash/rebase)` : `${branchMetrics.ahead} commit ahead (đã sẵn sàng để gộp hoặc rebase)`}>
+                  <ArrowUpCircle className={`w-3 h-3 ${branchMetrics.ahead > 0 ? (theme === 'light' ? 'text-emerald-600' : 'text-emerald-400') : 'text-slate-400'}`} />
+                  <span>Ahead: {branchMetrics.ahead}</span>
                 </span>
 
-                <button
-                  type="button"
-                  disabled={commitPageOffset >= Math.ceil(filteredCommitsForSquash.length / (maxVisibleCommits as number)) - 1}
-                  onClick={() => setCommitPageOffset(prev => prev + 1)}
-                  className={`p-1 px-2.5 rounded transition-all cursor-pointer font-bold select-none border border-transparent disabled:opacity-40 disabled:cursor-not-allowed ${
-                    theme === 'light' ? 'bg-white border-slate-200 hover:bg-slate-100 hover:border-slate-300 text-slate-800 shadow-sm' : 'bg-slate-950 border-slate-800 hover:bg-slate-850 text-white shadow'
-                  }`}
-                  title={tone === TranslationTone.ENGLISH ? "Older commits" : "Commit cũ hơn / Trang sau"}
-                >
-                  {tone === TranslationTone.ENGLISH ? "Older" : "Cũ hơn"} &rarr;
-                </button>
+                <span className={`px-2 py-0.5 rounded-full font-mono text-[10px] font-bold flex items-center gap-1 border transition-all duration-150 ${
+                  theme === 'light'
+                    ? 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                    : 'bg-indigo-500/15 border-indigo-500/25 text-indigo-400'
+                }`}>
+                  <span>{tone === TranslationTone.ENGLISH ? 'To Process' : 'Sẽ xử lý'}: {branchMetrics.actionable}/{branchMetrics.total} commits</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Status advice or warner based on ahead/behind metrics */}
+            {branchMetrics.behind > 0 ? (
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/5 border border-amber-500/20 text-amber-500 max-w-md text-[11px] leading-snug">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <span>
+                  <strong>{tone === TranslationTone.ENGLISH ? "Conflict Warning:" : "Cảnh báo:"}</strong> {tone === TranslationTone.ENGLISH ? `Your branch is behind by ${branchMetrics.behind} commits. Rebasing is strongly recommended to stay updated.` : `Nhánh của bạn đang bị chậm ${branchMetrics.behind} commit so với base branch. Hãy chạy Rebase để cập nhật mã nguồn mới nhất và tránh xung đột khi merge!`}
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/25 text-emerald-400 text-[11px]">
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                <span>{tone === TranslationTone.ENGLISH ? "Healthy branch! Fully up-to-date with base branch." : "Nhánh sạch sẽ, đã đồng bộ hoàn toàn với base branch!"}</span>
               </div>
             )}
           </div>
-        </div>
+        )}
 
+        {/* Dense Commits Handler: Pagination & Search filter */}
+        {(dashboardMode === 'daily' || dashboardMode === 'rescue') && (
+          <div className={`p-3 rounded-xl border mb-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs select-none ${
+            theme === 'light' ? 'bg-slate-50 border-slate-200/80 shadow-sm' : 'bg-slate-900 border-slate-800/80 text-slate-200'
+          }`}>
+            {/* Search component */}
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder={tone === TranslationTone.ENGLISH ? "Search commits by msg or SHA..." : "Tìm commit bằng SHA hoặc nội dung..."}
+                value={commitSearchTerm}
+                onChange={(e) => {
+                  setCommitSearchTerm(e.target.value);
+                  setCommitPageOffset(0); // reset page offset on search change
+                }}
+                className={`w-full rounded-lg pl-8 pr-2.5 py-1.5 font-sans focus:outline-none focus:border-indigo-500 border ${
+                  theme === 'light' ? 'bg-white border-slate-200 text-slate-855' : 'bg-[#060814] border-slate-800 text-slate-200'
+                }`}
+              />
+            </div>
+
+            {/* Range settings and pagination */}
+            <div className="flex flex-wrap items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
+              {/* Max commits visible select */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">{tone === TranslationTone.ENGLISH ? "Nodes Limit:" : "Trượt màn hình:"}</span>
+                <select
+                  value={maxVisibleCommits}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setMaxVisibleCommits(val === 'all' ? 'all' : parseInt(val, 10));
+                    setCommitPageOffset(0);
+                  }}
+                  className={`rounded border px-2 py-1 select-none font-mono text-[11px] focus:outline-none ${
+                    theme === 'light' ? 'bg-white border-slate-200 text-slate-700' : 'bg-slate-950 border-slate-850 text-slate-300'
+                  }`}
+                >
+                  <option value="5">5 commits</option>
+                  <option value="10">10 commits ({tone === TranslationTone.ENGLISH ? 'Default' : 'Chuẩn'})</option>
+                  <option value="15">15 commits</option>
+                  <option value="25">25 commits</option>
+                  <option value="all">{tone === TranslationTone.ENGLISH ? 'Show All' : 'Tất cả'} ({filteredCommitsForSquash.length})</option>
+                </select>
+              </div>
+
+              {/* Pagination Controls */}
+              {maxVisibleCommits !== 'all' && filteredCommitsForSquash.length > maxVisibleCommits && (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={commitPageOffset === 0}
+                    onClick={() => setCommitPageOffset(prev => Math.max(0, prev - 1))}
+                    className={`p-1 px-2.5 rounded transition-all cursor-pointer font-bold select-none border border-transparent disabled:opacity-40 disabled:cursor-not-allowed ${
+                      theme === 'light' ? 'bg-white border-slate-200 hover:bg-slate-100 hover:border-slate-300 text-slate-800 shadow-sm' : 'bg-slate-950 border-slate-800 hover:bg-slate-850 text-white shadow'
+                    }`}
+                    title={tone === TranslationTone.ENGLISH ? "Newer commits" : "Commit mới hơn / Trang trước"}
+                  >
+                    &larr; {tone === TranslationTone.ENGLISH ? "Newer" : "Mới hơn"}
+                  </button>
+                  
+                  <span className="text-[10px] font-mono font-bold px-2 py-1 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/15">
+                    {commitPageOffset + 1} / {Math.ceil(filteredCommitsForSquash.length / (maxVisibleCommits as number))}
+                  </span>
+
+                  <button
+                    type="button"
+                    disabled={commitPageOffset >= Math.ceil(filteredCommitsForSquash.length / (maxVisibleCommits as number)) - 1}
+                    onClick={() => setCommitPageOffset(prev => prev + 1)}
+                    className={`p-1 px-2.5 rounded transition-all cursor-pointer font-bold select-none border border-transparent disabled:opacity-40 disabled:cursor-not-allowed ${
+                      theme === 'light' ? 'bg-white border-slate-200 hover:bg-slate-100 hover:border-slate-300 text-slate-805 shadow-sm' : 'bg-slate-950 border-slate-800 hover:bg-slate-850 text-white shadow'
+                    }`}
+                    title={tone === TranslationTone.ENGLISH ? "Older commits" : "Commit cũ hơn / Trang sau"}
+                  >
+                    {tone === TranslationTone.ENGLISH ? "Older" : "Cũ hơn"} &rarr;
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {(dashboardMode === 'daily' || dashboardMode === 'learning') && (
+          <>
             {/* Clean Controls Toolbar Row (outside viewport to guarantee zero overlaps with rendered graph nodes) */}
               <div className={`flex flex-wrap items-center justify-between gap-3 p-2 mb-3.5 rounded-lg border shadow-sm select-none font-mono text-xs ${
                 theme === 'light' 
@@ -4153,7 +4131,7 @@ export default function App() {
                 }`}>
                   {activeTool === 'pan' ? (
                     <>
-                      <Hand className="w-3 h-3 text-sky-400" />
+                      <Hand className="w-3 h-3 text-indigo-400" />
                       <span>{sloc.panModeLabel}</span>
                     </>
                   ) : (
@@ -4392,43 +4370,63 @@ export default function App() {
                   </div>
                 </motion.div>
               </div>
+          </>
+        )}
 
             {/* Dynamic Active Git Operational Visualizer */}
-            <GitVisualizerPanel 
-              tone={tone} 
-              wizard={wizard} 
-              theme={theme} 
-              repoState={repoState} 
-              isSimulation={isSimulation}
-              isAiEnabled={isAiEnabled}
-              onToggleSimulation={(val) => {
-                setIsSimulation(val);
-                addLog(`🤖 Mode toggled from Sa bàn. Simulation Playground: ${val ? 'ACTIVE' : 'OFF'}`);
-                handleRefresh(val);
-                
-                if (val) {
-                  triggerToast('milestone', '⚡ SIMULATION RUNTIME', 'Sandbox mô phỏng an toàn đã kích hoạt. Đập phá, commit láo thoải mái không sợ sập server!', '🧪');
-                } else {
-                  triggerToast('warn', '🔌 REAL GIT CONNECTED', 'Chú ý: Đã chuyển ngữ trực tiếp vào tệp tin và Repo thật trên ổ đĩa máy chủ!', '⚠️');
-                }
-              }}
-            />
+            {dashboardMode === 'learning' && (
+              <GitVisualizerPanel 
+                tone={tone} 
+                wizard={wizard} 
+                theme={theme} 
+                repoState={repoState} 
+                isSimulation={isSimulation}
+                isAiEnabled={isAiEnabled}
+                onToggleSimulation={(val) => {
+                  setIsSimulation(val);
+                  addLog(`🤖 Mode toggled from Sa bàn. Simulation Playground: ${val ? 'ACTIVE' : 'OFF'}`);
+                  handleRefresh(val);
+                  
+                  if (val) {
+                    triggerToast('milestone', '⚡ SIMULATION RUNTIME', 'Sandbox mô phỏng an toàn đã kích hoạt. Đập phá, commit láo thoải mái không sợ sập server!', '🧪');
+                  } else {
+                    triggerToast('warn', '🔌 REAL GIT CONNECTED', 'Chú ý: Đã chuyển ngữ trực tiếp vào tệp tin và Repo thật trên ổ đĩa máy chủ!', '⚠️');
+                  }
+                }}
+              />
+            )}
 
             {/* Core Wizard state dashboard */}
-            <WizardPanel
-              commits={repoState.commits}
-              wizard={wizard}
-              tone={tone}
-              useEmoji={useEmoji}
-              theme={theme}
-              onUpdateWizard={handleUpdateWizard}
-              onExecuteWizardRebase={handleExecuteWizardRebase}
-              onResetWizard={handleResetWizard}
-              repoState={repoState}
-            />
+            {dashboardMode === 'learning' && (
+              <WizardPanel
+                commits={repoState.commits}
+                wizard={wizard}
+                tone={tone}
+                useEmoji={useEmoji}
+                theme={theme}
+                onUpdateWizard={handleUpdateWizard}
+                onExecuteWizardRebase={handleExecuteWizardRebase}
+                onResetWizard={handleResetWizard}
+                repoState={repoState}
+              />
+            )}
+
+            {/* Visual Git Stash Inventory Shelf Panel */}
+            {dashboardMode === 'daily' && (
+              <StashPanel
+                theme={theme}
+                tone={tone}
+                stashes={repoState.stashes || []}
+                currentBranch={repoState.currentBranch || 'master'}
+                rebaseInProgress={repoState.rebaseInProgress}
+                mergeInProgress={repoState.mergeInProgress}
+                isRefreshing={isFetchingGlobal}
+                onUnstash={handleUnstash}
+              />
+            )}
 
             {/* Emergency Conflict Resolution Panel if in rebaseProgress */}
-            {(repoState.rebaseInProgress || wizard.status === 'paused_conflict') && (
+            {(dashboardMode === 'rescue' || repoState.rebaseInProgress || wizard.status === 'paused_conflict') && (
               <ConflictSolver
                 conflicts={repoState.conflicts}
                 tone={tone}
@@ -4440,44 +4438,72 @@ export default function App() {
                 onCompleteRecovery={handleCompleteRecovery}
               />
             )}
+
+            {/* Dynamic visual terminal logger console (bottom-docked) */}
+            {dockTerminalPosition === 'bottom' && (dashboardMode === 'daily' || dashboardMode === 'rescue') && (
+              <TerminalPanel
+                logs={logs}
+                showLogPanel={showLogPanel}
+                onToggleLogPanel={() => setShowLogPanel(!showLogPanel)}
+                onClearLogs={() => setLogs([])}
+                tone={tone}
+                isSimulation={isSimulation}
+                isAiEnabled={isAiEnabled}
+                onCommandExecuted={() => handleRefresh(true)}
+                addLog={addLog}
+                resolveApiUrl={resolveApiUrl}
+                theme={theme}
+              />
+            )}
           </div>
 
-          {/* Right Panel Rails split containing branch widgets, diagnostics and terminal logs */}
-          <div className="lg:col-span-4 flex flex-col gap-5">
+          {/* Right Sidebar Position */}
+          {sidebarPosition === 'right' && workspaceLayout !== 'fullscreen' && (
+            <div id="workspace-sidebar-right" className="lg:col-span-4 flex flex-col gap-5">
+              {renderSidebarContent()}
+            </div>
+          )}
+
+          {/* Original Right Panel Rails split containing branch widgets, diagnostics and terminal logs (to be removed next) */}
+          <div className="lg:col-span-4 flex flex-col gap-5 select-none" style={{ display: 'none' }}>
             
             {/* Git Branch Interactive Hub switcher */}
-            <BranchPanel
-              branches={repoState.branches}
-              currentBranch={repoState.currentBranch}
-              tone={tone}
-              useEmoji={useEmoji}
-              theme={theme}
-              checkingOutBranch={checkingOutBranch}
-              onCheckout={handleCheckoutBranch}
-              onCreateBranch={handleCreateBranch}
-              onDeleteBranch={handleDeleteBranch}
-              onFetch={handleFetch}
-              onPullBranch={handlePullBranch}
-              onPushBranch={handlePushBranch}
-              isFetchingGlobal={isFetchingGlobal}
-            />
+            {(dashboardMode === 'daily' || dashboardMode === 'rescue') && (
+              <BranchPanel
+                branches={repoState.branches}
+                currentBranch={repoState.currentBranch}
+                tone={tone}
+                useEmoji={useEmoji}
+                theme={theme}
+                checkingOutBranch={checkingOutBranch}
+                onCheckout={handleCheckoutBranch}
+                onCreateBranch={handleCreateBranch}
+                onDeleteBranch={handleDeleteBranch}
+                onFetch={handleFetch}
+                onPullBranch={handlePullBranch}
+                onPushBranch={handlePushBranch}
+                isFetchingGlobal={isFetchingGlobal}
+              />
+            )}
 
             {/* Simulated Live Diagnostic Warnings Panel with AI Git Doctor Integration */}
-            {!showWarningsPanel ? (
-              <div id="git-warnings-collapsed" className={`border rounded-xl p-3 flex justify-between items-center transition-all duration-200 ${theme === 'light' ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0f172a] border-slate-900 text-slate-305'}`}>
-                <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
-                  <Settings className="w-4 h-4 text-violet-400 animate-spin-slow" />
-                  <span className="font-bold uppercase tracking-wider">{sloc.title}</span>
-                  <span className="text-[10px] text-slate-500 opacity-60">
+            {(dashboardMode === 'rescue' || dashboardMode === 'learning') && (
+              !showWarningsPanel ? (
+              <div id="git-warnings-collapsed" className={`rounded-xl p-3 flex justify-between items-center transition-all duration-200 ${theme === 'light' ? 'bg-slate-50/70 text-slate-600' : 'bg-[#0b0c10]/40 text-slate-450'}`}>
+                <div className="flex items-center gap-2 text-xs text-slate-450 font-mono">
+                  <Settings className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="font-semibold uppercase tracking-wider">{sloc.title}</span>
+                  <span className="text-[10px] text-slate-405 opacity-60">
                     ({tone === TranslationTone.ENGLISH ? 'Hidden' : 'Đang ẩn'})
                   </span>
                 </div>
                 <button
+                  type="button"
                   onClick={() => setShowWarningsPanel(true)}
                   className={`p-1.5 rounded cursor-pointer border shrink-0 flex items-center justify-center transition-all ${
                     theme === 'light'
-                      ? 'bg-violet-50 border-violet-200 text-violet-750 hover:bg-violet-100'
-                      : 'bg-[#1e293b] border-violet-505/20 text-violet-400 hover:text-violet-303'
+                      ? 'bg-indigo-50 border-indigo-200 text-indigo-750 hover:bg-indigo-100'
+                      : 'bg-[#1e293b] border-indigo-505/20 text-indigo-400 hover:text-indigo-303'
                   }`}
                   title={tone === TranslationTone.ENGLISH ? 'Show' : 'Hiển thị'}
                 >
@@ -4485,21 +4511,22 @@ export default function App() {
                 </button>
               </div>
             ) : (
-              <div id="git-warnings-board" className={`border rounded-xl p-5 shadow-lg flex flex-col gap-4 transition-all duration-200 ${theme === 'light' ? 'bg-white border-slate-200 text-slate-800 shadow-sm' : 'bg-[#0f172a] border-slate-850 text-slate-100 shadow-2xl'}`}>
-                <div className={`flex items-center justify-between border-b pb-3 ${theme === 'light' ? 'border-slate-150' : 'border-slate-800/60'}`}>
-                  <h3 className={`text-xs font-bold uppercase font-mono tracking-wider flex items-center gap-1.5 ${theme === 'light' ? 'text-slate-700' : 'text-slate-400'}`}>
-                    <Settings className="w-4 h-4 text-violet-400 animate-spin-slow" />
+              <div id="git-warnings-board" className={`rounded-xl p-4 flex flex-col gap-3 transition-all duration-200 ${theme === 'light' ? 'bg-slate-50/60 text-slate-700 font-mono text-[11px]' : 'bg-[#0b0c10]/40 text-slate-300 font-mono text-[11px]'}`}>
+                <div className={`flex items-center justify-between border-b pb-2 ${theme === 'light' ? 'border-slate-200/50' : 'border-slate-800/40'}`}>
+                  <h3 className={`text-[11px] font-bold uppercase font-mono tracking-wider flex items-center gap-1.5 ${theme === 'light' ? 'text-slate-500' : 'text-slate-500'}`}>
+                    <Settings className="w-3.5 h-3.5 text-slate-450 animate-spin-slow" />
                     <span>{sloc.title}</span>
                   </h3>
                   <div className="flex items-center gap-2">
                     {isSimulation && (
-                      <span className="text-[9px] font-mono text-indigo-400 bg-indigo-505/10 px-1.5 py-0.5 rounded border border-indigo-500/30">
+                      <span className="text-[9px] font-mono text-indigo-400 bg-indigo-501/10 px-1.5 py-0.5 rounded border border-indigo-501/15">
                         {sloc.simulationAnomalyBadge}
                       </span>
                     )}
 
                     {/* Collapse Toggle */}
                     <button
+                      type="button"
                       onClick={() => setShowWarningsPanel(false)}
                       className={`p-1.5 rounded transition-all text-xs flex items-center gap-1 font-mono cursor-pointer border shrink-0 ${
                         theme === 'light' 
@@ -4513,82 +4540,81 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className={`flex flex-col gap-2.5 text-xs font-mono border-b pb-3 ${theme === 'light' ? 'border-slate-150' : 'border-slate-800/60'}`}>
-                {/* 1. Git Installation Health */}
-                <div className={`flex justify-between items-center p-2 rounded border ${theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-900'}`}>
-                  <span className="text-slate-500">{sloc.gitEnv}</span>
-                  <span className="text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 text-[10px]">
-                    ✓ STABLE (v2.41)
-                  </span>
-                </div>
-
-                {/* 2. GitHub auth check */}
-                <div className={`flex justify-between items-center p-2 rounded border ${theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-900'}`}>
-                  <span className="text-slate-500">{sloc.githubCli}</span>
-                  {repoState.ghAvailable ? (
-                    <span className="text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 text-[10px] flex items-center gap-1">
-                      <Github className="w-3 h-3" /> ✓ AUTHORIZED
+                <div className={`flex flex-col gap-1.5 text-xs font-mono border-b pb-2 ${theme === 'light' ? 'border-slate-200/50' : 'border-slate-800/40'}`}>
+                  {/* 1. Git Installation Health */}
+                  <div className={`flex justify-between items-center p-1.5 rounded ${theme === 'light' ? 'bg-white/80' : 'bg-slate-900/30'}`}>
+                    <span className="text-slate-450">{sloc.gitEnv}</span>
+                    <span className="text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 text-[10px]">
+                      ✓ STABLE (v2.41)
                     </span>
-                  ) : (
-                    <span className="text-rose-400 font-bold bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20 text-[10px]" title="Please sign-in to gh-cli on system">
-                      ⚠️ NOT SIGNED
-                    </span>
-                  )}
-                </div>
-
-                {/* 3. Rebase health check indicator */}
-                <div className={`flex justify-between items-center p-2 rounded border ${theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-slate-950 border-slate-900'}`}>
-                  <span className="text-slate-500">{sloc.rebaseStatus}</span>
-                  {repoState.rebaseInProgress ? (
-                    <span className="text-amber-500 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 text-[10px] animate-pulse">
-                      🚧 PAUSED_CONFL (PAUSE)
-                    </span>
-                  ) : (
-                    <span className="text-emerald-500 text-[10px] uppercase font-bold">
-                      {sloc.readyStatus}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* SIMULATION ANOMALY TOGGLERS FOR TESTING/EXPERIMENTATION */}
-              {isSimulation && (
-                <div className={`rounded-lg p-3 flex flex-col gap-3.5 border transition-all duration-200 ${theme === 'light' ? 'bg-slate-50 border-slate-200' : 'bg-[#0b0f19]/80 border-slate-850/50'}`}>
-                  {/* Preset Scenario Selector */}
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-[9px] font-mono text-indigo-500 dark:text-indigo-400 uppercase tracking-wider block font-bold">
-                      {sloc.simScenarioHeading}
-                    </span>
-                    <select
-                      value={simScenarioId}
-                      onChange={(e) => {
-                        const targetVal = e.target.value as any;
-                        setSimScenarioId(targetVal);
-                        addLog(`[Mô phỏng] Đã chuyển đổi kịch bản kiểm thử Git sang: ${targetVal.toUpperCase()}`);
-                      }}
-                      className={`w-full px-2.5 py-1.5 text-xs font-mono rounded-lg border transition-colors outline-none cursor-pointer ${
-                        theme === 'light'
-                          ? 'bg-white border-slate-200 text-slate-700 hover:border-slate-350'
-                          : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-750'
-                      }`}
-                    >
-                      <option value="linear">🟢 {sloc.simScenarioLinear}</option>
-                      <option value="powerbi">📊 {sloc.simScenarioPowerBI}</option>
-                      <option value="large_history">⚡ {sloc.simScenarioLargeHistory}</option>
-                      <option value="large_nonlinear">🌀 {sloc.simScenarioLargeNonLinear}</option>
-                      <option value="nonlinear">🟣 {sloc.simScenarioNonLinear}</option>
-                      <option value="rewrite">🟡 {sloc.simScenarioRewrite}</option>
-                      <option value="stale">🟠 {sloc.simScenarioStale}</option>
-                      <option value="detached">🔴 {sloc.simScenarioDetached}</option>
-                    </select>
-                    <p className="text-[10px] text-slate-500 leading-relaxed font-sans">
-                      {sloc.simScenarioDesc}
-                    </p>
                   </div>
 
-                  <div className="border-t border-slate-200/50 dark:border-slate-800/40" />
+                  {/* 2. GitHub auth check */}
+                  <div className={`flex justify-between items-center p-1.5 rounded ${theme === 'light' ? 'bg-white/80' : 'bg-slate-900/30'}`}>
+                    <span className="text-slate-450">{sloc.githubCli}</span>
+                    {repoState.ghAvailable ? (
+                      <span className="text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 text-[10px] flex items-center gap-1">
+                        <Github className="w-3" /> ✓ AUTHORIZED
+                      </span>
+                    ) : (
+                      <span className="text-rose-450 font-bold bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/15 text-[10px]" title="Please sign-in to gh-cli on system">
+                        ⚠️ NOT SIGNED
+                      </span>
+                    )}
+                  </div>
 
-                  <div className="flex flex-col gap-1.5">
+                  {/* 3. Rebase health check indicator */}
+                  <div className={`flex justify-between items-center p-1.5 rounded ${theme === 'light' ? 'bg-white/80' : 'bg-slate-900/30'}`}>
+                    <span className="text-slate-450">{sloc.rebaseStatus}</span>
+                    {repoState.rebaseInProgress ? (
+                      <span className="text-amber-500 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20 text-[10px] animate-pulse">
+                        🚧 PAUSED_CONFL (PAUSE)
+                      </span>
+                    ) : (
+                      <span className="text-emerald-500 text-[10px] uppercase font-bold">
+                        {sloc.readyStatus}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* SIMULATION ANOMALY TOGGLERS FOR TESTING/EXPERIMENTATION */}
+                {isSimulation && (
+                  <div className={`rounded-lg p-2.5 flex flex-col gap-2 ${theme === 'light' ? 'bg-white/40' : 'bg-slate-900/20'}`}>
+                    {/* Preset Scenario Selector */}
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] font-mono text-indigo-500 dark:text-indigo-400 uppercase tracking-wider block font-bold">
+                        {sloc.simScenarioHeading}
+                      </span>
+                      <select
+                        value={simScenarioId}
+                        onChange={(e) => {
+                          const targetVal = e.target.value as any;
+                          setSimScenarioId(targetVal);
+                          addLog(`[Mô phỏng] Đã chuyển đổi kịch bản kiểm thử Git sang: ${targetVal.toUpperCase()}`);
+                        }}
+                        className={`w-full px-2.5 py-1 text-xs font-mono rounded border transition-colors outline-none cursor-pointer ${
+                          theme === 'light'
+                            ? 'bg-white border-slate-200 text-slate-700 hover:border-slate-350'
+                            : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-750'
+                        }`}
+                      >
+                        <option value="linear">🟢 {sloc.simScenarioLinear}</option>
+                        <option value="powerbi">📊 {sloc.simScenarioPowerBI}</option>
+                        <option value="large_history">⚡ {sloc.simScenarioLargeHistory}</option>
+                        <option value="large_nonlinear">🌀 {sloc.simScenarioLargeNonLinear}</option>
+                        <option value="nonlinear">🟣 {sloc.simScenarioNonLinear}</option>
+                        <option value="rewrite">🟡 {sloc.simScenarioRewrite}</option>
+                        <option value="stale">🟠 {sloc.simScenarioStale}</option>
+                        <option value="detached">🔴 {sloc.simScenarioDetached}</option>
+                      </select>
+                      <p className="text-[9.5px] text-slate-500 leading-normal font-sans">
+                        {sloc.simScenarioDesc}
+                      </p>
+                    </div>
+
+                    <div className="border-t border-slate-200/40 dark:border-slate-800/30" />
+<div className="flex flex-col gap-1.5">
                     <span className="text-[9px] font-mono text-slate-500 uppercase tracking-wider block font-bold">
                       {sloc.simulateAnomaliesHeading}
                     </span>
@@ -4696,7 +4722,7 @@ export default function App() {
                                 </p>
                               </div>
                               <div>
-                                <span className="font-bold block text-[9.5px] text-violet-700 dark:text-violet-400">
+                                <span className="font-bold block text-[9.5px] text-indigo-700 dark:text-indigo-400">
                                   💡 {tone === TranslationTone.ENGLISH ? "How to resolve?" : "Cách khắc phục?"}
                                 </span>
                                 <p className="leading-relaxed mt-0.5 text-[9.5px] opacity-90 font-sans">
@@ -4752,7 +4778,7 @@ export default function App() {
                         </div>
                         <button
                           onClick={() => handleDiagnoseProblem('dirty_working_tree')}
-                          className="shrink-0 text-[10px] font-mono px-2 py-1 bg-violet-600 hover:bg-violet-500 text-white rounded cursor-pointer transition-all active:scale-95 border border-violet-500/30"
+                          className="shrink-0 text-[10px] font-mono px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded cursor-pointer transition-all active:scale-95 border border-indigo-500/30"
                         >
                           {sloc.diagnoseBtn}
                         </button>
@@ -4826,7 +4852,7 @@ export default function App() {
                                 </p>
                               </div>
                               <div>
-                                <span className="font-bold block text-[9.5px] text-violet-700 dark:text-violet-400">
+                                <span className="font-bold block text-[9.5px] text-indigo-700 dark:text-indigo-400">
                                   💡 {tone === TranslationTone.ENGLISH ? "How to resolve?" : "Cách khắc phục?"}
                                 </span>
                                 <p className="leading-relaxed mt-0.5 text-[9.5px] opacity-90 font-sans">
@@ -4864,7 +4890,7 @@ export default function App() {
                         </div>
                         <button
                           onClick={() => handleDiagnoseProblem('diverged_branch')}
-                          className="shrink-0 text-[10px] font-mono px-2 py-1 bg-violet-600 hover:bg-violet-500 text-white rounded cursor-pointer transition-all active:scale-95 border border-violet-500/30"
+                          className="shrink-0 text-[10px] font-mono px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded cursor-pointer transition-all active:scale-95 border border-indigo-500/30"
                         >
                           {sloc.diagnoseBtn}
                         </button>
@@ -4938,7 +4964,7 @@ export default function App() {
                                 </p>
                               </div>
                               <div>
-                                <span className="font-bold block text-[9.5px] text-violet-700 dark:text-violet-400">
+                                <span className="font-bold block text-[9.5px] text-indigo-700 dark:text-indigo-400">
                                   💡 {tone === TranslationTone.ENGLISH ? "How to resolve?" : "Cách khắc phục?"}
                                 </span>
                                 <p className="leading-relaxed mt-0.5 text-[9.5px] opacity-90 font-sans">
@@ -4976,7 +5002,7 @@ export default function App() {
                         </div>
                         <button
                           onClick={() => handleDiagnoseProblem('detached_head')}
-                          className="shrink-0 text-[10px] font-mono px-2 py-1 bg-violet-600 hover:bg-violet-500 text-white rounded cursor-pointer transition-all active:scale-95 border border-violet-500/30"
+                          className="shrink-0 text-[10px] font-mono px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded cursor-pointer transition-all active:scale-95 border border-indigo-500/30"
                         >
                           {sloc.diagnoseBtn}
                         </button>
@@ -5029,7 +5055,7 @@ export default function App() {
                                 </p>
                               </div>
                               <div>
-                                <span className="font-bold block text-[9.5px] text-violet-700 dark:text-violet-400">
+                                <span className="font-bold block text-[9.5px] text-indigo-700 dark:text-indigo-400">
                                   💡 {tone === TranslationTone.ENGLISH ? "How to resolve?" : "Cách khắc phục?"}
                                 </span>
                                 <p className="leading-relaxed mt-0.5 text-[9.5px] opacity-90 font-sans">
@@ -5067,7 +5093,7 @@ export default function App() {
                         </div>
                         <button
                           onClick={() => handleDiagnoseProblem('stale_base_branch')}
-                          className="shrink-0 text-[10px] font-mono px-2 py-1 bg-violet-600 hover:bg-violet-500 text-white rounded cursor-pointer transition-all active:scale-95 border border-violet-500/30"
+                          className="shrink-0 text-[10px] font-mono px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded cursor-pointer transition-all active:scale-95 border border-indigo-500/30"
                         >
                           {sloc.diagnoseBtn}
                         </button>
@@ -5112,15 +5138,15 @@ export default function App() {
                 <div className={`p-3 rounded-xl flex flex-col gap-2 animate-fade-in ${
                   theme === 'light'
                     ? 'bg-slate-50 border border-slate-200 text-slate-800 shadow-sm shadow-slate-100/50'
-                    : 'bg-[#111219] border border-violet-500/30 text-slate-300'
+                    : 'bg-[#111219] border border-indigo-500/30 text-slate-300'
                 }`}>
                   <div className={`flex justify-between items-center border-b pb-1.5 ${
                     theme === 'light' ? 'border-slate-200' : 'border-slate-800'
                   }`}>
                     <span className={`text-[9px] font-mono font-black uppercase tracking-widest flex items-center gap-1 ${
-                      theme === 'light' ? 'text-violet-605' : 'text-violet-400'
+                      theme === 'light' ? 'text-indigo-605' : 'text-indigo-400'
                     }`}>
-                      <Zap className={`w-3 h-3 ${theme === 'light' ? 'text-violet-600' : 'text-violet-400'} animate-pulse`} />
+                      <Zap className={`w-3 h-3 ${theme === 'light' ? 'text-indigo-600' : 'text-indigo-400'} animate-pulse`} />
                       {sloc.doctorRep}
                     </span>
                     <button
@@ -5138,7 +5164,7 @@ export default function App() {
 
                   {doctorLoading ? (
                      <div className="flex flex-col items-center gap-2 py-4 text-center text-xs font-mono">
-                       <span className="animate-spin h-4.5 w-4.5 border-2 border-violet-500 border-t-transparent rounded-full font-mono"></span>
+                       <span className="animate-spin h-4.5 w-4.5 border-2 border-indigo-500 border-t-transparent rounded-full font-mono"></span>
                        <span className={`${theme === 'light' ? 'text-slate-500' : 'text-slate-400'} animate-pulse`}>{sloc.scanAnomaliesLoading}</span>
                      </div>
                   ) : doctorError ? (
@@ -5160,8 +5186,8 @@ export default function App() {
                              className={`flex-1 px-2 py-1 rounded-lg border text-[9px] font-mono font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                                activeDoctorTab === 'overlord'
                                  ? theme === 'light'
-                                   ? 'bg-violet-600/10 border-violet-500 text-violet-750 font-extrabold'
-                                   : 'bg-violet-600/15 border-violet-500/50 text-violet-300'
+                                   ? 'bg-indigo-600/10 border-indigo-500 text-indigo-750 font-extrabold'
+                                   : 'bg-indigo-600/15 border-indigo-500/50 text-indigo-300'
                                  : theme === 'light'
                                    ? 'bg-[#f8fafc] border-slate-200 text-slate-500 hover:text-slate-700 hover:bg-slate-100/50'
                                    : 'bg-[#0a0b10] border-[#2d2f3c]/20 text-slate-400 hover:text-slate-300'
@@ -5214,7 +5240,7 @@ export default function App() {
                              : 'text-slate-300 bg-slate-950/30 border border-[#2d2f3c]/30'
                          }`}>
                            <strong className={`text-[9px] font-mono font-bold uppercase block tracking-wider ${
-                             theme === 'light' ? 'text-violet-700' : 'text-violet-350'
+                             theme === 'light' ? 'text-indigo-700' : 'text-indigo-350'
                            }`}>
                              {sloc.dirtyFilesLabel}
                            </strong>
@@ -5251,8 +5277,8 @@ export default function App() {
                                  ? { border: 'border-cyan-200', text: 'text-cyan-700', bg: 'bg-cyan-50' }
                                  : { border: 'border-cyan-500/30', text: 'text-cyan-300', bg: 'bg-cyan-950/20' }
                                : theme === 'light'
-                                 ? { border: 'border-violet-250', text: 'text-violet-850', bg: 'bg-violet-50/50' }
-                                 : { border: 'border-violet-500/25', text: 'text-violet-300', bg: 'bg-slate-950/50' };
+                                 ? { border: 'border-indigo-250', text: 'text-indigo-850', bg: 'bg-indigo-50/50' }
+                                 : { border: 'border-indigo-500/25', text: 'text-indigo-300', bg: 'bg-slate-950/50' };
 
                          const headingLabel = 
                            activeDoctorTab === 'compiler' ? "🩺 BÁO CÁO CÚ PHÁP (DR. COMPILER)" :
@@ -5299,7 +5325,7 @@ export default function App() {
                          {doctorProblem === 'dirty_working_tree' && (
                            <button
                              onClick={() => handleTriggerDoctorAction('dirty_working_tree', 'stash')}
-                             className="px-2 py-1 bg-violet-600 hover:bg-violet-500 text-white font-mono text-[9px] font-bold rounded transition-all cursor-pointer"
+                             className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-[9px] font-bold rounded transition-all cursor-pointer"
                            >
                              {sloc.doctorApplyStash}
                            </button>
@@ -5307,7 +5333,7 @@ export default function App() {
                          {doctorProblem === 'diverged_branch' && (
                            <button
                              onClick={() => handleTriggerDoctorAction('diverged_branch', 'rebase_pull')}
-                             className="px-2 py-1 bg-violet-600 hover:bg-violet-500 text-white font-mono text-[9px] font-bold rounded transition-all cursor-pointer"
+                             className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-[9px] font-bold rounded transition-all cursor-pointer"
                            >
                              {sloc.doctorApplyRebase}
                            </button>
@@ -5323,7 +5349,7 @@ export default function App() {
                          {doctorProblem === 'stale_base_branch' && (
                            <button
                              onClick={() => handleTriggerDoctorAction('stale_base_branch', 'sync_base')}
-                             className="px-2 py-1 bg-violet-600 hover:bg-violet-500 text-white font-mono text-[9px] font-bold rounded transition-all cursor-pointer"
+                             className="px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-[9px] font-bold rounded transition-all cursor-pointer"
                            >
                              {sloc.doctorApplySync}
                            </button>
@@ -5334,9 +5360,9 @@ export default function App() {
                 </div>
               )}
             </div>
-          )}
+          ))}
 
-          {isUpgraded && (
+          {isUpgraded && dashboardMode === 'rescue' && (
             <ReflogRescuePanel
               theme={theme}
               tone={tone}
@@ -5345,19 +5371,21 @@ export default function App() {
           )}
 
             {/* Dynamic visual terminal logger console */}
-            <TerminalPanel
-              logs={logs}
-              showLogPanel={showLogPanel}
-              onToggleLogPanel={() => setShowLogPanel(!showLogPanel)}
-              onClearLogs={() => setLogs([])}
-              tone={tone}
-              isSimulation={isSimulation}
-              isAiEnabled={isAiEnabled}
-              onCommandExecuted={() => handleRefresh(true)}
-              addLog={addLog}
-              resolveApiUrl={resolveApiUrl}
-              theme={theme}
-            />
+            {(dashboardMode === 'daily' || dashboardMode === 'rescue') && (
+              <TerminalPanel
+                logs={logs}
+                showLogPanel={showLogPanel}
+                onToggleLogPanel={() => setShowLogPanel(!showLogPanel)}
+                onClearLogs={() => setLogs([])}
+                tone={tone}
+                isSimulation={isSimulation}
+                isAiEnabled={isAiEnabled}
+                onCommandExecuted={() => handleRefresh(true)}
+                addLog={addLog}
+                resolveApiUrl={resolveApiUrl}
+                theme={theme}
+              />
+            )}
 
           </div>
 
@@ -5450,7 +5478,232 @@ export default function App() {
           </AnimatePresence>
         </div>
 
-      {/* Interactive Deep-context Git Doctor Messenger Chatbot */}
+      {/* Floating Detached Windows Container (Multi-window desktop space) */}
+      {detachedWindows.map(win => (
+        <div
+          key={win.id}
+          id={`detached-win-${win.id}`}
+          className={`fixed z-50 rounded-xl shadow-2xl border flex flex-col overflow-hidden backdrop-blur-md select-none transition-all duration-100 ${
+            theme === 'light'
+              ? 'bg-white/95 border-slate-200/90 text-slate-800 shadow-slate-200/50'
+              : 'bg-[#0b101f]/95 border-indigo-500/20 text-slate-200 shadow-black/80'
+          }`}
+          style={{
+            left: `${win.x}px`,
+            top: `${win.y}px`,
+            width: `${win.width || 440}px`,
+            height: `${win.height || 380}px`,
+          }}
+        >
+          {/* Header Draggable Bar */}
+          <div
+            onPointerDown={(e) => handleDragWindowStart(e, win.id)}
+            className={`px-4 py-2 flex items-center justify-between cursor-move select-none border-b shrink-0 ${
+              theme === 'light'
+                ? 'bg-slate-100/80 border-slate-250 text-slate-700'
+                : 'bg-slate-950/80 border-slate-800 text-indigo-300'
+            }`}
+          >
+            <div className="flex items-center gap-2 text-xs font-mono font-bold">
+              <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse" />
+              <span>{win.title}</span>
+            </div>
+            
+            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={() => {
+                  setDetachedWindows(prev => prev.filter(w => w.id !== win.id));
+                  triggerToast('milestone', 'WINDOW CLOSED', 'Đã thu hẹp cửa sổ phụ.', '🪟');
+                }}
+                className={`p-1 rounded-md transition-colors ${
+                  theme === 'light' ? 'hover:bg-slate-200 text-slate-500' : 'hover:bg-slate-805 text-slate-400'
+                }`}
+                title="Đóng cửa sổ"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+          
+          {/* Window Body Contents */}
+          <div className="p-4 flex-1 overflow-y-auto font-sans text-xs">
+            {win.type === 'commits' && (
+              <div className="space-y-3">
+                <span className="font-mono text-[10px] text-indigo-400 uppercase font-semibold">
+                  🌳 REAL-TIME CENTRAL GIT PATHWAY
+                </span>
+                <div className={`rounded-lg p-2.5 border font-mono text-[11px] leading-relaxed ${theme === 'light' ? 'bg-slate-50 border-slate-150 text-slate-655' : 'bg-slate-950/60 border-slate-900 text-slate-300'}`}>
+                  {repoState.commits.length === 0 ? (
+                    <span className="opacity-50">Empty repo history</span>
+                  ) : (
+                    <div className="space-y-2 max-h-[260px] overflow-y-auto">
+                      {repoState.commits.map((c, index) => (
+                        <div key={index} className="flex items-start gap-2 border-l-2 border-indigo-500/30 pl-2">
+                          <span className="font-bold text-indigo-405 text-[10px] bg-indigo-500/10 px-1 rounded">
+                            {c.hash ? c.hash.substring(0, 7) : 'HEAD'}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-sans font-semibold text-xs truncate">{c.message}</p>
+                            <span className="text-[9px] text-[#888]">{c.author} · {c.date}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {win.type === 'diagnostics' && (
+              <div className="space-y-3">
+                <span className="font-mono text-[10px] text-rose-405 uppercase font-semibold">
+                  🩺 DETACHED REPO TELEMETRY CLINIC
+                </span>
+                <div className="space-y-2">
+                  <div className={`p-2.5 rounded-lg border flex items-center justify-between ${theme === 'light' ? 'bg-slate-50 text-slate-700' : 'bg-slate-955/60 border-slate-900 text-slate-350'}`}>
+                    <span className="font-mono">Current Branch:</span>
+                    <strong className="text-indigo-400 font-mono">{repoState.currentBranch}</strong>
+                  </div>
+                  <div className={`p-2.5 rounded-lg border flex items-center justify-between ${theme === 'light' ? 'bg-slate-50 text-slate-700' : 'bg-slate-955/60 border-slate-900 text-slate-355'}`}>
+                    <span className="font-mono">Base Branch Alignment:</span>
+                    <strong className="text-emerald-450 font-mono">{repoState.baseBranch}</strong>
+                  </div>
+                  <div className={`p-2.5 rounded-lg border flex items-center justify-between ${theme === 'light' ? 'bg-slate-50 text-slate-700' : 'bg-slate-955/60 border-slate-900 text-slate-355'}`}>
+                    <span className="font-mono">Conflicts State:</span>
+                    <strong className={`${repoState.conflicts && repoState.conflicts.length > 0 ? 'text-rose-400' : 'text-emerald-400'} font-mono`}>
+                      {repoState.conflicts && repoState.conflicts.length > 0 ? `${repoState.conflicts.length} conflicted files` : 'HEALTHY'}
+                    </strong>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {win.type === 'shortcuts' && (
+              <div className="space-y-2.5 font-mono text-[11px]">
+                <span className="text-xs font-semibold text-indigo-400 font-sans block mb-1">
+                  ⌨️ ELECTRON NATIVE short-cuts mappings:
+                </span>
+                <div className="grid grid-cols-12 gap-1.5 border-b pb-1 opacity-70 font-bold uppercase tracking-wider text-[10px]">
+                  <div className="col-span-5">Combo</div>
+                  <div className="col-span-7">Action outcome</div>
+                </div>
+                <div className="space-y-1.5 max-h-[240px] overflow-y-auto pr-1">
+                  <div className="grid grid-cols-12 gap-1.5">
+                    <div className="col-span-5 text-indigo-400 font-bold">Ctrl + K / I</div>
+                    <div className="col-span-7">AI Doctor chat panel launcher</div>
+                  </div>
+                  <div className="grid grid-cols-12 gap-1.5 border-t border-slate-900/10 pt-1.5">
+                    <div className="col-span-5 text-indigo-405 font-bold">Alt + 1 / 2 / 3</div>
+                    <div className="col-span-7">Toggle Dashboard screens</div>
+                  </div>
+                  <div className="grid grid-cols-12 gap-1.5 border-t border-slate-900/10 pt-1.5">
+                    <div className="col-span-5 text-indigo-405 font-bold">Alt + W</div>
+                    <div className="col-span-7">Toggle 2-Col Split Workspace</div>
+                  </div>
+                  <div className="grid grid-cols-12 gap-1.5 border-t border-slate-900/10 pt-1.5">
+                    <div className="col-span-5 text-indigo-405 font-bold">Alt + S</div>
+                    <div className="col-span-7">Flip Sidebar position Left/Right</div>
+                  </div>
+                  <div className="grid grid-cols-12 gap-1.5 border-t border-slate-900/10 pt-1.5">
+                    <div className="col-span-5 text-indigo-405 font-bold">Alt + D</div>
+                    <div className="col-span-7">Dock Terminal on bottom/sidebar</div>
+                  </div>
+                  <div className="grid grid-cols-12 gap-1.5 border-t border-slate-900/10 pt-1.5">
+                    <div className="col-span-5 text-indigo-405 font-bold">Alt + J</div>
+                    <div className="col-span-7">Spawn detached helper window</div>
+                  </div>
+                  <div className="grid grid-cols-12 gap-1.5 border-t border-slate-900/10 pt-1.5">
+                    <div className="col-span-5 text-indigo-405 font-bold">Alt + H</div>
+                    <div className="col-span-7">Trigger shortcut cheat sheet</div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+
+      {/* Native Keyboard Shortcut Cheat Sheet Modal */}
+      {showShortcutCheatSheet && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm select-none">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className={`w-full max-w-lg rounded-2xl border p-6 flex flex-col gap-4 shadow-2xl ${
+              theme === 'light' ? 'bg-white border-slate-200 text-slate-805' : 'bg-[#0a0f1d] border-indigo-500/20 text-slate-100'
+            }`}
+          >
+            <div className="flex items-center justify-between border-b pb-3 border-slate-205/20">
+              <h3 className="text-sm font-bold font-mono uppercase tracking-wider flex items-center gap-2">
+                <Keyboard className="w-4 h-4 text-indigo-455" />
+                <span>⌨️ Electron Keyboard Short-cuts Map</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowShortcutCheatSheet(false)}
+                className={`p-1 rounded-lg transition-all cursor-pointer ${theme === 'light' ? 'hover:bg-slate-100 text-slate-505' : 'hover:bg-slate-900 text-slate-400'}`}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3.5">
+              <p className={`text-xs ${theme === 'light' ? 'text-slate-500' : 'text-slate-400'}`}>
+                Sử dụng các tổ hợp phím tắt bên dưới để thao tác nhanh như một Desktop IDE thực thụ:
+              </p>
+
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                {[
+                  { keys: ['Ctrl', 'K'], desc: 'Mở Command Palette & AI Doctor chatbot' },
+                  { keys: ['Ctrl', 'I'], desc: 'Mở Drawer AI Doctor chat phụ' },
+                  { keys: ['Alt', '1'], desc: 'Chuyển sang "Daily Mode" (Phác đồ ngày)' },
+                  { keys: ['Alt', '2'], desc: 'Chuyển sang "Git Rescue" (Cứu hộ Reflog)' },
+                  { keys: ['Alt', '3'], desc: 'Chuyển sang "Learning Mode" (Mô phỏng)' },
+                  { keys: ['Alt', 'W'], desc: 'Bật/Tắt layout chia 2 cột góc nhìn rộng' },
+                  { keys: ['Alt', 'S'], desc: 'Đổi vị trí sidebar qua Trái / Phải' },
+                  { keys: ['Alt', 'D'], desc: 'Neo Terminal xuống Dưới / sang Phải sidebar' },
+                  { keys: ['Alt', 'J'], desc: 'Mở các cửa sổ phác đồ phụ kéo thả' },
+                  { keys: ['Alt', 'T'], desc: 'Xóa bộ nhớ đệm terminal logs' },
+                  { keys: ['Alt', 'H'], desc: 'Bật/Tắt bảng phím tắt này' },
+                ].map((item, index) => (
+                  <div key={index} className={`flex items-center justify-between py-2 border-b last:border-0 border-slate-205/10 text-xs`}>
+                    <span className={`font-sans font-medium ${theme === 'light' ? 'text-slate-600' : 'text-slate-350'}`}>
+                      {item.desc}
+                    </span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {item.keys.map((k, kIdx) => (
+                        <kbd
+                          key={kIdx}
+                          className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded shadow-sm border ${
+                            theme === 'light'
+                              ? 'bg-slate-100 border-slate-250 text-slate-700'
+                              : 'bg-indigo-950/40 border-indigo-505/20 text-indigo-300'
+                          }`}
+                        >
+                          {k}
+                        </kbd>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={() => setShowShortcutCheatSheet(false)}
+                className="w-full py-2 bg-indigo-600 hover:bg-indigo-555 text-white font-mono text-[11px] font-bold uppercase rounded-lg transition-all cursor-pointer box-shadow-xl"
+              >
+                Close Reference Map
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Interactive Deep-context Git Doctor Messenger Chatbot & Command Palette Drawer */}
         <AiDoctorFloatingChat
           repoState={repoState}
           tone={tone}
@@ -5459,6 +5712,18 @@ export default function App() {
           theme={theme}
           appVersion={appVersion}
           isUpgraded={isUpgraded}
+          onSwitchDashboardMode={setDashboardMode}
+          isSimulation={isSimulation}
+          onToggleSimulation={(sim) => {
+            setIsSimulation(sim);
+            addLog(`🤖 Simulation mode changed: ${sim ? 'ACTIVE' : 'OFF'}`);
+            handleRefresh(sim);
+            triggerToast(sim ? 'milestone' : 'warn', sim ? 'SIMULATION MODE' : 'REAL GIT ENGAGED', sim ? 'Sandbox mô phỏng' : 'Code thật trên ổ đĩa');
+          }}
+          onClearLogs={() => {
+            setLogs([]);
+            addLog('🧹 Terminal console history cleared by AI Doctor Command Palette.');
+          }}
         />
 
         {/* Custom Confirmation Modal */}
@@ -5663,8 +5928,8 @@ export default function App() {
                           onChange={(e) => setStaleMigrateBase(e.target.value)}
                           className={`w-full px-2.5 py-1.5 text-xs font-mono rounded border outline-none cursor-pointer appearance-none transition-colors ${
                             theme === 'light' 
-                              ? 'bg-white border-slate-250 text-slate-850 focus:border-sky-500 focus:ring-1 focus:ring-sky-200' 
-                              : 'bg-slate-900 border-slate-805 text-slate-200 focus:border-sky-500 focus:ring-1 focus:ring-sky-950'
+                              ? 'bg-white border-slate-250 text-slate-850 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200' 
+                              : 'bg-slate-900 border-slate-805 text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-950'
                           }`}
                         >
                           {Array.from(new Set(repoState.branches.map(b => b.name as string)))
@@ -5694,8 +5959,8 @@ export default function App() {
                         }}
                         className={`w-full px-2.5 py-1.5 text-xs font-mono rounded border outline-none transition-colors ${
                           theme === 'light' 
-                            ? 'bg-white border-slate-250 text-slate-850 focus:border-sky-500 focus:ring-1 focus:ring-sky-200' 
-                            : 'bg-slate-900 border-slate-805 text-slate-200 focus:border-sky-500 focus:ring-1 focus:ring-sky-950'
+                            ? 'bg-white border-slate-250 text-slate-850 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200' 
+                            : 'bg-slate-900 border-slate-805 text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-950'
                         }`}
                       />
                     </div>
@@ -5704,7 +5969,7 @@ export default function App() {
 
                 {/* Actions buttons footer */}
                 <div className="flex flex-col sm:flex-row justify-between items-center gap-2 mt-6 pt-4 border-t border-slate-200/10 text-xs">
-                  {/* Checkout anyway action - small & risky */}
+                  {/* Checkout anyway action - small & riindigo */}
                   <button
                     type="button"
                     disabled={isStaleMigrating}

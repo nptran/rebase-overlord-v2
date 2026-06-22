@@ -1,7 +1,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Terminal, LifeBuoy, AlertTriangle, Sparkles, CheckCircle, RotateCcw } from 'lucide-react';
-import { TranslationTone } from '../types';
+import { TranslationTone } from '../../types';
+import { useReflogRecovery, ReflogEntry } from './useReflogRecovery';
 
 interface ReflogRescuePanelProps {
   theme: 'light' | 'dark';
@@ -9,68 +10,18 @@ interface ReflogRescuePanelProps {
   onRescueCommit: (sha: string, message: string, author: string, date: string) => void;
 }
 
-interface ReflogEntry {
-  id: string;
-  sha: string;
-  selector: string;
-  type: string;
-  message: string;
-  isDangling: boolean;
-  author: string;
-  date: string;
-}
-
 export default function ReflogRescuePanel({
   theme,
   tone,
   onRescueCommit
 }: ReflogRescuePanelProps) {
-  const [entries, setEntries] = React.useState<ReflogEntry[]>([
-    {
-      id: '1',
-      sha: 'ea203b5',
-      selector: 'HEAD@{1}',
-      type: 'commit',
-      message: 'feat: integrate stripe subscription models and pricing tables',
-      isDangling: true,
-      author: 'Alex Nguyen',
-      date: '2 hours ago'
-    },
-    {
-      id: '2',
-      sha: 'ba51c11',
-      selector: 'HEAD@{2}',
-      type: 'rebase (abort)',
-      message: 'rebase: checkout develop',
-      isDangling: false,
-      author: 'Alex Nguyen',
-      date: '3 hours ago'
-    },
-    {
-      id: '3',
-      sha: 'f9421ea',
-      selector: 'HEAD@{3}',
-      type: 'checkout',
-      message: 'moving from feature/payment-v2 to bugfix/typo-header',
-      isDangling: false,
-      author: 'System',
-      date: '4 hours ago'
-    },
-    {
-      id: '4',
-      sha: 'd92a11b',
-      selector: 'HEAD@{4}',
-      type: 'commit',
-      message: 'wip: temp commit before pulling latest upgrades',
-      isDangling: true,
-      author: 'Alex Nguyen',
-      date: '1 day ago'
-    }
-  ]);
-
-  const [activeRescuingSha, setActiveRescuingSha] = React.useState<string | null>(null);
-  const [terminalOutput, setTerminalOutput] = React.useState<string[]>([]);
-  const [successCommit, setSuccessCommit] = React.useState<string | null>(null);
+  const {
+    entries,
+    activeRescuingSha,
+    terminalOutput,
+    successCommit,
+    startRescue
+  } = useReflogRecovery({ tone, onRescueCommit });
 
   // Translate labels based on the chosen tone
   const getLabel = (key: string) => {
@@ -80,14 +31,15 @@ export default function ReflogRescuePanel({
 
     switch (key) {
       case 'title':
-        if (isEn) return '⚡ Git Reflog Rescue Toolkit';
-        if (isJoke) return '⚡ Bộ Cứu Hộ Git Reflog Cho Bé';
-        if (isToxic) return '⚡ Bình Oxy Reflog Cứu Repo Nát';
+        if (isEn) return '⚡ Git Reflog Rescue (Oxy Reflog)';
+        if (isJoke) return '⚡ Bộ Cứu Hộ Git Reflog & Cứu Hộ Code';
+        if (isToxic) return '⚡ Bình Oxy Reflog Cứu Repo Nát Vụn';
         return '⚡ Bộ Công Cụ Khôi Phục Git Reflog';
       case 'subtitle':
-        if (isEn) return 'Recover lost commits dangling in the reference log history';
-        if (isJoke) return 'Truy vết đống commit sếp vô tình xóa oan, lôi nó từ cõi mạng về!';
-        return 'Tìm lại các mảnh commit thất lạc do rebase đè, reset cứng hoặc lỡ tay xoá nhánh.';
+        if (isEn) return 'Recover lost commits and branches (Khôi phục commit & nhánh đã mất)';
+        if (isJoke) return 'Hồi sinh mớ commit lỡ tay xóa nhầm, kéo code về chỉ trong 1 nốt nhạc!';
+        if (isToxic) return 'Nhặt xác mấy commits và tệp tin bị mày ngu ngốc xóa sổ khi Rebase hỏng';
+        return 'Sơ cứu và lấy lại commits thất lạc do Rebase lỗi, Hard Reset hoặc xóa lầm nhánh';
       case 'terminal_header':
         if (isEn) return 'Interactive Recovery CLI';
         return 'CLI Khôi Phục Tương Tác';
@@ -108,53 +60,11 @@ export default function ReflogRescuePanel({
     return '';
   };
 
-  const startRescue = (entry: ReflogEntry) => {
-    if (activeRescuingSha) return;
-
-    setActiveRescuingSha(entry.sha);
-    setTerminalOutput([
-      `$ git reflog --date=relative | grep '${entry.sha}'`,
-      `Found dangling commit pointer of HEAD: ${entry.sha} (${entry.selector})`,
-      `Message: "${entry.message}"`,
-      `$ git checkout -b rescue-branch-${entry.sha} ${entry.sha}`,
-      `Creating local recovery head branch...`,
-      `Applying git cherry-pick or hard-reset simulation...`
-    ]);
-
-    let step = 0;
-    const interval = setInterval(() => {
-      step++;
-      if (step === 1) {
-        setTerminalOutput(prev => [...prev, `[PROCESS] Extracting git index database segments...`]);
-      } else if (step === 2) {
-        setTerminalOutput(prev => [...prev, `[PROCESS] Reviving commit object trees: ${entry.sha}`]);
-      } else if (step === 3) {
-        setTerminalOutput(prev => [...prev, `[PROCESS] Appending node to visual DAG pipeline...`]);
-      } else if (step === 4) {
-        setTerminalOutput(prev => [...prev, `✓ Success: HEAD moved back to restored commit ${entry.sha}`]);
-        clearInterval(interval);
-        
-        // Execute callback to parent
-        onRescueCommit(entry.sha, entry.message, entry.author, entry.date);
-
-        setSuccessCommit(entry.sha);
-        setActiveRescuingSha(null);
-        // Mark entry as not dangling anymore
-        setEntries(prev => prev.map(e => e.sha === entry.sha ? { ...e, isDangling: false } : e));
-
-        setTimeout(() => {
-          setSuccessCommit(null);
-          setTerminalOutput([]);
-        }, 6000);
-      }
-    }, 1000);
-  };
-
   return (
-    <div id="reflog-rescue-card" className={`border rounded-xl p-5 shadow-xl transition-all duration-200 ${
+    <div id="reflog-rescue-card" className={`rounded-xl p-6 transition-all duration-200 ${
       theme === 'light' 
-        ? 'bg-white border-slate-200 text-slate-900 shadow-xl' 
-        : 'bg-[#0f172a] border-slate-800 text-slate-100 shadow-2xl'
+        ? 'bg-white text-slate-900 shadow-sm' 
+        : 'bg-[#0f172a] text-slate-100'
     } flex flex-col gap-4`}>
       {/* Title block with sparkles */}
       <div className={`flex items-center justify-between border-b pb-3 ${theme === 'light' ? 'border-slate-200' : 'border-slate-800'}`}>

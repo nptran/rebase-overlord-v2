@@ -30,8 +30,9 @@ import {
   Database,
   ShieldAlert
 } from 'lucide-react';
-import { ConflictFile, TranslationTone } from '../types';
-import { getApiHeaders } from '../utils/apiKeyHelper';
+import { ConflictFile, TranslationTone } from '../../types';
+import { getApiHeaders } from '../../utils/apiKeyHelper';
+import { useConflictSolver } from './useConflictSolver';
 
 const localization = {
   [TranslationTone.PROFESSIONAL]: {
@@ -189,6 +190,164 @@ const pbiLocalization = {
     fixSuggest: "Recommended repair:"
   }
 };
+
+// Interface for real-time TMDL and JSON syntax tokens
+interface Token {
+  text: string;
+  type: 'keyword' | 'property' | 'string' | 'number' | 'boolean' | 'comment' | 'dax' | 'jsonkey' | 'type' | 'default';
+}
+
+// Tokenizes PowerBI TMDL (Tabular Model Definition Language) lines
+function tokenizeTmdl(text: string): Token[] {
+  const tokens: Token[] = [];
+  const regex = /(?:\/\/|#).*|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b|\b(?:table|column|measure|relationship|partition|model|database|role|expression|annotation|refresh|hierarchy|level)\b|\b(?:dataType|lineageTag|summarizeBy|source|expression|formatString|displayFolder|changedProperty|sortByColumn|dataCategory)\b|\b(?:int64|string|double|dateTime|boolean|decimal|none|sum|count|average|min|max|true|false)\b|\b(?:CALCULATE|SUM|AVERAGE|COUNT|CALCULATETABLE|FILTER|VALUES|ALL|MIN|MAX|AND|OR|NOT|IF|SWITCH|RELATED|RELATEDTABLE)\b|\b\d+\b/g;
+
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      tokens.push({
+        text: text.substring(lastIndex, match.index),
+        type: 'default'
+      });
+    }
+
+    const matchedText = match[0];
+    if (matchedText.length === 0) {
+      regex.lastIndex++;
+      continue;
+    }
+
+    let type: Token['type'] = 'default';
+
+    if (matchedText.startsWith('//') || matchedText.startsWith('#')) {
+      type = 'comment';
+    } else if (matchedText.startsWith('"') || matchedText.startsWith("'") || matchedText.match(/^[0-9a-fA-F]{8}-/)) {
+      type = 'string';
+    } else if (matchedText.match(/\b(?:table|column|measure|relationship|partition|model|database|role|expression|annotation|refresh|hierarchy|level)\b/)) {
+      type = 'keyword';
+    } else if (matchedText.match(/\b(?:dataType|lineageTag|summarizeBy|source|expression|formatString|displayFolder|changedProperty|sortByColumn|dataCategory)\b/)) {
+      type = 'property';
+    } else if (matchedText.match(/\b(?:int64|string|double|dateTime|boolean|decimal|none|sum|count|average|min|max|true|false)\b/)) {
+      type = 'type';
+    } else if (matchedText.match(/\b(?:CALCULATE|SUM|AVERAGE|COUNT|CALCULATETABLE|FILTER|VALUES|ALL|MIN|MAX|AND|OR|NOT|IF|SWITCH|RELATED|RELATEDTABLE)\b/)) {
+      type = 'dax';
+    } else if (matchedText.match(/^\d+$/)) {
+      type = 'number';
+    }
+
+    tokens.push({ text: matchedText, type });
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    tokens.push({
+      text: text.substring(lastIndex),
+      type: 'default'
+    });
+  }
+
+  return tokens;
+}
+
+// Tokenizes JSON lines (supporting PowerBI dataset metadata model structures)
+function tokenizeJson(text: string): Token[] {
+  const tokens: Token[] = [];
+  const regex = /(?:\/\/|#).*|"(?:\\.|[^"\\])*"\s*:|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\b(?:true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b/g;
+
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      tokens.push({
+        text: text.substring(lastIndex, match.index),
+        type: 'default'
+      });
+    }
+
+    const matchedText = match[0];
+    if (matchedText.length === 0) {
+      regex.lastIndex++;
+      continue;
+    }
+
+    let type: Token['type'] = 'default';
+
+    if (matchedText.startsWith('//') || matchedText.startsWith('#')) {
+      type = 'comment';
+    } else if (matchedText.includes(':')) {
+      type = 'jsonkey';
+    } else if (matchedText.startsWith('"') || matchedText.startsWith("'")) {
+      type = 'string';
+    } else if (matchedText === 'true' || matchedText === 'false' || matchedText === 'null') {
+      type = 'boolean';
+    } else if (matchedText.match(/^-?\d+/)) {
+      type = 'number';
+    }
+
+    tokens.push({ text: matchedText, type });
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    tokens.push({
+      text: text.substring(lastIndex),
+      type: 'default'
+    });
+  }
+
+  return tokens;
+}
+
+// Real-time generator of colored JSX elements for TMDL and JSON
+function renderSyntaxHighlightedText(text: string, isLight: boolean, isTmdl: boolean, isJson: boolean): React.ReactNode {
+  if (!text) return '\u00A0';
+  if (!isTmdl && !isJson) {
+    return text;
+  }
+
+  const tokens = isTmdl ? tokenizeTmdl(text) : tokenizeJson(text);
+
+  return tokens.map((token, index) => {
+    let className = '';
+    if (isLight) {
+      switch (token.type) {
+        case 'comment': className = 'text-slate-400 italic font-mono'; break;
+        case 'string': className = 'text-emerald-700 font-semibold font-mono'; break;
+        case 'keyword': className = 'text-pink-600 font-extrabold font-mono'; break;
+        case 'property': className = 'text-indigo-600 font-bold font-mono'; break;
+        case 'type': className = 'text-amber-600 font-bold font-mono'; break;
+        case 'dax': className = 'text-sky-600 font-extrabold font-mono'; break;
+        case 'jsonkey': className = 'text-blue-700 font-semibold font-mono'; break;
+        case 'number': className = 'text-indigo-600 font-medium font-mono'; break;
+        case 'boolean': className = 'text-amber-650 font-bold font-mono'; break;
+      }
+    } else {
+      switch (token.type) {
+        case 'comment': className = 'text-slate-500 italic font-mono'; break;
+        case 'string': className = 'text-emerald-400 font-semibold font-mono'; break;
+        case 'keyword': className = 'text-pink-400 font-extrabold font-mono'; break;
+        case 'property': className = 'text-indigo-300 font-bold font-mono'; break;
+        case 'type': className = 'text-amber-300 font-bold font-mono'; break;
+        case 'dax': className = 'text-sky-400 font-extrabold font-mono'; break;
+        case 'jsonkey': className = 'text-sky-300 font-semibold font-mono'; break;
+        case 'number': className = 'text-indigo-305 font-medium font-mono'; break;
+        case 'boolean': className = 'text-amber-300 font-bold font-mono'; break;
+      }
+    }
+
+    if (className) {
+      return (
+        <span key={`syntax-${index}`} className={className}>
+          {token.text}
+        </span>
+      );
+    }
+    return token.text;
+  });
+}
 
 interface ConflictSolverProps {
   conflicts: ConflictFile[];
@@ -461,8 +620,8 @@ function SearchInputBar({
       <div className="flex items-center gap-1.5 flex-1 max-w-[85%]">
         <div className={`relative flex items-center rounded-md shadow-inner h-6.5 px-2 w-full max-w-[280px] border ${
           isLight 
-            ? 'bg-white border-slate-200 focus-within:border-violet-500' 
-            : 'bg-[#1c1d24] border-[#2d2f3c] focus-within:border-violet-500'
+            ? 'bg-white border-slate-200 focus-within:border-indigo-500' 
+            : 'bg-[#1c1d24] border-[#2d2f3c] focus-within:border-indigo-500'
         }`}>
           <Search className="w-3.5 h-3.5 text-slate-500 mr-2 shrink-0" />
           <input
@@ -482,7 +641,7 @@ function SearchInputBar({
               onClick={() => onChange({ matchCase: !matchCase, activeIndex: 0 })}
               className={`px-1 py-0.5 text-[8px] font-bold rounded transition-all cursor-pointer border ${
                 matchCase 
-                  ? 'bg-violet-500/20 text-violet-400 border-violet-500/50' 
+                  ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/50' 
                   : isLight 
                     ? 'text-slate-400 hover:text-slate-700 border-transparent bg-transparent'
                     : 'text-slate-500 hover:text-slate-300 border-transparent bg-transparent'
@@ -495,7 +654,7 @@ function SearchInputBar({
               onClick={() => onChange({ wholeWord: !wholeWord, activeIndex: 0 })}
               className={`px-1 py-0.5 text-[8px] font-bold rounded transition-all cursor-pointer border ${
                 wholeWord 
-                  ? 'bg-violet-500/20 text-violet-400 border-violet-500/50' 
+                  ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/50' 
                   : isLight 
                     ? 'text-slate-400 hover:text-slate-700 border-transparent bg-transparent'
                     : 'text-slate-500 hover:text-slate-300 border-transparent bg-transparent'
@@ -508,7 +667,7 @@ function SearchInputBar({
               onClick={() => onChange({ useRegex: !useRegex, activeIndex: 0 })}
               className={`px-1 py-0.5 text-[8px] font-bold rounded transition-all cursor-pointer border ${
                 useRegex 
-                  ? 'bg-violet-500/20 text-violet-400 border-violet-500/50' 
+                  ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/50' 
                   : isLight 
                     ? 'text-slate-400 hover:text-slate-700 border-transparent bg-transparent'
                     : 'text-slate-500 hover:text-slate-300 border-transparent bg-transparent'
@@ -522,7 +681,7 @@ function SearchInputBar({
 
         <span className="text-[10px] text-slate-505 whitespace-nowrap px-1">
           {totalMatches > 0 ? (
-            <span className="text-violet-550 font-extrabold font-mono">
+            <span className="text-indigo-550 font-extrabold font-mono">
               {activeIndex + 1}/{totalMatches} {tone === TranslationTone.ENGLISH ? "results" : "đáp án"}
             </span>
           ) : query ? (
@@ -605,205 +764,83 @@ export default function ConflictSolver({
 }: ConflictSolverProps) {
   const isLight = theme === 'light';
   const [selectedFile, setSelectedFile] = React.useState<ConflictFile | null>(conflicts[0] || null);
-  const [editorText, setEditorText] = React.useState('');
-  const [isMinimized, setIsMinimized] = React.useState(false);
-  const [isFullscreen, setIsFullscreen] = React.useState(false);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
-  const [editMode, setEditMode] = React.useState<'jetbrains' | 'raw'>('jetbrains');
-  const [customBlockTexts, setCustomBlockTexts] = React.useState<Record<number, string>>({});
-  const [acceptOrder, setAcceptOrder] = React.useState<Record<number, 'left' | 'right' | null>>({});
-  const [history, setHistory] = React.useState<Array<{
-    blockChoices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }>;
-    customBlockTexts: Record<number, string>;
-    acceptOrder: Record<number, 'left' | 'right' | null>;
-    editorText: string;
-  }>>([]);
 
-  const pushCurrentToHistory = React.useCallback((
-    choices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }>,
-    customs: Record<number, string>,
-    order: Record<number, 'left' | 'right' | null>,
-    text: string
-  ) => {
-    setHistory(prev => {
-      if (prev.length > 0) {
-        const last = prev[prev.length - 1];
-        const isChoicesEqual = JSON.stringify(last.blockChoices) === JSON.stringify(choices);
-        const isCustomsEqual = JSON.stringify(last.customBlockTexts) === JSON.stringify(customs);
-        const isOrderEqual = JSON.stringify(last.acceptOrder) === JSON.stringify(order);
-        const isTextEqual = last.editorText === text;
-        if (isChoicesEqual && isCustomsEqual && isOrderEqual && isTextEqual) {
-          return prev;
-        }
-      }
-      const nextItem = {
-        blockChoices: JSON.parse(JSON.stringify(choices)),
-        customBlockTexts: { ...customs },
-        acceptOrder: { ...order },
-        editorText: text
-      };
-      const nextHistory = [...prev, nextItem];
-      if (nextHistory.length > 20) {
-        nextHistory.shift();
-      }
-      return nextHistory;
-    });
-  }, []);
+  const {
+    editorText,
+    setEditorText,
+    isMinimized,
+    setIsMinimized,
+    isFullscreen,
+    setIsFullscreen,
+    isSidebarCollapsed,
+    setIsSidebarCollapsed,
+    editMode,
+    setEditMode,
+    customBlockTexts,
+    setCustomBlockTexts,
+    acceptOrder,
+    setAcceptOrder,
+    blockChoices,
+    setBlockChoices,
+    blockAnalyses,
+    setBlockAnalyses,
+    blockAiLoading,
+    blockAiExplanations,
+    blockAiApplied,
+    isAiLoading,
+    aiExplanation,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    setAiExplanation,
+    aiProposedContent,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    setAiProposedContent,
+    aiError,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    setAiError,
+    wasAiApplied,
+    setWasAiApplied,
+    stateLeftSearch,
+    setStateLeftSearch,
+    stateRightSearch,
+    setStateRightSearch,
+    stateResultSearch,
+    setStateResultSearch,
+    activeContent,
+    blocks,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    conflictAnalysis,
+    getMergedContent,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    pushCurrentToHistory,
+    handleUndo,
+    handleResetSingleBlock,
+    handleAiResolve,
+    handleResolveBlockAi,
+    handleResolveSubmit
+  } = useConflictSolver({
+    conflicts,
+    tone,
+    isAiEnabled,
+    onResolveFile,
+    onCompleteRecovery
+  });
 
-  const handleUndo = React.useCallback(() => {
-    setHistory(prev => {
-      if (prev.length === 0) return prev;
-      const lastState = prev[prev.length - 1];
-      
-      setBlockChoices(lastState.blockChoices);
-      setCustomBlockTexts(lastState.customBlockTexts);
-      setAcceptOrder(lastState.acceptOrder);
-      setEditorText(lastState.editorText);
-      
-      return prev.slice(0, -1);
-    });
-  }, []);
-
-  const handleResetSingleBlock = (blockIdx: number) => {
-    pushCurrentToHistory(blockChoices, customBlockTexts, acceptOrder, editorText);
-
-    const nextChoices = { ...blockChoices };
-    nextChoices[blockIdx] = { left: 'pending', right: 'pending' };
-    setBlockChoices(nextChoices);
-
-    const nextCustoms = { ...customBlockTexts };
-    delete nextCustoms[blockIdx];
-    setCustomBlockTexts(nextCustoms);
-
-    const updatedAcceptOrder = { ...acceptOrder };
-    delete updatedAcceptOrder[blockIdx];
-    setAcceptOrder(updatedAcceptOrder);
-
-    setEditorText(getMergedContent(nextChoices, nextCustoms, updatedAcceptOrder));
-  };
-
-  React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
-        const activeTag = document.activeElement?.tagName.toLowerCase();
-        if (activeTag === 'textarea' && document.activeElement?.hasAttribute('rows')) {
-          e.preventDefault();
-          handleUndo();
-        } else if (activeTag !== 'input' && activeTag !== 'textarea') {
-          e.preventDefault();
-          handleUndo();
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [handleUndo]);
-
-  // Block-level AI suggestions states
-  const [blockAiLoading, setBlockAiLoading] = React.useState<Record<number, boolean>>({});
-  const [blockAiExplanations, setBlockAiExplanations] = React.useState<Record<number, string>>({});
-  const [blockAiApplied, setBlockAiApplied] = React.useState<Record<number, boolean>>({});
-
-  // AI Resolution and Explanation states
-  const [isAiLoading, setIsAiLoading] = React.useState(false);
-  const [aiExplanation, setAiExplanation] = React.useState<string | null>(null);
-  const [aiProposedContent, setAiProposedContent] = React.useState<string | null>(null);
-  const [aiError, setAiError] = React.useState<string | null>(null);
-  const [wasAiApplied, setWasAiApplied] = React.useState(false);
-
-  const handleAiResolve = async () => {
-    if (!selectedFile) return;
-    setIsAiLoading(true);
-    setAiError(null);
-    setAiExplanation(null);
-    setAiProposedContent(null);
-    setWasAiApplied(false);
-
-    const cacheKey = `${selectedFile.filepath}_${tone}`;
-    let cachedData: any = null;
-    try {
-      const cachedString = localStorage.getItem('rebase_overlord_conflict_cache');
-      if (cachedString) {
-        const cacheStore = JSON.parse(cachedString);
-        if (cacheStore[cacheKey]) {
-          cachedData = cacheStore[cacheKey];
-        }
-      }
-    } catch (e) {
-      console.warn("Failed to read conflict resolve cache", e);
-    }
-
-    if (cachedData) {
-      setTimeout(() => {
-        setAiExplanation(cachedData.explanation + (isAiEnabled ? " (⚡ Cached)" : " (⚡ Offline Cache)"));
-        setAiProposedContent(cachedData.resolvedContent);
-        setIsAiLoading(false);
-      }, 200);
-      return;
-    }
-
-    if (!isAiEnabled) {
-      setTimeout(() => {
-        let msg = '';
-        if (tone === TranslationTone.ENGLISH) {
-          msg = 'AI Assistant is currently turned off to save cost. Please toggle it back on in the top header menu to use AI-Powered conflict resolving!';
-        } else if (tone === TranslationTone.TOXIC) {
-          msg = '🔥 Tiết kiệm từng xu lẻ mà đòi sờ vào AI á? Lên cái header bật nút lên đi rồi hãy gõ nhé, nín hộ cái!';
-        } else if (tone === TranslationTone.JOKE) {
-          msg = '⚠️ Cửa tiệm AI đã dán biển: "HẾT TIỀN - TẠM NGHỈ BÁN"! Hãy lượn lên Header búng nhẹ công tắc để cứu rỗi nhân phẩm nhé!';
-        } else {
-          msg = 'Tính năng Trợ lý AI đang tạm tắt để tiết kiệm chi phí. Bạn có thể bật lại trong phần Thiết lập (Header trên cùng) bất cứ lúc nào.';
-        }
-        setAiError(msg);
-        setIsAiLoading(false);
-      }, 300);
-      return;
-    }
-
-    try {
-      const response = await fetch('/api/resolve-conflict-ai', {
-        method: 'POST',
-        headers: getApiHeaders(),
-        body: JSON.stringify({
-          filepath: selectedFile.filepath,
-          content: activeContent, // Pass original raw content with conflict markers intact
-          tone: tone
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(tone === TranslationTone.ENGLISH ? 'Failed to connect to the server.' : 'Không thể kết nối đến máy chủ.');
-      }
-
-      const result = await response.json();
-      if (result.error) {
-        throw new Error(result.error);
-      }
-
-      setAiExplanation(result.explanation);
-      setAiProposedContent(result.resolvedContent);
-
-      // Save to cache
-      try {
-        const cachedString = localStorage.getItem('rebase_overlord_conflict_cache');
-        const cacheStore = cachedString ? JSON.parse(cachedString) : {};
-        cacheStore[cacheKey] = {
-          explanation: result.explanation,
-          resolvedContent: result.resolvedContent
-        };
-        localStorage.setItem('rebase_overlord_conflict_cache', JSON.stringify(cacheStore));
-      } catch (e) {
-        console.warn("Failed to write conflict resolve cache", e);
-      }
-    } catch (err: any) {
-      console.error(err);
-      setAiError(err.message || (tone === TranslationTone.ENGLISH ? 'An error occurred during AI processing.' : 'Đã có lỗi xảy ra trong quá trình xử lý AI.'));
-    } finally {
-      setIsAiLoading(false);
+  const handleApplyAiProposedContent = () => {
+    if (aiProposedContent) {
+      setEditorText(aiProposedContent);
+      setEditMode('raw');
+      setWasAiApplied(true);
     }
   };
+
+  // Reference hooks
+  const leftPaneContainerRef = React.useRef<HTMLDivElement>(null);
+  const rightPaneContainerRef = React.useRef<HTMLDivElement>(null);
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const middleLineNumbersRef = React.useRef<HTMLDivElement>(null);
+  const middlePaneContainerRef = React.useRef<HTMLDivElement>(null);
+
+
 
   const renderSyntaxHighlightedPreviewLine = (line: string) => {
     if (!line) return <span>{'\u00A0'}</span>;
@@ -846,13 +883,7 @@ export default function ConflictSolver({
     return <>{parts}</>;
   };
 
-  const handleApplyAiProposedContent = () => {
-    if (aiProposedContent) {
-      setEditorText(aiProposedContent);
-      setEditMode('raw'); // Switch to raw mode so the changes are visible in the central textarea editor
-      setWasAiApplied(true);
-    }
-  };
+
 
   const getLaneHeadingA = () => {
     const branchSuffix = baseBranch ? `: ${baseBranch}` : '';
@@ -898,9 +929,6 @@ export default function ConflictSolver({
     }
   };
   
-  // Track resolved status per block index with independent left and right options for JetBrains style
-  const [blockChoices, setBlockChoices] = React.useState<Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }>>({});
-  const [blockAnalyses, setBlockAnalyses] = React.useState<Record<number, ConflictBlockAnalysis>>({});
   const activeScrollSourceRef = React.useRef<HTMLElement | null>(null);
 
   const mapScrollBetweenPanes = (
@@ -998,91 +1026,7 @@ export default function ConflictSolver({
     });
   };
 
-  // 3-way Search states
-  const [stateLeftSearch, setStateLeftSearch] = React.useState({
-    isOpen: false,
-    query: '',
-    matchCase: false,
-    wholeWord: false,
-    useRegex: false,
-    activeIndex: 0
-  });
 
-  const [stateRightSearch, setStateRightSearch] = React.useState({
-    isOpen: false,
-    query: '',
-    matchCase: false,
-    wholeWord: false,
-    useRegex: false,
-    activeIndex: 0
-  });
-
-  const [stateResultSearch, setStateResultSearch] = React.useState({
-    isOpen: false,
-    query: '',
-    matchCase: false,
-    wholeWord: false,
-    useRegex: false,
-    activeIndex: 0
-  });
-
-  // Reference hooks
-  const leftPaneContainerRef = React.useRef<HTMLDivElement>(null);
-  const rightPaneContainerRef = React.useRef<HTMLDivElement>(null);
-  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
-  const middleLineNumbersRef = React.useRef<HTMLDivElement>(null);
-  const middlePaneContainerRef = React.useRef<HTMLDivElement>(null);
-
-  React.useEffect(() => {
-    if (conflicts.length > 0 && (!selectedFile || !conflicts.some(c => c.filepath === selectedFile.filepath))) {
-      setSelectedFile(conflicts[0]);
-    }
-  }, [conflicts, selectedFile]);
-
-  // Read current active file content and initialize UI
-  const activeContent = React.useMemo(() => {
-    if (!selectedFile) return '';
-    return getContentWithConflictMarkers(selectedFile);
-  }, [selectedFile]);
-
-  const blocks = React.useMemo(() => {
-    return parseConflictFile(activeContent);
-  }, [activeContent]);
-
-  // Analyze activeContent structure once to distinguish line origins in preview
-  const conflictAnalysis = React.useMemo(() => {
-    const ours = new Set<string>();
-    const theirs = new Set<string>();
-    const common = new Set<string>();
-
-    if (!activeContent) return { ours, theirs, common };
-
-    const lines = activeContent.split('\n');
-    let state: 'common' | 'ours' | 'theirs' = 'common';
-
-    for (const rawLine of lines) {
-      const line = rawLine.trim();
-      if (rawLine.startsWith('<<<<<<<')) {
-        state = 'ours';
-      } else if (rawLine.startsWith('=======')) {
-        state = 'theirs';
-      } else if (rawLine.startsWith('>>>>>>>')) {
-        state = 'common';
-      } else {
-        if (line) {
-          if (state === 'common') {
-            common.add(line);
-          } else if (state === 'ours') {
-            ours.add(line);
-          } else if (state === 'theirs') {
-            theirs.add(line);
-          }
-        }
-      }
-    }
-
-    return { ours, theirs, common };
-  }, [activeContent]);
 
   // Power BI Diagnostics Analyzer
   const isPowerBIFile = React.useMemo(() => {
@@ -1094,6 +1038,18 @@ export default function ConflictSolver({
       editorText.includes('lineageTag') ||
       editorText.includes('relationship')
     );
+  }, [selectedFile, editorText]);
+
+  const isTmdl = React.useMemo(() => {
+    if (!selectedFile) return false;
+    const path = selectedFile.filepath.toLowerCase();
+    return path.endsWith('.tmdl');
+  }, [selectedFile]);
+
+  const isJson = React.useMemo(() => {
+    if (!selectedFile) return false;
+    const path = selectedFile.filepath.toLowerCase();
+    return path.endsWith('.json') || (path.endsWith('.tmdl') === false && editorText.trim().startsWith('{'));
   }, [selectedFile, editorText]);
 
   const pbiDiagnostics = React.useMemo(() => {
@@ -1695,7 +1651,7 @@ export default function ConflictSolver({
     paneActiveIdx: number
   ) => {
     if (!paneMatchesOrLineMatches || paneMatchesOrLineMatches.length === 0) {
-      return <span>{lineText || '\u00A0'}</span>;
+      return <span>{renderSyntaxHighlightedText(lineText || '\u00A0', isLight, isTmdl, isJson)}</span>;
     }
 
     // Determine if we need to filter (backward compatibility fallback)
@@ -1706,7 +1662,7 @@ export default function ConflictSolver({
     }
 
     if (lineMatches.length === 0) {
-      return <span>{lineText || '\u00A0'}</span>;
+      return <span>{renderSyntaxHighlightedText(lineText || '\u00A0', isLight, isTmdl, isJson)}</span>;
     }
 
     const sortedMatches = [...lineMatches].sort((a, b) => a.start - b.start);
@@ -1721,7 +1677,7 @@ export default function ConflictSolver({
       if (m.start > lastIndex) {
         elements.push(
           <span key={`text-${lastIndex}`}>
-            {lineText.substring(lastIndex, m.start)}
+            {renderSyntaxHighlightedText(lineText.substring(lastIndex, m.start), isLight, isTmdl, isJson)}
           </span>
         );
       }
@@ -1747,7 +1703,7 @@ export default function ConflictSolver({
     if (lastIndex < lineText.length) {
       elements.push(
         <span key={`text-end`}>
-          {lineText.substring(lastIndex)}
+          {renderSyntaxHighlightedText(lineText.substring(lastIndex), isLight, isTmdl, isJson)}
         </span>
       );
     }
@@ -1755,188 +1711,7 @@ export default function ConflictSolver({
     return <>{elements}</>;
   };
 
-  const getMergedContent = React.useCallback((
-    choices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }>,
-    customTexts: Record<number, string> = {},
-    orderRecord: Record<number, 'left' | 'right' | null> = acceptOrder
-  ) => {
-    return blocks.map((block, idx) => {
-      if (block.type === 'normal') {
-        return block.commonText;
-      } else {
-        const choice = choices[idx] || { left: 'pending', right: 'pending' };
-        
-        // If there's custom text entered for this block
-        if (customTexts[idx] !== undefined && customTexts[idx] !== '') {
-          return customTexts[idx];
-        }
 
-        // If both accepted
-        if (choice.left === 'accepted' && choice.right === 'accepted') {
-          const order = orderRecord[idx];
-          if (order === 'right') {
-            // Right was accepted first, so Left goes under Right
-            return `${block.theirsText}\n${block.oursText}`;
-          }
-          // Default or Left was accepted first, so Right goes under Left
-          return `${block.oursText}\n${block.theirsText}`;
-        }
-        // If left accepted
-        if (choice.left === 'accepted') {
-          return block.oursText;
-        }
-        // If right accepted
-        if (choice.right === 'accepted') {
-          return block.theirsText;
-        }
-        // If both ignored
-        if (choice.left === 'ignored' && choice.right === 'ignored') {
-          return '';
-        }
-        // If left ignored, right pending
-        if (choice.left === 'ignored' && choice.right === 'pending') {
-          return block.theirsText;
-        }
-        // If right ignored, left pending
-        if (choice.right === 'ignored' && choice.left === 'pending') {
-          return block.oursText;
-        }
-        // Both pending -> blank/empty like in JetBrains!
-        return '';
-      }
-    }).join('\n');
-  }, [blocks, acceptOrder]);
-
-  const handleResolveBlockAi = async (bIdx: number) => {
-    const block = blocks[bIdx];
-    if (!block || block.type !== 'conflict') return;
-
-    setBlockAiLoading(prev => ({ ...prev, [bIdx]: true }));
-    try {
-      const response = await fetch('/api/resolve-block-ai', {
-        method: 'POST',
-        headers: getApiHeaders(),
-        body: JSON.stringify({
-          filepath: selectedFile?.filepath || 'source_code',
-          oursText: block.oursText || '',
-          theirsText: block.theirsText || '',
-          tone: tone
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to resolve block conflict');
-      }
-
-      const data = await response.json();
-      
-      pushCurrentToHistory(blockChoices, customBlockTexts, acceptOrder, editorText);
-      
-      // Update block choice to accepted/accepted
-      const updatedChoices = { ...blockChoices };
-      updatedChoices[bIdx] = { left: 'accepted', right: 'accepted' };
-      setBlockChoices(updatedChoices);
-
-      // Update block's custom text with the AI resolved content
-      const updatedCustoms = { ...customBlockTexts };
-      updatedCustoms[bIdx] = data.resolvedContent;
-      setCustomBlockTexts(updatedCustoms);
-
-      // Update explanation if any
-      setBlockAiExplanations(prev => ({ ...prev, [bIdx]: data.explanation }));
-      setBlockAiApplied(prev => ({ ...prev, [bIdx]: true }));
-
-      // Sync master editorText
-      setEditorText(getMergedContent(updatedChoices, updatedCustoms));
-    } catch (err) {
-      console.error("Failed to AI resolve block:", err);
-    } finally {
-      setBlockAiLoading(prev => ({ ...prev, [bIdx]: false }));
-    }
-  };
-
-  React.useEffect(() => {
-    // Reset our search fields on file selection transition
-    setStateLeftSearch(prev => ({ ...prev, isOpen: false, query: '', activeIndex: 0 }));
-    setStateRightSearch(prev => ({ ...prev, isOpen: false, query: '', activeIndex: 0 }));
-    setStateResultSearch(prev => ({ ...prev, isOpen: false, query: '', activeIndex: 0 }));
-
-    // Reset AI states
-    setAiExplanation(null);
-    setAiProposedContent(null);
-    setAiError(null);
-    setIsAiLoading(false);
-    setWasAiApplied(false);
-
-    setBlockAiLoading({});
-    setBlockAiExplanations({});
-    setBlockAiApplied({});
-    setAcceptOrder({});
-    setHistory([]);
-
-    if (selectedFile) {
-      const initialChoices: Record<number, { left: 'pending' | 'accepted' | 'ignored'; right: 'pending' | 'accepted' | 'ignored' }> = {};
-      const initialCustoms: Record<number, string> = {};
-      const initialAnalyses: Record<number, ConflictBlockAnalysis> = {};
-
-      if (selectedFile.isResolved && selectedFile.resolvedContent) {
-        setEditorText(selectedFile.resolvedContent);
-        blocks.forEach((b, i) => {
-          if (b.type === 'conflict') {
-            initialChoices[i] = { left: 'accepted', right: 'ignored' };
-            initialCustoms[i] = b.oursText || '';
-            initialAnalyses[i] = analyzeAndMergeConflictBlock(b);
-          }
-        });
-        setBlockAnalyses(initialAnalyses);
-      } else {
-        blocks.forEach((b, i) => {
-          if (b.type === 'conflict') {
-            const analysis = analyzeAndMergeConflictBlock(b);
-            initialAnalyses[i] = analysis;
-
-            if (analysis.isNonConflicting || analysis.isSimpleConflict) {
-              // Automatically resolve and fill the merge results
-              if (b.oursText !== '' && b.theirsText === '') {
-                initialChoices[i] = { left: 'accepted', right: 'ignored' };
-              } else if (b.theirsText !== '' && b.oursText === '') {
-                initialChoices[i] = { left: 'ignored', right: 'accepted' };
-              } else {
-                initialChoices[i] = { left: 'accepted', right: 'accepted' };
-              }
-              initialCustoms[i] = analysis.mergedProposal;
-            } else {
-              initialChoices[i] = { left: 'pending', right: 'pending' };
-              initialCustoms[i] = '';
-            }
-          }
-        });
-        
-        setBlockAnalyses(initialAnalyses);
-
-        const initialMerged = blocks.map((b, i) => {
-          if (b.type === 'normal') {
-            return b.commonText;
-          } else {
-            const analysis = initialAnalyses[i];
-            if (analysis && (analysis.isNonConflicting || analysis.isSimpleConflict)) {
-              return analysis.mergedProposal;
-            }
-            return ''; // Leave empty for complex conflicts just like JetBrains IDE
-          }
-        }).join('\n');
-
-        setEditorText(initialMerged);
-      }
-      setBlockChoices(initialChoices);
-      setCustomBlockTexts(initialCustoms);
-    } else {
-      setEditorText('');
-      setBlockChoices({});
-      setCustomBlockTexts({});
-      setBlockAnalyses({});
-    }
-  }, [selectedFile?.filepath, blocks]);
 
   const handleResolveSide = (blockIdx: number, side: 'left' | 'right', action: 'accept' | 'ignore') => {
     pushCurrentToHistory(blockChoices, customBlockTexts, acceptOrder, editorText);
@@ -2076,21 +1851,7 @@ export default function ConflictSolver({
     setEditorText(initialMerged);
   };
 
-  const handleResolveSubmit = () => {
-    if (!selectedFile) return;
-    onResolveFile(selectedFile.filepath, editorText);
 
-    // Auto select next unresolved file
-    const remainingUnresolved = conflicts.filter(
-      c => c.filepath !== selectedFile.filepath && !c.isResolved
-    );
-
-    if (remainingUnresolved.length > 0) {
-      setSelectedFile(remainingUnresolved[0]);
-    } else {
-      onCompleteRecovery();
-    }
-  };
 
   const allResolved = conflicts.length > 0 && conflicts.every(c => c.isResolved);
   const loc = localization[tone] || localization[TranslationTone.PROFESSIONAL];
@@ -2259,10 +2020,10 @@ export default function ConflictSolver({
                         disabled={blockAiLoading[bIdx]}
                         className={`px-1.5 py-0.5 rounded text-xs font-black shadow cursor-pointer transition-all flex items-center justify-center border hover:scale-105 active:scale-95 ${
                           blockAiLoading[bIdx]
-                            ? 'bg-violet-950/20 text-violet-400 border-violet-500/20 animate-pulse'
+                            ? 'bg-indigo-950/20 text-indigo-400 border-indigo-500/20 animate-pulse'
                             : isLight
-                              ? 'bg-violet-50 hover:bg-violet-100 text-violet-600 border-violet-200'
-                              : 'bg-violet-900/30 hover:bg-violet-900/50 text-violet-300 border-violet-500/30'
+                              ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border-indigo-200'
+                              : 'bg-indigo-900/30 hover:bg-indigo-900/50 text-indigo-300 border-indigo-500/30'
                         }`}
                         title={
                           tone === TranslationTone.ENGLISH
@@ -2275,9 +2036,9 @@ export default function ConflictSolver({
                         }
                       >
                         {blockAiLoading[bIdx] ? (
-                          <RefreshCw className="w-3 h-3 animate-spin text-violet-400" />
+                          <RefreshCw className="w-3 h-3 animate-spin text-indigo-400" />
                         ) : (
-                          <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                          <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
                         )}
                       </button>
                       <button
@@ -2426,10 +2187,10 @@ export default function ConflictSolver({
                         disabled={blockAiLoading[bIdx]}
                         className={`px-1.5 py-0.5 rounded text-xs font-black shadow cursor-pointer transition-all flex items-center justify-center border hover:scale-105 active:scale-95 ${
                           blockAiLoading[bIdx]
-                            ? 'bg-violet-950/20 text-violet-400 border-violet-500/20 animate-pulse'
+                            ? 'bg-indigo-950/20 text-indigo-400 border-indigo-500/20 animate-pulse'
                             : isLight
-                              ? 'bg-violet-50 hover:bg-violet-100 text-violet-600 border-violet-200'
-                              : 'bg-violet-900/30 hover:bg-violet-900/50 text-violet-300 border-violet-500/30'
+                              ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border-indigo-200'
+                              : 'bg-indigo-900/30 hover:bg-indigo-900/50 text-indigo-300 border-indigo-500/30'
                         }`}
                         title={
                           tone === TranslationTone.ENGLISH
@@ -2442,9 +2203,9 @@ export default function ConflictSolver({
                         }
                       >
                         {blockAiLoading[bIdx] ? (
-                          <RefreshCw className="w-3 h-3 animate-spin text-violet-400" />
+                          <RefreshCw className="w-3 h-3 animate-spin text-indigo-400" />
                         ) : (
-                          <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+                          <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
                         )}
                       </button>
                       <button
@@ -2643,10 +2404,10 @@ export default function ConflictSolver({
                       )}
                       {blockAiApplied[bIdx] && (
                         <span 
-                          className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-violet-500/20 border border-violet-500/35 text-violet-400 uppercase tracking-widest flex items-center gap-1 cursor-help pointer-events-auto"
+                          className="text-[8px] font-extrabold px-1.5 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/35 text-indigo-400 uppercase tracking-widest flex items-center gap-1 cursor-help pointer-events-auto"
                           title={blockAiExplanations[bIdx]}
                         >
-                          <Sparkles className="w-2.5 h-2.5 text-violet-400 animate-pulse" />
+                          <Sparkles className="w-2.5 h-2.5 text-indigo-400 animate-pulse" />
                           <span>AI Option</span>
                         </span>
                       )}
@@ -2785,20 +2546,20 @@ export default function ConflictSolver({
               : 'border border-[#2d2f3c]/90 rounded-2xl p-6 shadow-2xl w-full max-w-7xl max-h-[92vh] animate-scale-up'
         }`}
       >
-        <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-indigo-500 via-violet-600 to-amber-500"></div>
+        <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-indigo-500 via-indigo-600 to-amber-500"></div>
 
         <div className={`flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 pb-4 shrink-0 border-b ${
           isLight ? 'border-slate-205' : 'border-b border-[#2d2f3c]/60'
         }`}>
           <div>
             <div className="flex items-center gap-2">
-              <span className={`px-2 py-0.5 rounded font-mono text-[10px] font-bold tracking-wider uppercase border border-violet-500/20 ${
-                isLight ? 'bg-violet-50 text-violet-600' : 'bg-[#2d2f3c] text-violet-400'
+              <span className={`px-2 py-0.5 rounded font-mono text-[10px] font-bold tracking-wider uppercase border border-indigo-500/20 ${
+                isLight ? 'bg-indigo-50 text-indigo-600' : 'bg-[#2d2f3c] text-indigo-400'
               }`}>
                 {isFullscreen ? "JETBRAINS 3-WAY MERGE (FULL SCREEN)" : "JETBRAINS 3-WAY MERGE"}
               </span>
               <h2 className={`text-base font-black font-mono flex items-center gap-1.5 ${isLight ? 'text-slate-900' : 'text-[#e8eef5]'}`}>
-                <Code2 className="w-5 h-5 text-violet-400 rotate-12" />
+                <Code2 className="w-5 h-5 text-indigo-400 rotate-12" />
                 {loc.title}
               </h2>
             </div>
@@ -2812,8 +2573,8 @@ export default function ConflictSolver({
               onClick={() => setIsFullscreen(!isFullscreen)}
               className={`px-4 py-2 text-xs rounded-lg border transition-all duration-150 cursor-pointer flex items-center gap-1.5 whitespace-nowrap active:scale-95 ${
                 isLight 
-                  ? 'bg-violet-50 hover:bg-violet-100 border-violet-200 text-violet-600 hover:border-violet-300' 
-                  : 'bg-[#242632] hover:bg-[#2d3042] text-violet-400 border border-violet-500/20 hover:border-violet-500/45'
+                  ? 'bg-indigo-50 hover:bg-indigo-100 border-indigo-200 text-indigo-600 hover:border-indigo-300' 
+                  : 'bg-[#242632] hover:bg-[#2d3042] text-indigo-400 border border-indigo-500/20 hover:border-indigo-500/45'
               }`}
               title={isFullscreen ? "Restore standard size" : "Expand to full screen"}
             >
@@ -2863,7 +2624,7 @@ export default function ConflictSolver({
                 }`}
                 title="Collapse sidebar to maximize code space"
               >
-                <ChevronLeft className="w-4 h-4 text-violet-450" />
+                <ChevronLeft className="w-4 h-4 text-indigo-450" />
               </button>
             </div>
             
@@ -2877,8 +2638,8 @@ export default function ConflictSolver({
                     className={`p-3 rounded-lg border text-left font-mono text-xs transition-all flex justify-between items-center cursor-pointer ${
                       isSelected
                         ? isLight
-                          ? 'bg-violet-50 border-violet-300 text-violet-750 shadow-sm'
-                          : 'bg-[#2b2d38] border-violet-500/50 text-[#e8eef5] shadow'
+                          ? 'bg-indigo-50 border-indigo-300 text-indigo-750 shadow-sm'
+                          : 'bg-[#2b2d38] border-indigo-500/50 text-[#e8eef5] shadow'
                         : file.isResolved
                           ? isLight
                             ? 'bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100'
@@ -2917,7 +2678,7 @@ export default function ConflictSolver({
               <span className={`font-bold flex items-center gap-1 font-mono text-[10px] mb-1.5 ${
                 isLight ? 'text-slate-800' : 'text-slate-350'
               }`}>
-                <HelpCircle className="w-3.5 h-3.5 text-violet-400" /> {loc.guideTitle}
+                <HelpCircle className="w-3.5 h-3.5 text-indigo-400" /> {loc.guideTitle}
               </span>
               {loc.guideText}
             </div>
@@ -2937,19 +2698,19 @@ export default function ConflictSolver({
                         onClick={() => setIsSidebarCollapsed(false)}
                         className={`mr-2 flex items-center gap-1.5 px-2.5 py-1 text-[11px] border rounded transition-all font-mono cursor-pointer active:scale-95 ${
                           isLight 
-                            ? 'bg-violet-50 hover:bg-violet-100 border-violet-200 text-violet-600 font-bold'
-                            : 'bg-[#242632] hover:bg-[#2d3042] border-violet-500/30 text-violet-400'
+                            ? 'bg-indigo-50 hover:bg-indigo-100 border-indigo-200 text-indigo-600 font-bold'
+                            : 'bg-[#242632] hover:bg-[#2d3042] border-indigo-500/30 text-indigo-400'
                         }`}
                       >
-                        <Files className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+                        <Files className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                         <span>{tone === TranslationTone.ENGLISH ? "Files Tree" : "Hiện danh sách"} ({conflicts.filter(c => c.isResolved).length}/{conflicts.length})</span>
                       </button>
                     )}
                     <span className={isLight ? 'text-slate-500' : 'text-slate-405'}>File: </span>
                     <strong className={`px-1.5 py-0.5 rounded-md border ${
                       isLight 
-                        ? 'text-violet-700 bg-violet-50 border-violet-200' 
-                        : 'text-violet-400 bg-[#25262e] border-[#2d2f3c]/60'
+                        ? 'text-indigo-700 bg-indigo-50 border-indigo-200' 
+                        : 'text-indigo-400 bg-[#25262e] border-[#2d2f3c]/60'
                     }`}>{selectedFile.filepath}</strong>
                   </div>
                   <div className={`flex items-center gap-2 text-[10px] uppercase font-bold ${isLight ? 'text-slate-600' : 'text-slate-450'}`}>
@@ -2966,7 +2727,7 @@ export default function ConflictSolver({
                 }`}>
                   <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div className="flex items-center gap-2">
-                      <Shuffle className="w-4 h-4 text-violet-400" />
+                      <Shuffle className="w-4 h-4 text-indigo-400" />
                       <span className={`text-xs font-mono font-bold uppercase tracking-wide ${
                         isLight ? 'text-slate-800' : 'text-slate-205'
                       }`}>
@@ -2999,8 +2760,8 @@ export default function ConflictSolver({
                         onClick={handleApplyBoth}
                         className={`px-3 py-1.5 text-xs font-mono rounded cursor-pointer transition-all active:scale-95 flex items-center gap-1 ${
                           isLight 
-                            ? 'bg-violet-50 hover:bg-violet-100 border border-violet-250 text-violet-750 shadow-sm' 
-                            : 'bg-violet-950/40 hover:bg-violet-950/70 border border-violet-500/20 hover:border-violet-500 text-violet-300'
+                            ? 'bg-indigo-50 hover:bg-indigo-100 border border-indigo-250 text-indigo-750 shadow-sm' 
+                            : 'bg-indigo-950/40 hover:bg-indigo-950/70 border border-indigo-500/20 hover:border-indigo-500 text-indigo-300'
                         }`}
                       >
                         <span>Merge Both Chunks</span>
@@ -3043,7 +2804,7 @@ export default function ConflictSolver({
                     <div className="flex items-center gap-1.5 font-mono">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping shrink-0" />
                       <span>
-                        <strong>3-Way Engine:</strong> BASE revision được định vị tự động qua <code className="px-1 py-0.5 rounded bg-violet-500/10 text-violet-400 font-mono text-[10px]">git merge-base</code>.
+                        <strong>3-Way Engine:</strong> BASE revision được định vị tự động qua <code className="px-1 py-0.5 rounded bg-indigo-500/10 text-indigo-400 font-mono text-[10px]">git merge-base</code>.
                       </span>
                     </div>
                     <div className="flex items-center gap-4 font-mono">
@@ -3077,7 +2838,7 @@ export default function ConflictSolver({
                         onClick={() => setStateLeftSearch(prev => ({ ...prev, isOpen: !prev.isOpen }))}
                         className={`p-1 rounded transition-colors ${
                           stateLeftSearch.isOpen 
-                            ? 'bg-violet-600 text-white animate-pulse' 
+                            ? 'bg-indigo-600 text-white animate-pulse' 
                             : isLight 
                               ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-100' 
                               : 'text-slate-400 hover:text-slate-200 hover:bg-[#252632]'
@@ -3117,15 +2878,15 @@ export default function ConflictSolver({
 
                   {/* MIDDLE PANE - Merged result (Editable result) */}
                   <div className={`flex flex-col rounded-lg overflow-hidden border-2 ${
-                    isLight ? 'bg-[#fafafa] border-violet-400 shadow shadow-violet-200/50' : 'bg-[#16171d] border-violet-500/50 shadow-inner'
+                    isLight ? 'bg-[#fafafa] border-indigo-400 shadow shadow-indigo-200/50' : 'bg-[#16171d] border-indigo-500/50 shadow-inner'
                   }`}>
                     <div className={`px-3 py-1.5 border-b flex justify-between items-center select-none ${
                         isLight ? 'bg-slate-100/85 border-slate-205' : 'bg-[#0f1013] border-[#2d2f3c]/70'
                     }`}>
                       <span className={`text-[10px] font-mono font-extrabold uppercase tracking-widest flex items-center gap-1 ${
-                        isLight ? 'text-violet-600' : 'text-violet-400'
+                        isLight ? 'text-indigo-600' : 'text-indigo-400'
                       }`}>
-                        <Settings2 className={`w-3.5 h-3.5 ${isLight ? 'text-violet-600' : 'text-violet-400'}`} />
+                        <Settings2 className={`w-3.5 h-3.5 ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`} />
                         {loc.resultPane}
                       </span>
 
@@ -3135,7 +2896,7 @@ export default function ConflictSolver({
                           onClick={() => setEditMode('jetbrains')}
                           className={`px-2 py-0.5 rounded text-[8.5px] font-bold font-mono transition-all cursor-pointer ${
                             editMode === 'jetbrains'
-                              ? 'bg-violet-600 text-white shadow-sm'
+                              ? 'bg-indigo-600 text-white shadow-sm'
                               : isLight ? 'text-slate-600 hover:text-slate-800' : 'text-slate-400 hover:text-slate-200'
                           }`}
                           title="JetBrains interactive block mode (Clean empty states, no raw markers)"
@@ -3146,7 +2907,7 @@ export default function ConflictSolver({
                           onClick={() => setEditMode('raw')}
                           className={`px-2 py-0.5 rounded text-[8.5px] font-bold font-mono transition-all cursor-pointer ${
                             editMode === 'raw'
-                              ? 'bg-violet-600 text-white shadow-sm'
+                              ? 'bg-indigo-600 text-white shadow-sm'
                               : isLight ? 'text-slate-600 hover:text-slate-800' : 'text-slate-400 hover:text-slate-200'
                           }`}
                           title="Classic full-text file editor (Shows raw Git conflict markers)"
@@ -3171,7 +2932,7 @@ export default function ConflictSolver({
                           onClick={() => setStateResultSearch(prev => ({ ...prev, isOpen: !prev.isOpen }))}
                           className={`p-1 rounded transition-colors ${
                             stateResultSearch.isOpen 
-                              ? 'bg-violet-600 text-white animate-pulse' 
+                              ? 'bg-indigo-600 text-white animate-pulse' 
                               : isLight 
                                 ? 'text-slate-500 hover:text-slate-800 hover:bg-slate-200' 
                                 : 'text-slate-400 hover:text-slate-200 hover:bg-[#252632]'
@@ -3257,7 +3018,7 @@ export default function ConflictSolver({
                         onClick={() => setStateRightSearch(prev => ({ ...prev, isOpen: !prev.isOpen }))}
                         className={`p-1 rounded transition-colors ${
                           stateRightSearch.isOpen 
-                            ? 'bg-violet-600 text-white animate-pulse' 
+                            ? 'bg-indigo-600 text-white animate-pulse' 
                             : isLight 
                               ? 'text-slate-505 hover:bg-slate-100 hover:text-slate-805' 
                               : 'text-slate-400 hover:text-slate-200 hover:bg-[#252632]'
@@ -3395,8 +3156,8 @@ export default function ConflictSolver({
                                       onClick={() => jumpToLine(err.lineNum)}
                                       className={`text-[8.5px] font-mono font-extrabold px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
                                         isLight 
-                                          ? 'bg-slate-200 text-slate-800 hover:bg-violet-100 hover:text-violet-750' 
-                                          : 'bg-[#252834] text-slate-350 hover:bg-violet-950/60 hover:text-violet-400'
+                                          ? 'bg-slate-200 text-slate-800 hover:bg-indigo-100 hover:text-indigo-750' 
+                                          : 'bg-[#252834] text-slate-350 hover:bg-indigo-950/60 hover:text-indigo-400'
                                       }`}
                                     >
                                       Line {err.lineNum} ➔
@@ -3409,7 +3170,7 @@ export default function ConflictSolver({
                                 </p>
                                 {err.fixAction && (
                                   <div className="mt-1.5 pt-1 border-t border-slate-500/15 flex items-start gap-1 text-[10px] opacity-80">
-                                    <span className="font-mono font-bold text-violet-400">💡 {(pbiLocalization[tone] || pbiLocalization[TranslationTone.ENGLISH]).fixSuggest}</span>
+                                    <span className="font-mono font-bold text-indigo-400">💡 {(pbiLocalization[tone] || pbiLocalization[TranslationTone.ENGLISH]).fixSuggest}</span>
                                     <span className="italic">{err.fixAction}</span>
                                   </div>
                                 )}
@@ -3442,7 +3203,7 @@ export default function ConflictSolver({
                     : 'bg-[#16171d]/60 border-[#2d2f3c]/20 text-slate-300'
                 }`}>
                   <div className="flex items-center gap-1.5">
-                    <span className="font-extrabold text-violet-500 shrink-0 font-mono">💡 Tip:</span> 
+                    <span className="font-extrabold text-indigo-500 shrink-0 font-mono">💡 Tip:</span> 
                     <span>{loc.toolHelp}</span>
                   </div>
                   <div className={`border-t pt-1.5 text-[9.5px] leading-relaxed flex items-start gap-1.5 ${
@@ -3511,31 +3272,31 @@ export default function ConflictSolver({
                   return (
                     <div className={`p-4 rounded-xl flex flex-col gap-3.5 shrink-0 shadow-sm relative overflow-hidden border ${
                       isLight 
-                        ? 'bg-violet-50/40 border-violet-200/50 text-slate-700 shadow-violet-100/20' 
-                        : 'bg-[#1b1c25] border-violet-500/30 text-slate-350 shadow-lg'
+                        ? 'bg-indigo-50/40 border-indigo-200/50 text-slate-700 shadow-indigo-100/20' 
+                        : 'bg-[#1b1c25] border-indigo-500/30 text-slate-350 shadow-lg'
                     }`}>
                       <div className="absolute top-0 right-0 p-1 opacity-10">
-                        <Bot className="w-24 h-24 text-violet-400 rotate-12 -mr-6 -mt-6" />
+                        <Bot className="w-24 h-24 text-indigo-400 rotate-12 -mr-6 -mt-6" />
                       </div>
                       
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
                           <div className={`p-1 px-1.5 rounded-lg border ${
                             isLight
-                              ? 'bg-violet-100/60 border-violet-200 text-violet-600'
-                              : 'bg-violet-500/20 text-violet-400 border-violet-500/30'
+                              ? 'bg-indigo-100/60 border-indigo-200 text-indigo-600'
+                              : 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30'
                           }`}>
-                            <Bot className={`w-4 h-4 animate-pulse ${isLight ? 'text-violet-600' : 'text-violet-400'}`} />
+                            <Bot className={`w-4 h-4 animate-pulse ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`} />
                           </div>
                           <div>
                             <span className={`text-xs font-mono font-black tracking-wide flex items-center gap-1 ${
                               isLight ? 'text-slate-900' : 'text-[#e8eef5]'
                             }`}>
                               {aiLabels.title}
-                              <span className="h-1.5 w-1.5 bg-violet-400 rounded-full inline-block animate-ping"></span>
+                              <span className="h-1.5 w-1.5 bg-indigo-400 rounded-full inline-block animate-ping"></span>
                             </span>
                             <span className={`text-[10px] font-mono block sm:inline ${
-                              isLight ? 'text-violet-700/85' : 'text-purple-400/70'
+                              isLight ? 'text-indigo-700/85' : 'text-purple-400/70'
                             }`}>Powered by Advanced AI</span>
                           </div>
                         </div>
@@ -3546,7 +3307,7 @@ export default function ConflictSolver({
                           className={`px-3.5 py-1.5 text-xs font-mono font-bold rounded-lg cursor-pointer transition-all active:scale-95 duration-100 flex items-center justify-center gap-1.5 shadow ${
                             isAiLoading
                               ? 'bg-[#252632] text-slate-400 border border-[#2d2f3c] cursor-not-allowed'
-                              : 'bg-violet-600 hover:bg-violet-500 hover:shadow-violet-600/20 text-white border border-violet-500/40'
+                              : 'bg-indigo-600 hover:bg-indigo-500 hover:shadow-indigo-600/20 text-white border border-indigo-500/40'
                           }`}
                         >
                           {isAiLoading ? (
@@ -3581,11 +3342,11 @@ export default function ConflictSolver({
                             ? 'bg-white border-slate-200 text-slate-800' 
                             : 'bg-[#111217] border-[#2d2f3c] text-slate-300'
                         }`}>
-                          <span className="text-[10px] font-mono font-black text-violet-400 uppercase tracking-widest flex items-center gap-1">
-                            <Bot className="w-3.5 h-3.5 text-violet-400" />
+                          <span className="text-[10px] font-mono font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1">
+                            <Bot className="w-3.5 h-3.5 text-indigo-400" />
                             {aiLabels.explanationLabel}
                           </span>
-                          <div className={`text-xs font-sans leading-relaxed whitespace-pre-line border-l-2 border-violet-500/40 pl-3 ${
+                          <div className={`text-xs font-sans leading-relaxed whitespace-pre-line border-l-2 border-indigo-500/40 pl-3 ${
                             isLight ? 'text-slate-700' : 'text-slate-300'
                           }`}>
                             {aiExplanation}
@@ -3593,8 +3354,8 @@ export default function ConflictSolver({
 
                           {aiProposedContent && (
                             <div className="flex flex-col gap-1.5 mt-3 select-none">
-                              <span className="text-[10px] font-mono font-black text-violet-400 uppercase tracking-widest flex items-center gap-1">
-                                <Code2 className="w-3.5 h-3.5 text-violet-400 animate-pulse" />
+                              <span className="text-[10px] font-mono font-black text-indigo-400 uppercase tracking-widest flex items-center gap-1">
+                                <Code2 className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
                                 {aiLabels.previewLabel}
                               </span>
 
@@ -3718,7 +3479,7 @@ export default function ConflictSolver({
                             <div className="mt-2 text-right">
                               <button
                                 onClick={handleApplyAiProposedContent}
-                                className="px-4 py-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 hover:shadow-lg hover:shadow-indigo-500/10 text-white font-mono text-xs font-extrabold rounded-lg cursor-pointer transition-all active:scale-95 duration-100 flex items-center gap-1.5 ml-auto"
+                                className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-indigo-600 hover:from-indigo-500 hover:to-indigo-500 hover:shadow-lg hover:shadow-indigo-500/10 text-white font-mono text-xs font-extrabold rounded-lg cursor-pointer transition-all active:scale-95 duration-100 flex items-center gap-1.5 ml-auto"
                               >
                                 <Sparkles className="w-4 h-4 text-amber-300" />
                                 <span>{aiLabels.btnApply}</span>

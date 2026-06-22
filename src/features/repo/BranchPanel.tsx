@@ -21,8 +21,8 @@ import {
   ArrowDown,
   ArrowUp
 } from 'lucide-react';
-import { GitBranch as GitBranchType, TranslationTone } from '../types';
-import { translate } from '../i18n';
+import { GitBranch as GitBranchType, TranslationTone } from '../../types';
+import { translate } from '../../i18n';
 
 const branchLoc = {
   [TranslationTone.PROFESSIONAL]: {
@@ -300,9 +300,9 @@ export default function BranchPanel({
 
   if (isCollapsed) {
     return (
-      <div id="branch-panel-collapsed" className={`border rounded-xl p-3 flex justify-between items-center transition-all duration-200 ${isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0f172a] border-slate-900 text-slate-305'}`}>
+      <div id="branch-panel-collapsed" className={`rounded-xl p-3.5 flex justify-between items-center transition-all duration-200 ${isLight ? 'bg-white text-slate-800' : 'bg-[#0f172a] text-slate-300'}`}>
         <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
-          <GitBranch className="w-4 h-4 text-sky-400" />
+          <GitBranch className="w-4 h-4 text-indigo-400" />
           <span className="font-bold uppercase tracking-wider">{translate('m_checkout', tone, undefined, useEmoji)}</span>
           <span className="text-[10px] text-slate-500 opacity-60">
             ({tone === TranslationTone.ENGLISH ? 'Hidden' : 'Đang ẩn'})
@@ -312,8 +312,8 @@ export default function BranchPanel({
           onClick={toggleCollapse}
           className={`p-1.5 rounded cursor-pointer border shrink-0 flex items-center justify-center transition-all ${
             isLight
-              ? 'bg-sky-50 border-sky-200 text-sky-700 hover:bg-sky-100'
-              : 'bg-[#1e293b] border-slate-755 text-sky-400 hover:text-sky-303'
+              ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+              : 'bg-[#1e293b] border-slate-755 text-indigo-400 hover:text-indigo-303'
           }`}
           title={tone === TranslationTone.ENGLISH ? 'Show' : 'Hiển thị'}
         >
@@ -324,10 +324,10 @@ export default function BranchPanel({
   }
 
   return (
-    <div id="branch-panel" className={`border rounded-xl p-5 shadow-xl transition-all duration-200 ${isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-[#0f172a] border-slate-800 text-slate-100'}`}>
+    <div id="branch-panel" className={`rounded-xl p-6 transition-all duration-200 ${isLight ? 'bg-white text-slate-900 shadow-sm' : 'bg-[#0f172a] text-slate-100'}`}>
       <div className={`flex justify-between items-center mb-4 pb-3 border-b ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
         <h2 className="text-sm font-bold uppercase font-mono tracking-wider flex items-center gap-1.5">
-          <GitBranch className="w-4 h-4 text-sky-400" />
+          <GitBranch className="w-4 h-4 text-indigo-400" />
           <span className={isLight ? 'text-slate-900' : 'text-white'}>{translate('m_checkout', tone, undefined, useEmoji)}</span>
         </h2>
         
@@ -357,8 +357,8 @@ export default function BranchPanel({
             title={loc.newBranch}
             className={`p-1.5 rounded border transition-all text-xs flex items-center justify-center shrink-0 cursor-pointer active:scale-95 ${
               isLight 
-                ? 'bg-sky-50 text-sky-600 border-sky-250 hover:bg-sky-100' 
-                : 'bg-sky-500/10 text-sky-450 border-sky-500/20 hover:text-sky-300'
+                ? 'bg-indigo-50 text-indigo-600 border-indigo-250 hover:bg-indigo-100' 
+                : 'bg-indigo-500/10 text-indigo-450 border-indigo-500/20 hover:text-indigo-300'
             }`}
           >
             <PlusCircle className="w-4 h-4" />
@@ -381,7 +381,7 @@ export default function BranchPanel({
 
       {/* Hint and Information */}
       <div className="text-[10px] text-slate-500 mb-2.5 font-mono flex items-center gap-1 select-none">
-        <span className="text-sky-500">💡</span>
+        <span className="text-indigo-500">💡</span>
         <span>
           {tone === TranslationTone.ENGLISH && 'Tip: Double-click any row to checkout instantly!'}
           {tone === TranslationTone.PROFESSIONAL && 'Mẹo: Nhấp đúp chuột vào bất kỳ nhánh nào để chuyển đổi nhanh.'}
@@ -435,7 +435,7 @@ export default function BranchPanel({
                 title={isCheckingOutThis ? loc.checkingOut : tooltipText}
                 className={`p-2.5 rounded-lg border transition-all flex items-center justify-between text-xs font-mono select-none ${
                   isCurrent
-                    ? 'bg-sky-500/10 border-sky-400/30 text-sky-500 font-bold shadow-md'
+                    ? 'bg-indigo-500/10 border-indigo-400/30 text-indigo-500 font-bold shadow-md'
                     : isCheckingOutThis
                       ? 'bg-indigo-500/15 border-indigo-400/50 text-indigo-400 animate-pulse'
                       : isLight
@@ -448,14 +448,14 @@ export default function BranchPanel({
                   {isCheckingOutThis ? (
                     <RefreshCw className="w-4 h-4 text-indigo-400 animate-spin shrink-0" />
                   ) : isCurrent ? (
-                    <CheckCircle2 className="w-4 h-4 text-sky-500 shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-indigo-500 shrink-0" />
                   ) : (
                     <GitBranch className={`w-4 h-4 shrink-0 ${isLight ? 'text-slate-400' : 'text-slate-600'}`} />
                   )}
                   
                   <div className="flex-grow flex flex-col min-w-0">
                     <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                      <span className={`font-semibold truncate ${isCurrent ? 'text-sky-600' : isCheckingOutThis ? 'text-indigo-400 font-bold' : isLight ? 'text-slate-800' : 'text-slate-300'}`} title={branch.name}>
+                      <span className={`font-semibold truncate ${isCurrent ? 'text-indigo-650 dark:text-indigo-400' : isCheckingOutThis ? 'text-indigo-400 font-bold' : isLight ? 'text-slate-800' : 'text-slate-300'}`} title={branch.name}>
                         {branch.name}
                       </span>
                       {isCheckingOutThis && (
@@ -472,12 +472,12 @@ export default function BranchPanel({
                           </span>
                         )}
                         {branch.isLocal && !branch.isRemote && (
-                          <span className="text-[8px] leading-none bg-sky-500/10 text-sky-600 border border-sky-500/20 px-1 py-0.5 rounded uppercase" title="Local only branch">
+                          <span className="text-[8px] leading-none bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 px-1 py-0.5 rounded uppercase" title="Local only branch">
                             <Laptop className="w-2.5 h-2.5 inline mr-0.5" />Local
                           </span>
                         )}
                         {branch.isRemote && !branch.isLocal && (
-                          <span className="text-[8px] leading-none bg-purple-500/10 text-purple-600 border border-purple-500/20 px-1 py-0.5 rounded uppercase" title="Remote only branch">
+                          <span className="text-[8px] leading-none bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 px-1 py-0.5 rounded uppercase" title="Remote only branch">
                             <Globe className="w-2.5 h-2.5 inline mr-0.5" />Remote
                           </span>
                         )}
@@ -545,13 +545,13 @@ export default function BranchPanel({
                       disabled={activePullBranches[branch.name] || activePushBranches[branch.name]}
                       className={`p-1.5 rounded border border-transparent transition-all active:scale-90 flex items-center gap-1 font-mono text-[10px] ${
                         activePushBranches[branch.name]
-                          ? (isLight ? 'bg-sky-100 border-sky-300 text-sky-700 animate-pulse cursor-not-allowed' : 'bg-sky-500/20 border-sky-500/40 text-sky-300 animate-pulse cursor-not-allowed')
-                          : (isLight ? 'hover:bg-sky-50 hover:border-sky-200 text-sky-600 cursor-pointer' : 'hover:bg-sky-500/10 hover:border-sky-500/20 text-sky-500 cursor-pointer')
+                          ? (isLight ? 'bg-indigo-100 border-indigo-300 text-indigo-700 animate-pulse cursor-not-allowed' : 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300 animate-pulse cursor-not-allowed')
+                          : (isLight ? 'hover:bg-indigo-50 hover:border-indigo-200 text-indigo-600 cursor-pointer' : 'hover:bg-indigo-500/10 hover:border-indigo-500/20 text-indigo-500 cursor-pointer')
                       }`}
                       title={activePushBranches[branch.name] ? loc.pushing : loc.pushTooltip(branch.aheadCount)}
                     >
                       {activePushBranches[branch.name] ? (
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin text-sky-450" />
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-400" />
                       ) : (
                         <ArrowUp className="w-3.5 h-3.5" />
                       )}
@@ -666,7 +666,7 @@ export default function BranchPanel({
           >
             {/* Title with icon */}
             <div className="flex items-start gap-3 mb-5 font-sans">
-              <div className="p-2 rounded-lg bg-sky-500/10 text-sky-400 shrink-0">
+              <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 shrink-0">
                 <GitBranch className="w-5 h-5 animate-pulse" />
               </div>
               <div>
@@ -697,10 +697,10 @@ export default function BranchPanel({
                         setBaseBranch(e.target.value);
                         setModalError(null);
                       }}
-                      className={`w-full px-3 py-2 pr-8 text-xs font-mono rounded border outline-none cursor-pointer appearance-none focus:border-sky-500 transition-colors ${
+                      className={`w-full px-3 py-2 pr-8 text-xs font-mono rounded border outline-none cursor-pointer appearance-none focus:border-indigo-500 transition-colors ${
                         isLight 
-                          ? 'bg-white border-slate-250 text-slate-800 focus:ring-1 focus:ring-sky-200' 
-                          : 'bg-slate-900 border-slate-800 text-slate-200 focus:ring-1 focus:ring-sky-950'
+                          ? 'bg-white border-slate-250 text-slate-800 focus:ring-1 focus:ring-indigo-200' 
+                          : 'bg-slate-900 border-slate-800 text-slate-200 focus:ring-1 focus:ring-indigo-950'
                       }`}
                     >
                       {Array.from(new Set(branches.map(b => b.name)))
@@ -729,10 +729,10 @@ export default function BranchPanel({
                         setSelectedPrefix(e.target.value);
                         setModalError(null);
                       }}
-                      className={`w-full px-2.5 py-2 pr-8 text-xs font-mono rounded border outline-none cursor-pointer appearance-none focus:border-sky-500 transition-colors ${
+                      className={`w-full px-2.5 py-2 pr-8 text-xs font-mono rounded border outline-none cursor-pointer appearance-none focus:border-indigo-500 transition-colors ${
                         isLight 
-                          ? 'bg-white border-slate-250 text-slate-800 focus:ring-1 focus:ring-sky-200' 
-                          : 'bg-slate-900 border-slate-800 text-slate-200 focus:ring-1 focus:ring-sky-950'
+                          ? 'bg-white border-slate-250 text-slate-800 focus:ring-1 focus:ring-indigo-200' 
+                          : 'bg-slate-900 border-slate-800 text-slate-200 focus:ring-1 focus:ring-indigo-950'
                       }`}
                     >
                       {STANDARD_PREFIXES.map(p => (
@@ -765,10 +765,10 @@ export default function BranchPanel({
                       setModalError(null);
                     }}
                     placeholder="e.g. login-page-fix"
-                    className={`w-full px-3 py-2 text-xs font-mono rounded border outline-none focus:border-sky-500 transition-colors ${
+                    className={`w-full px-3 py-2 text-xs font-mono rounded border outline-none focus:border-indigo-500 transition-colors ${
                       isLight 
-                        ? 'bg-white border-slate-250 text-slate-800 focus:ring-1 focus:ring-sky-200' 
-                        : 'bg-slate-900 border-slate-800 text-slate-200 focus:ring-1 focus:ring-sky-950'
+                        ? 'bg-white border-slate-250 text-slate-800 focus:ring-1 focus:ring-indigo-200' 
+                        : 'bg-slate-900 border-slate-800 text-slate-200 focus:ring-1 focus:ring-indigo-950'
                     }`}
                     autoFocus
                   />
@@ -786,7 +786,7 @@ export default function BranchPanel({
                   <div className="flex items-center gap-2 flex-wrap text-xs font-bold font-mono">
                     <span className="text-emerald-500 shrink-0">{baseBranch || '...'}</span>
                     <ArrowRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                    <span className="text-sky-500 bg-sky-500/10 border border-sky-500/20 px-1.5 py-0.5 rounded truncate max-w-[200px]" title={`${selectedPrefix}${customSuffix}`}>
+                    <span className="text-indigo-500 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded truncate max-w-[200px]" title={`${selectedPrefix}${customSuffix}`}>
                       {selectedPrefix}{customSuffix || '...'}
                     </span>
                   </div>
@@ -815,7 +815,7 @@ export default function BranchPanel({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded font-bold text-white bg-sky-600 hover:bg-sky-500 border border-sky-500/20 shadow-md cursor-pointer select-none transition-all active:scale-[0.98]"
+                  className="px-4 py-1.5 rounded font-bold text-white bg-indigo-600 hover:bg-indigo-500 border border-indigo-500/20 shadow-md cursor-pointer select-none transition-all active:scale-[0.98]"
                 >
                   {loc.createBtn}
                 </button>

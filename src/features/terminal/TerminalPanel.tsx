@@ -8,8 +8,8 @@ import {
   Terminal, Trash2, Copy, Check, EyeOff, Eye, 
   Sparkles, Brain, AlertTriangle, Play, X, Info 
 } from 'lucide-react';
-import { TranslationTone } from '../types';
-import { getApiHeaders } from '../utils/apiKeyHelper';
+import { TranslationTone } from '../../types';
+import { getApiHeaders } from '../../utils/apiKeyHelper';
 
 const termLoc: Record<string, Record<string, string>> = {
   [TranslationTone.PROFESSIONAL]: {
@@ -1189,8 +1189,8 @@ export default function TerminalPanel({
 
   if (!showLogPanel) {
     return (
-      <div id="terminal-collapsed-panel" className={`border rounded-xl p-3 flex justify-between items-center ${
-        isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#020617] border-slate-900 text-slate-300'
+      <div id="terminal-collapsed-panel" className={`rounded-xl p-3.5 flex justify-between items-center ${
+        isLight ? 'bg-white text-slate-800 shadow-sm' : 'bg-[#020617] text-slate-300'
       }`}>
         <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
           <Terminal className="w-4 h-4 text-slate-500" />
@@ -1201,7 +1201,7 @@ export default function TerminalPanel({
           className={`p-1.5 rounded cursor-pointer border shrink-0 flex items-center justify-center transition-all ${
             isLight
               ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
-              : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400 hover:text-indigo-300'
+              : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400 hover:text-indigo-303'
           }`}
           title={loc.showLogs}
         >
@@ -1212,24 +1212,24 @@ export default function TerminalPanel({
   }
 
   return (
-    <div id="terminal-panel-container" className={`border rounded-xl overflow-hidden shadow-xl flex flex-col ${
-      isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#020617] border-slate-900 text-slate-305'
+    <div id="terminal-panel-container" className={`overflow-hidden flex flex-col rounded-xl border-none shadow-none ${
+      isLight ? 'bg-slate-50/70 text-slate-700 shadow-none' : 'bg-[#0b0c10]/35 text-slate-400'
     }`}>
       {/* Header */}
-      <div className={`border-b px-2.5 py-1.5 sm:px-4 sm:py-2.5 flex justify-between items-center shrink-0 min-w-0 gap-2 ${
-        isLight ? 'bg-slate-50 border-slate-200 text-slate-850 font-bold' : 'bg-[#0b0f19] border-b border-slate-900 text-slate-400'
+      <div className={`px-2.5 py-1.5 sm:px-4 sm:py-2.5 flex justify-between items-center shrink-0 min-w-0 gap-2 ${
+        isLight ? 'bg-slate-100/50 border-b border-slate-200/40 text-slate-600' : 'bg-[#0b0c10]/20 border-b border-slate-900/45 text-slate-500'
       }`}>
         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
-          <div className="flex gap-1 sm:gap-1.5 shrink-0">
-            <span className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-rose-500/80 animate-pulse"></span>
-            <span className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-amber-500/80"></span>
-            <span className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-emerald-500/80"></span>
+          <div className="flex gap-1 sm:gap-1.5 shrink-0 opacity-60">
+            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-slate-400"></span>
+            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-slate-400"></span>
+            <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-slate-400"></span>
           </div>
-          <span className={`text-[11px] sm:text-xs font-bold font-mono tracking-wide ml-1 sm:ml-2 flex items-center gap-1 sm:gap-1.5 min-w-0 ${
-            isLight ? 'text-slate-800' : 'text-slate-200'
+          <span className={`text-[10px] sm:text-[11px] font-bold font-mono tracking-wider ml-1 sm:ml-2 flex items-center gap-1 sm:gap-1.5 min-w-0 ${
+            isLight ? 'text-slate-500' : 'text-slate-500'
           }`}>
-            <Terminal className="w-3.5 h-3.5 text-indigo-500 animate-pulse shrink-0" />
-            <span className="whitespace-normal sm:whitespace-nowrap leading-tight" title={loc.consoleTitle}>{loc.consoleTitle}</span>
+            <Terminal className="w-3 h-3 text-slate-400 shrink-0" />
+            <span className="whitespace-normal sm:whitespace-nowrap uppercase tracking-wider leading-none" title={loc.consoleTitle}>{loc.consoleTitle}</span>
           </span>
         </div>
 
@@ -1289,7 +1289,7 @@ export default function TerminalPanel({
             
             let colorClass = isLight ? 'text-slate-700' : 'text-slate-300';
             if (isCommand) {
-              colorClass = isLight ? 'text-sky-700 font-bold' : 'text-sky-400 font-semibold';
+              colorClass = isLight ? 'text-indigo-700 font-bold' : 'text-indigo-400 font-semibold';
             } else if (isError) {
               colorClass = isLight ? 'text-rose-700 font-medium bg-rose-50/50 px-1 rounded border border-rose-200' : 'text-rose-400 font-medium bg-rose-500/5 px-1 rounded border border-rose-500/10';
             } else if (isSuccess) {
@@ -1304,7 +1304,7 @@ export default function TerminalPanel({
                 className={`py-0.5 border-l-2 pl-2 transition-all shrink-0 ${
                   isLight ? 'hover:bg-slate-100' : 'hover:bg-slate-950'
                 } ${colorClass} ${
-                  isCommand ? 'border-sky-500/50' : isError ? 'border-rose-500/50' : isSuccess ? 'border-emerald-500/50' : 'border-transparent'
+                  isCommand ? 'border-indigo-500/50' : isError ? 'border-rose-500/50' : isSuccess ? 'border-emerald-500/50' : 'border-transparent'
                 }`}
               >
                 {log}
@@ -1336,8 +1336,8 @@ export default function TerminalPanel({
           <span className="text-[10px] text-slate-500 font-mono self-center mr-1 select-none flex items-center gap-1">
             {chipsSource === 'ai' ? (
               <>
-                <Sparkles className="w-3 h-3 text-pink-500 animate-pulse animate-bounce" />
-                <span className="text-pink-500 font-bold">{loc.suggestionHeader}</span>
+                <Sparkles className="w-3 h-3 text-indigo-500 animate-pulse animate-bounce" />
+                <span className="text-indigo-500 font-bold">{loc.suggestionHeader}</span>
               </>
             ) : (
               <span>{loc.quickSugHeader}</span>
@@ -1359,8 +1359,8 @@ export default function TerminalPanel({
               className={`text-[10px] font-mono px-2 py-0.5 rounded transition-all cursor-pointer border ${
                 chipsSource === 'ai'
                   ? isLight
-                    ? 'bg-pink-100 text-pink-700 border-pink-200 hover:bg-pink-200 hover:scale-105'
-                    : 'bg-pink-950/20 text-pink-300 border-pink-700/40 hover:bg-pink-900/40 hover:text-white hover:scale-105'
+                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100 hover:scale-105'
+                    : 'bg-indigo-950/30 text-indigo-300 border-indigo-500/20 hover:bg-indigo-900/40 hover:text-white hover:scale-105'
                   : isLight
                     ? 'bg-white border-slate-200 text-slate-650 hover:bg-slate-100 hover:text-indigo-650'
                     : 'bg-slate-900 border-slate-800/80 text-slate-400 hover:bg-indigo-950/40 hover:text-indigo-300'
@@ -1385,7 +1385,7 @@ export default function TerminalPanel({
 
         <form onSubmit={handleAnalyzeCommand} className="flex gap-2">
           <div className="relative flex-1">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sky-500 font-mono text-sm pointer-events-none select-none">$</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-500 font-mono text-sm pointer-events-none select-none">$</span>
             <input
               type="text"
               value={commandInput}
@@ -1396,8 +1396,8 @@ export default function TerminalPanel({
               placeholder={loc.placeholder}
               className={`w-full font-mono py-2 pl-7 pr-3 text-xs outline-none rounded-lg transition-all border ${
                 isLight
-                  ? 'bg-white text-sky-700 placeholder-slate-400 border-slate-200 focus:border-indigo-505 focus:ring-2 focus:ring-indigo-505/10'
-                  : 'bg-[#02050c] text-sky-400 placeholder-slate-650 border-slate-800 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20'
+                  ? 'bg-white text-indigo-700 placeholder-slate-400 border-slate-200 focus:border-indigo-505 focus:ring-2 focus:ring-indigo-505/10'
+                  : 'bg-[#02050c] text-indigo-400 placeholder-slate-650 border-slate-800 focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20'
               }`}
             />
           </div>
@@ -1422,7 +1422,7 @@ export default function TerminalPanel({
               <h4 className={`text-xs font-bold flex items-center gap-1.5 font-sans tracking-wide ${
                 isLight ? 'text-indigo-950' : 'text-slate-200'
               }`}>
-                <Brain className="w-4 h-4 text-pink-400 animate-pulse" />
+                <Brain className="w-4 h-4 text-indigo-400 animate-pulse" />
                 <span>{isAiEnabled ? loc.aiTitle : loc.offlineTitle}</span>
               </h4>
               <button

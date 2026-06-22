@@ -31,8 +31,8 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
-import { Commit, WizardState, TranslationTone, GitRepoState } from '../types';
-import { translate } from '../i18n';
+import { Commit, WizardState, TranslationTone, GitRepoState } from '../../types';
+import { translate } from '../../i18n';
 
 const wizardLoc: Record<TranslationTone, any> = {
   [TranslationTone.PROFESSIONAL]: {
@@ -886,7 +886,7 @@ export default function WizardPanel({
 
   if (isCollapsed) {
     return (
-      <div id="wizard-panel-collapsed" className={`border rounded-xl p-3 flex justify-between items-center transition-all duration-200 ${isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-[#0f172a] border-slate-900 text-slate-305'}`}>
+      <div id="wizard-panel-collapsed" className={`rounded-xl p-3.5 flex justify-between items-center transition-all duration-200 ${isLight ? 'bg-white text-slate-800 shadow-sm' : 'bg-[#0f172a] text-slate-300'}`}>
         <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
           <Cpu className="w-4 h-4 text-indigo-400" />
           <span className="font-bold uppercase tracking-wider">{translate('dash_title', tone, undefined, useEmoji)} STATE MACHINE WIZARD</span>
@@ -910,7 +910,7 @@ export default function WizardPanel({
   }
 
   return (
-    <div id="rebase-wizard-card" className={`border rounded-xl p-6 shadow-2xl transition-all duration-200 ${isLight ? 'bg-white border-slate-200 text-slate-900 shadow-xl' : 'bg-[#0f172a] border-slate-800 text-slate-100 shadow-2xl'}`}>
+    <div id="rebase-wizard-card" className={`rounded-xl p-6 transition-all duration-200 ${isLight ? 'bg-white text-slate-900 shadow-sm' : 'bg-[#0f172a] text-slate-100'}`}>
       {/* Header Wizard Info */}
       <div className={`flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b pb-4 mb-5 ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
         <div className="flex items-center gap-2">
@@ -922,7 +922,13 @@ export default function WizardPanel({
               <span>{translate('dash_title', tone, undefined, useEmoji)}</span>
               <span>STATE MACHINE WIZARD</span>
             </h2>
-            <p className={`text-xs font-sans mt-0.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+            <p className={`text-[10px] font-mono mt-0.5 leading-relaxed ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+              {tone === 'vn_pro' && '🗺️ Bản đồ 7 bước lập kế hoạch & kiểm soát tiến trình Rebase an toàn'}
+              {tone === 'vn_joke' && '🔮 Phù thủy chỉ đường dẫn dắt, bảo hiểm toàn vẹn cho cuộc Rebase'}
+              {tone === 'vn_toxic' && '🛠️ Quy trình dập Rebase từng bước một cho đỡ phá hoại repo'}
+              {tone === 'en_pro' && '🗺️ Guided 7-step interactive rebase planner and safe executor'}
+            </p>
+            <p className={`text-xs font-sans mt-1 flex items-center flex-wrap gap-1 ${isLight ? 'text-slate-600' : 'text-slate-350'}`}>
               {loc.step} {wizard.step + 1}/7: <span className="text-indigo-600 font-mono font-bold">{activeHeader?.label}</span> — {activeHeader?.desc}
             </p>
           </div>
@@ -1096,7 +1102,7 @@ export default function WizardPanel({
                 : 'bg-slate-950 border border-slate-900 text-slate-400'
             }`}>
               <span className={`font-mono block font-bold mb-1.5 uppercase text-[11px] flex items-center gap-1 ${isLight ? 'text-slate-805' : 'text-slate-200'}`}>
-                <GitBranch className="w-4 h-4 text-sky-500" /> {loc.step0.title}
+                <GitBranch className="w-4 h-4 text-indigo-500" /> {loc.step0.title}
               </span>
               <p className="mb-2">{loc.step0.desc}</p>
               
@@ -1753,7 +1759,7 @@ export default function WizardPanel({
                 : 'bg-slate-955 border border-slate-900 text-slate-400'
             }`}>
               <span className={`font-mono block font-bold mb-1 uppercase text-[11px] flex items-center gap-1 ${isLight ? 'text-slate-800' : 'text-slate-205'}`}>
-                <Edit3 className="w-4 h-4 text-sky-400" /> {loc.step5.title}
+                <Edit3 className="w-4 h-4 text-indigo-400" /> {loc.step5.title}
               </span>
               {loc.step5.desc}
             </div>
@@ -1920,7 +1926,7 @@ export default function WizardPanel({
           <div className="flex flex-col gap-4 animate-fade-in">
             <div className="bg-slate-950 p-4 rounded-xl border border-slate-900 text-xs text-slate-400 leading-relaxed font-sans">
               <span className="font-mono text-slate-200 block font-bold mb-1 uppercase text-[11px] flex items-center gap-1">
-                <GitPullRequest className="w-4 h-4 text-purple-400 animate-pulse" /> {loc.step7.title}
+                <GitPullRequest className="w-4 h-4 text-indigo-400 animate-pulse" /> {loc.step7.title}
               </span>
               <p className="mb-2">{loc.step7.desc}</p>
               <div className="flex gap-2 flex-wrap mt-2.5 pt-2.5 border-t border-slate-900 text-[10px] text-slate-500 font-mono font-normal">
@@ -1936,8 +1942,8 @@ export default function WizardPanel({
                 onClick={() => onUpdateWizard({ autoPush: true })}
                 className={`flex-grow p-4 rounded-xl border text-left transition-all cursor-pointer ${
                   wizard.autoPush 
-                    ? 'bg-purple-500/10 border-purple-400/50 text-purple-300' 
-                    : 'bg-slate-950 border-slate-900 text-slate-400 hover:border-slate-800'
+                    ? 'bg-indigo-500/10 border-indigo-400/50 text-indigo-300' 
+                    : 'bg-slate-955 border-slate-900 text-slate-400 hover:border-slate-800'
                 }`}
               >
                 <div className="font-bold text-xs font-mono uppercase mb-1">{loc.step7.pushYes}</div>

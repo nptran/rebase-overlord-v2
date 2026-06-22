@@ -48,6 +48,21 @@ export interface ConflictFile {
   isResolved?: boolean;
 }
 
+export interface StashFile {
+  filepath: string;
+  status: string;
+  content?: string;
+}
+
+export interface StashItem {
+  index: number;
+  name: string;
+  message: string;
+  branch: string;
+  date: string;
+  files: StashFile[];
+}
+
 export interface GitRepoState {
   repoPath: string;
   isValid: boolean;
@@ -68,6 +83,7 @@ export interface GitRepoState {
     ahead: number;
     behind: number;
   };
+  stashes?: StashItem[];
 }
 
 export interface WizardState {

@@ -15,6 +15,7 @@ import {
   Volume2
 } from 'lucide-react';
 import { TranslationTone } from '../types';
+import { resolveApiUrl } from '../utils/apiResolver';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -204,8 +205,13 @@ export default function SettingsModal({
 
   // Interactive local states
   const [showKey, setShowKey] = React.useState(false);
-  const [saveStatus, setSaveStatus] = React.useState<'idle' | 'saved'>('idle');
+  const [saveStatus, setSaveStatus] = React.useState<'idle' | 'saved' | 'validating'>('idle');
   const [activeTab, setActiveTab] = React.useState<'ai' | 'git' | 'files'>('ai');
+
+  // Key validation status
+  const [isValidating, setIsValidating] = React.useState(false);
+  const [validationError, setValidationError] = React.useState<string | null>(null);
+  const [validationSuccess, setValidationSuccess] = React.useState(false);
 
   // Load configuration on mount
   React.useEffect(() => {
@@ -227,14 +233,91 @@ export default function SettingsModal({
       setCustomBaseBranches(localStorage.getItem('custom_base_branches_list') || 'develop, main, master, dev, test');
       setDefaultBaseBranch(localStorage.getItem('default_base_branch') || 'develop');
       setSaveStatus('idle');
+      setValidationError(null);
+      setValidationSuccess(false);
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
+  // Single function to verify the specified key
+  const handleVerifyKey = async (customKey?: string): Promise<boolean> => {
+    const keyToTest = (customKey !== undefined ? customKey : apiKey).trim();
+    if (!keyToTest) {
+      setValidationError(
+        tone === TranslationTone.ENGLISH
+          ? 'API Key cannot be empty.'
+          : tone === TranslationTone.JOKE
+            ? 'Mã API Key trống rỗng à ní ơi! Thêm key chuẩn vào đi!'
+            : tone === TranslationTone.TOXIC
+              ? 'Mày đùa tao à? Điền API Key vào rồi mới bắt tao check chứ!'
+              : 'Hãy nhập API Key để bắt đầu xác thực.'
+      );
+      setValidationSuccess(false);
+      return false;
+    }
+
+    setIsValidating(true);
+    setValidationError(null);
+    setValidationSuccess(false);
+
+    try {
+      const response = await fetch(resolveApiUrl('/api/validate-api-key'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ apiKey: keyToTest }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP Error ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (data.valid) {
+        setValidationSuccess(true);
+        setValidationError(null);
+        return true;
+      } else {
+        setValidationError(data.error || 'API Key validation failed.');
+        setValidationSuccess(false);
+        return false;
+      }
+    } catch (err: any) {
+      setValidationError(
+        tone === TranslationTone.ENGLISH
+          ? `Connection error: ${err.message || err}`
+          : tone === TranslationTone.JOKE
+            ? `Ôi thôi mất mạng hay sập server rồi: ${err.message || err}`
+            : tone === TranslationTone.TOXIC
+              ? `Lỗi kết nối rồi cưng à: ${err.message || err}`
+              : `Lỗi kết nối xác thực: ${err.message || err}`
+      );
+      setValidationSuccess(false);
+      return false;
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
   // Save specific parameters safely
-  const handleSaveAll = () => {
-    localStorage.setItem('gemini_api_key', apiKey.trim());
+  const handleSaveAll = async () => {
+    const originalKey = localStorage.getItem('gemini_api_key') || '';
+    const trimmedNewKey = apiKey.trim();
+
+    // If API Key changed and is not empty, validate first
+    if (trimmedNewKey !== originalKey && trimmedNewKey !== '') {
+      setSaveStatus('validating');
+      const isValid = await handleVerifyKey(trimmedNewKey);
+      if (!isValid) {
+        setSaveStatus('idle');
+        return; // Halt and show error to keep existing AI setup offline and safe
+      }
+    }
+
+    // Save configuration settings
+    localStorage.setItem('gemini_api_key', trimmedNewKey);
     localStorage.setItem('gemini_model', model);
     localStorage.setItem('fallback_offline_mode', fallbackMode);
     localStorage.setItem('auto_fetch_enabled', autoFetchEnabled ? 'true' : 'false');
@@ -370,31 +453,82 @@ export default function SettingsModal({
               {/* API Key management */}
               <div className="space-y-1.5 text-left">
                 <label className="text-xs font-semibold flex items-center gap-1.5">
-                  <Key className="w-3.5 h-3.5 text-violet-400" />
+                  <Key className="w-3.5 h-3.5 text-indigo-400" />
                   {loc.apiKeyLabel}
                 </label>
-                <div className="relative">
-                  <input
-                    id="settings-api-key-input"
-                    type={showKey ? 'text' : 'password'}
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder={loc.keyPlaceholder}
-                    className={`w-full px-3 py-2 pr-10 text-xs rounded-lg border font-mono outline-none focus:ring-1 transition-all ${
-                      theme === 'light'
-                        ? 'bg-slate-50 border-slate-250 text-slate-900 focus:ring-indigo-600 focus:border-indigo-600'
-                        : 'bg-slate-900/40 border-slate-800 text-slate-100 focus:ring-indigo-505 focus:border-indigo-505'
-                    }`}
-                  />
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      id="settings-api-key-input"
+                      type={showKey ? 'text' : 'password'}
+                      value={apiKey}
+                      onChange={(e) => {
+                        setApiKey(e.target.value);
+                        setValidationSuccess(false);
+                        setValidationError(null);
+                      }}
+                      placeholder={loc.keyPlaceholder}
+                      className={`w-full px-3 py-2 pr-10 text-xs rounded-lg border font-mono outline-none focus:ring-1 transition-all ${
+                        validationError
+                          ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                          : validationSuccess
+                            ? 'border-emerald-500 focus:ring-emerald-500 focus:border-emerald-500'
+                            : theme === 'light'
+                              ? 'bg-slate-50 border-slate-250 text-slate-900 focus:ring-indigo-600 focus:border-indigo-600'
+                              : 'bg-slate-900/40 border-slate-800 text-slate-100 focus:ring-indigo-505 focus:border-indigo-505'
+                      }`}
+                    />
+                    <button
+                      id="settings-toggle-key-visibility-btn"
+                      type="button"
+                      onClick={() => setShowKey(!showKey)}
+                      className="absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-200 cursor-pointer"
+                    >
+                      {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                   <button
-                    id="settings-toggle-key-visibility-btn"
+                    id="settings-api-key-verify-btn"
                     type="button"
-                    onClick={() => setShowKey(!showKey)}
-                    className="absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-200 cursor-pointer"
+                    onClick={() => handleVerifyKey()}
+                    disabled={isValidating}
+                    className={`px-3 py-2 text-xs font-semibold rounded-lg border cursor-pointer select-none transition-all active:scale-95 flex items-center gap-1.5 shrink-0 ${
+                      isValidating ? 'opacity-50 cursor-not-allowed' : ''
+                    } ${
+                      validationSuccess
+                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20'
+                        : theme === 'light'
+                          ? 'bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100'
+                          : 'bg-[#1e293b] border-slate-800 text-indigo-400 hover:text-indigo-300'
+                    }`}
                   >
-                    {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {isValidating ? (
+                      <span className="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin shrink-0"></span>
+                    ) : validationSuccess ? (
+                      <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    ) : (
+                      <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                    )}
+                    {tone === TranslationTone.ENGLISH ? 'Verify' : 'Xác thực'}
                   </button>
                 </div>
+                {validationError && (
+                  <p id="settings-api-key-error-msg" className="text-[11px] text-red-500 font-medium">
+                    ⚠️ {validationError}
+                  </p>
+                )}
+                {validationSuccess && (
+                  <p id="settings-api-key-success-msg" className="text-[11px] text-emerald-500 font-medium flex items-center gap-1">
+                    <Check className="w-3.5 h-3.5" />
+                    {tone === TranslationTone.ENGLISH 
+                      ? 'Valid API Key! AI features are fully ready.' 
+                      : tone === TranslationTone.JOKE
+                        ? 'API Key quá chuẩn ní ơi! AI hoạt động banh nóc rồi hén!'
+                        : tone === TranslationTone.TOXIC
+                          ? 'Key chuẩn đấy con chiên, AI đã hoạt động rồi, ngon nghẻ!'
+                          : 'API Key hợp lệ! Toàn bộ tính năng AI đã sẵn sàng.'}
+                  </p>
+                )}
                 <p className="text-[10px] text-slate-400 italic">
                   {loc.apiKeyDesc}
                 </p>
@@ -424,7 +558,7 @@ export default function SettingsModal({
                     ? 'bg-indigo-50 bg-opacity-35 border-indigo-100 text-indigo-900' 
                     : 'bg-[#151722] border-indigo-500/10 text-slate-300'
                 }`}>
-                  <Sparkles className="w-3.5 h-3.5 text-violet-400 shrink-0 mt-0.5 animate-pulse" />
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-400 shrink-0 mt-0.5 animate-pulse" />
                   <div>
                     {model === 'gemini-3.5-flash' ? (
                       <div>
@@ -653,14 +787,31 @@ export default function SettingsModal({
                 {loc.savedText}
               </span>
             )}
+            {saveStatus === 'validating' && (
+              <span id="settings-save-validating-indicator" className="text-[11px] font-bold text-indigo-400 flex items-center gap-1.5">
+                <span className="w-3 h-3 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></span>
+                {tone === TranslationTone.ENGLISH 
+                  ? 'Verifying API Key...' 
+                  : tone === TranslationTone.JOKE 
+                    ? 'Đang check thử xem key thật hay giả...' 
+                    : tone === TranslationTone.TOXIC 
+                      ? 'Nín thở đợi tao check xem key chuẩn chưa...' 
+                      : 'Đang xác thực API Key...'}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <button
               id="settings-save-config-btn"
+              disabled={saveStatus === 'validating'}
               onClick={handleSaveAll}
-              className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-xs transition-colors cursor-pointer active:scale-95"
+              className={`px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-xs transition-colors cursor-pointer active:scale-95 ${
+                saveStatus === 'validating' ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
-              {loc.saveBtn}
+              {saveStatus === 'validating' 
+                ? (tone === TranslationTone.ENGLISH ? 'Verifying...' : 'Đang kiểm tra...') 
+                : loc.saveBtn}
             </button>
             <button
               id="settings-close-modal-btn"

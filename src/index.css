@@ -32,63 +32,10 @@
   --color-rose-405: #ef4444;
 }
 
-/* --- RESPONSIVE TYPOGRAPHY SCALING FOR High-Res & 2K/4K DISPLAYS --- */
+/* --- MODERN RESPONSIVE TYPOGRAPHY SCALING USING FLUID CLAMP --- */
 html {
-  font-size: 15px;
-}
-
-@media (min-width: 640px) {
-  html {
-    font-size: 16px;
-  }
-}
-
-/* 2K Screens / High-Density Displays */
-@media (min-width: 1920px) {
-  html {
-    font-size: 18px; /* Gracefully scale all rem-based layout & text sizes */
-  }
-  [class*="text-[9.5px]"] {
-    font-size: 11px !important;
-  }
-  [class*="text-[10px]"] {
-    font-size: 11.5px !important;
-  }
-  [class*="text-[11px]"] {
-    font-size: 12.5px !important;
-  }
-}
-
-/* Ultra-wide / Studio Displays */
-@media (min-width: 2560px) {
-  html {
-    font-size: 20px;
-  }
-  [class*="text-[9.5px]"] {
-    font-size: 12.5px !important;
-  }
-  [class*="text-[10px]"] {
-    font-size: 13px !important;
-  }
-  [class*="text-[11px]"] {
-    font-size: 14px !important;
-  }
-}
-
-/* 4K Screens */
-@media (min-width: 3840px) {
-  html {
-    font-size: 23px;
-  }
-  [class*="text-[9.5px]"] {
-    font-size: 14.5px !important;
-  }
-  [class*="text-[10px]"] {
-    font-size: 15px !important;
-  }
-  [class*="text-[11px]"] {
-    font-size: 16px !important;
-  }
+  /* Dynamically and smoothly scales the browser base sizing from 14px up to 23px for 4K displays */
+  font-size: clamp(14px, 0.8rem + 0.3vw, 23px);
 }
 
 @keyframes spin-reverse {
