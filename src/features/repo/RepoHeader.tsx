@@ -313,7 +313,22 @@ export default function RepoHeader({
           downloadUrl: updateInfo.downloadUrl
         })
       });
-      if (!res.ok) throw new Error('Download request rejected by server.');
+      if (!res.ok) {
+        let errorMsg = 'Download request rejected by server.';
+        try {
+          const contentType = res.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            const errorData = await res.json();
+            if (errorData && errorData.error) {
+              errorMsg = errorData.error;
+            }
+          } else {
+            const txt = await res.text();
+            if (txt) errorMsg = txt;
+          }
+        } catch (_) {}
+        throw new Error(errorMsg);
+      }
 
       let consecutiveFailures = 0;
       const interval = setInterval(async () => {

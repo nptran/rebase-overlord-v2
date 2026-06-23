@@ -13,6 +13,7 @@ dotenv.config();
 import { GoogleGenAI, Type } from '@google/genai';
 import { fileURLToPath } from 'url';
 import https from 'https';
+import http from 'http';
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
@@ -2702,7 +2703,7 @@ let activeDownloadRequest: any = null;
 let activeDownloadInterval: NodeJS.Timeout | null = null;
 let originalVersionBeforeUpdate: string = '1.12.0';
 
-// Download helper supporting up to 5 HTTP redirections (e.g. GitHub to AWS S3) and TLS fallback
+// Download helper supporting up to 5 HTTP/HTTPS redirections (e.g. GitHub to AWS S3) and TLS fallback
 function downloadFileWithRedirects(url: string, destPath: string, onProgress: (downloaded: number, total: number) => void): Promise<string> {
   return new Promise((resolve, reject) => {
     let redirectsCount = 0;
@@ -2714,6 +2715,9 @@ function downloadFileWithRedirects(url: string, destPath: string, onProgress: (d
       
       try {
         const urlObj = new URL(currentUrl);
+        const isHttps = urlObj.protocol === 'https:';
+        const client = isHttps ? https : http;
+
         const options: any = {
           hostname: urlObj.hostname,
           path: urlObj.pathname + urlObj.search,
@@ -2725,7 +2729,7 @@ function downloadFileWithRedirects(url: string, destPath: string, onProgress: (d
           rejectUnauthorized: false // Bypass SSL/TLS intercept constraints on local Windows packages
         };
 
-        const req = https.get(options, (res) => {
+        const req = client.get(options, (res) => {
           const { statusCode } = res;
           
           if (statusCode && statusCode >= 300 && statusCode < 400 && res.headers.location) {
@@ -2786,6 +2790,9 @@ function fetchJson(url: string, headers: Record<string, string> = {}, redirectCo
   return new Promise((resolve, reject) => {
     try {
       const urlObj = new URL(url);
+      const isHttps = urlObj.protocol === 'https:';
+      const client = isHttps ? https : http;
+
       const options: any = {
         hostname: urlObj.hostname,
         path: urlObj.pathname + urlObj.search,
@@ -2800,7 +2807,7 @@ function fetchJson(url: string, headers: Record<string, string> = {}, redirectCo
         rejectUnauthorized: false
       };
 
-      const req = https.get(options, (res) => {
+      const req = client.get(options, (res) => {
         const { statusCode } = res;
 
         // Auto-follow HTTP redirects (301, 302, 303, 307, 308)
@@ -3223,6 +3230,9 @@ app.post('/api/update/download', (req, res) => {
       if (stats.size < 100000) { // Under 100KB, probably an error page or small mock
         console.warn(`[UPDATER] Downloaded file size looks too small: ${stats.size} bytes. High probability of mock/error payload.`);
         (global as any).isRealDownloadedInstaller = false;
+        updateProgress.error = `Không thể nâng cấp: Tệp tin cài đặt tải xuống không hợp lệ (kích thước quá nhỏ: ${stats.size} bytes). Vui lòng thử tải lại hoặc cập nhật thủ công.`;
+        updateProgress.isDownloading = false;
+        return;
       } else {
         // Reads first 2 bytes specifically for Windows PE ('MZ')
         const fd = fs.openSync(downloadedPath, 'r');
@@ -3231,48 +3241,26 @@ app.post('/api/update/download', (req, res) => {
         fs.closeSync(fd);
         const signature = buf.toString();
         if (process.platform === 'win32' && signature !== 'MZ') {
-          console.warn(`[UPDATER] Invalid Windows executable signature downloaded: "${signature}". Falling back to custom simulated update.`);
+          console.warn(`[UPDATER] Invalid Windows executable signature downloaded: "${signature}".`);
           (global as any).isRealDownloadedInstaller = false;
+          updateProgress.error = 'Không thể nâng cấp: Định dạng tệp tin exe cài đặt không hợp lệ.';
+          updateProgress.isDownloading = false;
+          return;
         } else {
           console.log(`[UPDATER] Verified real installer signature "${signature}" of size ${stats.size}`);
           (global as any).isRealDownloadedInstaller = true;
         }
       }
-    } catch (checkErr) {
+    } catch (checkErr: any) {
       console.warn('[UPDATER] Failed to inspect downloaded file headers, defaulting to real execution', checkErr);
       (global as any).isRealDownloadedInstaller = true;
     }
     console.log(`[UPDATER] Finished downloading update package to: ${downloadedPath}`);
   }).catch((err) => {
-    console.error('[UPDATER] Real download failed, falling back to beautiful animated simulation:', err);
+    console.error('[UPDATER] Real download failed:', err);
     (global as any).isRealDownloadedInstaller = false;
-    
-    // Smooth, animated fallback so UI doesn't jump instantly to 100% on network/TLS issues
-    let mockDownloaded = 0;
-    const mockTotal = 15420310; // ~15 MB
-    const step = 1243000; // increments nicely
-    
-    activeDownloadInterval = setInterval(() => {
-      mockDownloaded += step;
-      if (mockDownloaded >= mockTotal) {
-        mockDownloaded = mockTotal;
-        if (activeDownloadInterval) clearInterval(activeDownloadInterval);
-        activeDownloadInterval = null;
-        updateProgress.downloadedBytes = mockDownloaded;
-        updateProgress.totalBytes = mockTotal;
-        updateProgress.percent = 100;
-        updateProgress.isDownloading = false;
-        try {
-          fs.writeFileSync(destFile, 'MOCK EXE OR ZIP UPDATE FILES FOR SYSTEM RECOVERY', 'utf-8');
-        } catch (e) {}
-        (global as any).downloadedInstallerPath = destFile;
-        console.log(`[UPDATER] Finished fallback simulated download of update package into: ${destFile}`);
-      } else {
-        updateProgress.downloadedBytes = mockDownloaded;
-        updateProgress.totalBytes = mockTotal;
-        updateProgress.percent = Math.round((mockDownloaded / mockTotal) * 100);
-      }
-    }, 150);
+    updateProgress.isDownloading = false;
+    updateProgress.error = `Tải xuống bản cập nhật thất bại: ${err.message || 'Lỗi kết nối hoặc chứng chỉ mạng'}`;
   });
 });
 

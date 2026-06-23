@@ -1183,8 +1183,29 @@ export default function App() {
       const res = await fetch(url);
       
       const contentType = res.headers.get('content-type') || '';
-      if (!res.ok || contentType.includes('text/html')) {
-        throw new Error(`Máy chủ trả về trang HTML thay vì JSON (Code ${res.status}). Có thể bạn đang chạy trên Vercel/Static Host mà chưa bật Express Backend.`);
+      if (!res.ok) {
+        let errMsg = `Cảnh báo kết nối (HTTP ${res.status})`;
+        try {
+          const text = await res.text();
+          if (contentType.includes('application/json')) {
+            try {
+              const errData = JSON.parse(text);
+              errMsg = errData.error || errData.message || errMsg;
+            } catch (_) {
+              errMsg = text || errMsg;
+            }
+          } else {
+            errMsg = text || errMsg;
+          }
+        } catch (_) {}
+        
+        const httpErr = new Error(errMsg);
+        (httpErr as any).status = res.status;
+        throw httpErr;
+      }
+      
+      if (contentType.includes('text/html')) {
+        throw new Error(`Máy chủ trả về trang HTML thay vì JSON. Có thể bạn đang chạy trên Vercel/Static Host mà chưa bật Express Backend.`);
       }
       
       const text = await res.text();
@@ -1224,18 +1245,31 @@ export default function App() {
       }
     } catch (err: any) {
       console.error(err);
-      addLog(`⚠️ Cảnh báo kết nối: ${err.message}`);
+      const isBadRequest = err.status === 400;
+      addLog(`⚠️ Lỗi hệ thống: ${err.message}`);
       
-      // Auto toggle simulation on to let interface keep working
-      if (overrideSim === undefined && !isSimulation) {
+      if (err.status) {
+        triggerToast('error', `API ERROR (${err.status})`, err.message, '🚨');
+      } else {
+        triggerToast('error', 'CONNECTION ERROR', err.message, '🔌');
+      }
+      
+      // Auto toggle simulation on to let interface keep working ONLY if it is not a 400 bad request from live server
+      if (!isBadRequest && overrideSim === undefined && !isSimulation) {
         setIsSimulation(true);
         addLog(`🤖 Đã tự động kích hoạt "Simulation Playground" do Backend không phản hồi chính xác JSON.`);
+        triggerToast('warn', 'OFFLINE PLAYGROUND', 'Mất kết nối với máy chủ, hệ thống đã chuyển sang chế độ giả lập ngoại tuyến!', '🤖');
       }
-      setBackendStatus('unreachable');
+      
+      if (isBadRequest) {
+        setBackendStatus('connected'); // Server is reachable and active, it just returned a valid 400 error!
+      } else {
+        setBackendStatus('unreachable');
+      }
     } finally {
       setIsRefreshing(false);
     }
-  }, [isSimulation, simScenarioId, addLog, wizard.baseBranch]);
+  }, [isSimulation, simScenarioId, addLog, wizard.baseBranch, triggerToast]);
 
   React.useEffect(() => {
     if (isSimulation) {
